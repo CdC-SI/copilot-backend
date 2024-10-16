@@ -2,9 +2,9 @@ spring:
   application:
     name: copilot-backend
   datasource:
-    url: ${DS_URL}
-    username: ${DS_USERNAME}
-    password: ${DS_PASSWORD}
+    url: ${DS_URL:jdbc:postgresql://localhost:5432/pg_db}
+    username: ${DS_USERNAME:admin}
+    password: ${DS_PASSWORD:pg_password}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -18,3 +18,5 @@ spring:
     console:
       enabled: true
       path: /h2-console
+py-backend:
+  baseUrl: ${PY_BACKEND_URL:https://copilot-r.apps.openshift-d.mgnt.zas.admin.ch}
