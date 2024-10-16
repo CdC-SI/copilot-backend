@@ -14,7 +14,7 @@ public class WebClientConfig {
         this.pyBackendProperties = pyBackendProperties;
     }
 
-    @Bean
+    @Bean("pyBackendWebClient")
     public WebClient webClient(WebClient.Builder builder) {
         return builder
                 .baseUrl(pyBackendProperties.getBaseUrl())

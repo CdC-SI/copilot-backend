@@ -8,4 +8,29 @@ Content-Type: application/json
 }
 
 ### Search FAQs items
-GET http://localhost:8080/api/faqs?question=What%20is%20the%20meaning%20of%20life%3F
+GET http://localhost:8080/api/faq-items?question=What%20is%20the%20meaning%20of%20life%3F
+
+### Add a new FAQ item
+PUT http://localhost:8080/api/faq-items
+Content-Type: application/json
+Authorization: Basic admin passwordA
+
+{
+  "text": "What is the meaning of life?",
+  "answer": "42",
+  "url": "https://en.wikipedia.org/wiki/Phrases_from_The_Hitchhiker%27s_Guide_to_the_Galaxy#The_Answer_to_the_Ultimate_Question_of_Life,_the_Universe,_and_Everything",
+  "language": "en"
+}
+
+### Update an existing FAQ item
+PUT http://localhost:8080/api/faq-items
+Content-Type: application/json
+Authorization: Basic admin passwordA
+
+{
+  "id": 1117,
+  "text": "What is the meaning of life?",
+  "answer": "43",
+  "url": "https://en.wikipedia.org/wiki/Phrases_from_The_Hitchhiker%27s_Guide_to_the_Galaxy#The_Answer_to_the_Ultimate_Question_of_Life,_the_Universe,_and_Everything",
+  "language": "en"
+}
