@@ -1,0 +1,8 @@
+### User registration
+POST http://localhost:8080/api/users
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "passwordA"
+}
