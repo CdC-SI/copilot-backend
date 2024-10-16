@@ -35,6 +35,7 @@ public class SecurityConfig {
                 .sessionManagement(smc -> smc.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST,"/api/users").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/faqs/**").permitAll()
                         .requestMatchers("/api/admin/**").hasAnyAuthority("ADMIN")
                         .anyRequest().authenticated())
                 .httpBasic(Customizer.withDefaults())

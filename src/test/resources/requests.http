@@ -6,3 +6,6 @@ Content-Type: application/json
   "username": "admin",
   "password": "passwordA"
 }
+
+### Search FAQs items
+GET http://localhost:8080/api/faqs?question=What%20is%20the%20meaning%20of%20life%3F

@@ -18,3 +18,5 @@ spring:
     console:
       enabled: true
       path: /h2-console
+py-backend:
+  baseUrl: ${PY_BACKEND_URL}
