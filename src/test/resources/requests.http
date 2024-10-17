@@ -34,3 +34,12 @@ Authorization: Basic admin passwordA
   "url": "https://en.wikipedia.org/wiki/Phrases_from_The_Hitchhiker%27s_Guide_to_the_Galaxy#The_Answer_to_the_Ultimate_Question_of_Life,_the_Universe,_and_Everything",
   "language": "en"
 }
+
+### Ask a question
+POST http://localhost:8080/api/conversations
+Content-Type: application/json
+Accept: text/event-stream
+
+{
+  "query": "What is the meaning of life?"
+}
