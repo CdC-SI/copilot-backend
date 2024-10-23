@@ -20,3 +20,6 @@ spring:
       path: /h2-console
 py-backend:
   baseUrl: ${PY_BACKEND_URL:https://copilot-r.apps.openshift-d.mgnt.zas.admin.ch}
+jwt:
+  secret-key: ${JWT_SECRET_KEY:vwMGgsKpZPOm2tPZfSxk+W/vyn1lQ+ax/zd1e+NzT+0=}
+  expiration-time: ${JWT_EXPIRATION_TIME:36000000}

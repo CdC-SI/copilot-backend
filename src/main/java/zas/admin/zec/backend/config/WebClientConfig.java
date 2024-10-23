@@ -6,7 +6,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.reactive.function.client.WebClient;
 
 @Configuration
-@EnableConfigurationProperties(PyBackendProperties.class)
+@EnableConfigurationProperties({PyBackendProperties.class, JwtProperties.class})
 public class WebClientConfig {
     private final PyBackendProperties pyBackendProperties;
 

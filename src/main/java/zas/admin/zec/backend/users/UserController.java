@@ -2,19 +2,31 @@ package zas.admin.zec.backend.users;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
     public record UserRegistration(String username, String password) {}
+    public record UserProfile(String username, List<String> roles) {}
     private final UserService userService;
 
     public UserController(UserService userService) {
         this.userService = userService;
+    }
+
+    @GetMapping("/authenticated")
+    public ResponseEntity<UserProfile> getUser(Authentication authentication) {
+        UserDetails authenticated = (UserDetails) authentication.getPrincipal();
+        return ResponseEntity.ok(new UserProfile(
+                authenticated.getUsername(),
+                authenticated.getAuthorities().stream().map(GrantedAuthority::getAuthority).toList()
+        ));
     }
 
     @PostMapping()
