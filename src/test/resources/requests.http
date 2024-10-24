@@ -43,3 +43,13 @@ Accept: text/event-stream
 {
   "query": "What is the meaning of life?"
 }
+
+### Get all conversation titles for a user
+GET http://localhost:8080/api/conversations/titles
+Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbiIsImlhdCI6MTcyOTY5MzIzOCwiZXhwIjoxNzI5NzI5MjM4fQ.-gNfnndz_qxbnut6DXlonAgJiWUSS9fXS6Wt8dLNTxM
+Accept: application/json
+
+### Get a conversation by its id
+GET http://localhost:8080/api/conversations/1
+Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbiIsImlhdCI6MTcyOTY5MzIzOCwiZXhwIjoxNzI5NzI5MjM4fQ.-gNfnndz_qxbnut6DXlonAgJiWUSS9fXS6Wt8dLNTxM
+Accept: application/json

@@ -17,6 +17,12 @@ public class UserService {
         this.passwordEncoder = passwordEncoder;
     }
 
+    public String getUuid(String username) {
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"))
+                .getUuid();
+    }
+
     public User getByUsername(String username) {
         Optional<UserEntity> byUsername = userRepository.findByUsername(username);
         return byUsername
