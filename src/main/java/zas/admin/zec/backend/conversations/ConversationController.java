@@ -74,7 +74,7 @@ public class ConversationController {
     }
 
     @PutMapping("/{conversationId}")
-    public ResponseEntity<Void> saveMessage(@PathVariable String conversationId, @RequestBody List<Message> messages, Authentication authentication) {
+    public ResponseEntity<Void> updateConversation(@PathVariable String conversationId, @RequestBody List<Message> messages, Authentication authentication) {
         var userUuid = userService.getUuid(authentication.getName());
         conversationService.update(userUuid, conversationId, messages);
 
