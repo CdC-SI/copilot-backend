@@ -41,7 +41,9 @@ Content-Type: application/json
 Accept: text/event-stream
 
 {
-  "query": "What is the meaning of life?"
+  "query": "What is the meaning of life?",
+  "rag": true,
+  "conversationId": "1"
 }
 
 ### Get all conversation titles for a user

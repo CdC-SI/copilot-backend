@@ -3,6 +3,7 @@ package zas.admin.zec.backend.conversations;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferUtils;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -12,19 +13,23 @@ import reactor.core.publisher.Flux;
 import zas.admin.zec.backend.users.UserService;
 
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/conversations")
 public class ConversationController {
-    public record Question(String query) {}
     @Qualifier("pyBackendWebClient")
     private final WebClient pyBackendWebClient;
     private final UserService userService;
+    private final ConversationService conversationService;
 
-    public ConversationController(WebClient pyBackendWebClient, UserService userService) {
+    public ConversationController(WebClient pyBackendWebClient, UserService userService, ConversationService conversationService) {
         this.pyBackendWebClient = pyBackendWebClient;
         this.userService = userService;
+        this.conversationService = conversationService;
     }
 
     @GetMapping("/titles")
@@ -59,12 +64,25 @@ public class ConversationController {
         return ResponseEntity.ok(messages);
     }
 
+    @PostMapping("/init")
+    public ResponseEntity<Void> initConversation(@RequestBody List<Message> messages, Authentication authentication) {
+        var userUuid = userService.getUuid(authentication.getName());
+        var conversationId = UUID.randomUUID().toString();
+        conversationService.initConversation(userUuid, conversationId, messages);
+
+        return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
     @PostMapping(produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<String> askQuestion(@RequestBody Question question) {
+    public Flux<String> askQuestion(@RequestBody Question question, Authentication authentication) {
+        var userUuid = authentication != null
+                ? userService.getUuid(authentication.getName())
+                : null;
+
         return pyBackendWebClient.post()
                 .uri("/apy/rag/query")
                 .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(question)
+                .bodyValue(questionToChatRequest(question, userUuid))
                 .accept(MediaType.TEXT_EVENT_STREAM)
                 .exchangeToFlux(response -> {
                     if (response.statusCode().is2xxSuccessful()) {
@@ -78,5 +96,34 @@ public class ConversationController {
                         return response.createException().flatMapMany(Flux::error);
                     }
                 });
+    }
+
+    private Map<String, Object> questionToChatRequest(Question question, String userUuid) {
+        Map<String, Object> chatRequest = new HashMap<>();
+        chatRequest.put("query", question.query());
+        chatRequest.put("autocomplete", question.autocomplete());
+        chatRequest.put("rag", question.rag());
+        addEntryIfValueNotNull(chatRequest, "language", question.language());
+        addEntryIfValueNotNull(chatRequest, "llm_model", question.llmModel());
+        addEntryIfValueNotNull(chatRequest, "response_style", question.responseStyle());
+        addEntryIfValueNotNull(chatRequest, "user_uuid", userUuid);
+        addEntryIfValueNotNull(chatRequest, "k_memory", question.kMemory());
+        addEntryIfValueNotNull(chatRequest, "tag", question.tags());
+        addEntryIfValueNotNull(chatRequest, "source", question.sources());
+        addEntryIfValueNotNull(chatRequest, "retrieval_method", question.retrievalMethods());
+
+        if (userUuid != null && question.conversationId() == null) {
+            chatRequest.put("conversation_uuid", UUID.randomUUID().toString());
+        } else {
+            addEntryIfValueNotNull(chatRequest, "conversation_uuid", question.conversationId());
+        }
+
+        return chatRequest;
+    }
+
+    private void addEntryIfValueNotNull(Map<String, Object> map, String key, Object value) {
+        if (value != null) {
+            map.put(key, value);
+        }
     }
 }

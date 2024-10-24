@@ -3,8 +3,8 @@ spring:
     name: copilot-backend
   datasource:
     url: ${DS_URL:jdbc:postgresql://localhost:5432/pg_db}
-    username: ${DS_USERNAME:admin}
-    password: ${DS_PASSWORD:pg_password}
+    username: ${DS_USERNAME}
+    password: ${DS_PASSWORD}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -12,14 +12,14 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-        format_sql: true
-        show_sql: true
+        format_sql: false
+        show_sql: false
   h2:
     console:
       enabled: true
       path: /h2-console
 py-backend:
-  baseUrl: ${PY_BACKEND_URL:https://copilot-r.apps.openshift-d.mgnt.zas.admin.ch}
+  baseUrl: ${PY_BACKEND_URL}
 jwt:
-  secret-key: ${JWT_SECRET_KEY:vwMGgsKpZPOm2tPZfSxk+W/vyn1lQ+ax/zd1e+NzT+0=}
+  secret-key: ${JWT_SECRET_KEY}
   expiration-time: ${JWT_EXPIRATION_TIME:36000000}

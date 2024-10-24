@@ -1,14 +1,18 @@
 package zas.admin.zec.backend.conversations;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
+import jakarta.annotation.Nullable;
 
 import java.time.LocalDateTime;
 
 public record Message(
-        @JsonAlias("message_uuid") String messageId,
-        @JsonAlias("user_uuid") String userId,
-        @JsonAlias("conversation_uuid") String conversationId,
+        @Nullable @JsonAlias("message_uuid") String messageId,
+        @Nullable @JsonAlias("user_uuid") String userId,
+        @Nullable @JsonAlias("conversation_uuid") String conversationId,
+        @Nullable @JsonAlias("faq_id") Long faqItemId,
+        @JsonAlias("lang") String language,
         String message,
-        String role,
+        @JsonAlias("source") String role,
+        @Nullable String url,
         LocalDateTime timestamp) {
 }
