@@ -73,6 +73,14 @@ public class ConversationController {
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
+    @PutMapping("/{conversationId}")
+    public ResponseEntity<Void> saveMessage(@PathVariable String conversationId, @RequestBody List<Message> messages, Authentication authentication) {
+        var userUuid = userService.getUuid(authentication.getName());
+        conversationService.update(userUuid, conversationId, messages);
+
+        return ResponseEntity.ok().build();
+    }
+
     @PostMapping(produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<String> askQuestion(@RequestBody Question question, Authentication authentication) {
         var userUuid = authentication != null

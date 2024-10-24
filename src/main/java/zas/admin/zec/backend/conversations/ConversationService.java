@@ -31,7 +31,16 @@ public class ConversationService {
 
         conversationTitleRepository.save(title);
     }
-    public void save(Message message, String userId, String conversationId) {
+    public void update(String userUuid, String conversationId, List<Message> messages) {
+        conversationTitleRepository.findByUserIdAndConversationId(userUuid, conversationId)
+                .ifPresent(title -> {
+                    for (Message message : messages) {
+                        save(message, title.getUserId(), title.getConversationId());
+                    }
+                });
+    }
+
+    private void save(Message message, String userId, String conversationId) {
         var entity = new MessageEntity();
         entity.setUserId(userId);
         entity.setConversationId(conversationId);
