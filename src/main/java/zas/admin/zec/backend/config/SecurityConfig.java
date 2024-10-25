@@ -44,7 +44,7 @@ public class SecurityConfig {
                 .sessionManagement(smc -> smc.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST,"/api/users", "/api/conversations/**", "/api/auth").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/faq-items").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/faq-items", "/api/settings").permitAll()
                         .requestMatchers("/api/admin/**", "/api/faq-items").hasAnyAuthority("ADMIN")
                         .anyRequest().authenticated())
                 .authenticationProvider(daoAuthenticationProvider());

@@ -66,3 +66,6 @@ Content-Type: application/json
   "comment": "because",
   "isPositive": false
 }
+
+### Get sources setting
+GET http://localhost:8080/api/settings?type=LLM_MODEL
