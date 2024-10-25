@@ -1,5 +1,6 @@
 package zas.admin.zec.backend.conversations;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferUtils;
@@ -18,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/conversations")
 public class ConversationController {
@@ -97,6 +99,7 @@ public class ConversationController {
                         return response.bodyToFlux(DataBuffer.class)
                                 .map(dataBuffer -> {
                                     String chunk = dataBuffer.toString(StandardCharsets.UTF_8);
+                                    log.info("Received chunk: {}", chunk);
                                     DataBufferUtils.release(dataBuffer);
                                     return chunk;
                                 });
@@ -104,6 +107,25 @@ public class ConversationController {
                         return response.createException().flatMapMany(Flux::error);
                     }
                 });
+    }
+
+    @PostMapping("/feedbacks")
+    public ResponseEntity<Void> sendFeedback(@RequestBody Feedback feedback, Authentication authentication) {
+        var userUuid = userService.getUuid(authentication.getName());
+        pyBackendWebClient.put()
+                .uri(uriBuilder -> uriBuilder.path(feedback.isPositive()
+                                ? "/apy/conversations/feedback/thumbs_up"
+                                : "/apy/conversations/feedback/thumbs_down")
+                        .queryParam("user_uuid", userUuid)
+                        .queryParam("conversation_uuid", feedback.conversationId())
+                        .queryParam("message_uuid", feedback.messageId())
+                        .queryParam("comment", feedback.comment())
+                        .build())
+                .retrieve()
+                .toBodilessEntity()
+                .block();
+
+        return ResponseEntity.ok().build();
     }
 
     private Map<String, Object> questionToChatRequest(Question question, String userUuid) {

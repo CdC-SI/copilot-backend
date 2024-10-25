@@ -55,3 +55,14 @@ Accept: application/json
 GET http://localhost:8080/api/conversations/1
 Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbiIsImlhdCI6MTcyOTY5MzIzOCwiZXhwIjoxNzI5NzI5MjM4fQ.-gNfnndz_qxbnut6DXlonAgJiWUSS9fXS6Wt8dLNTxM
 Accept: application/json
+
+### Send a feedback
+POST http://localhost:8080/api/conversations/feedbacks
+Content-Type: application/json
+
+{
+  "conversationId": "c4560e6a-b211-4c89-b875-6b39f509c97d",
+  "messageId": "918d9429-dc39-4d59-9a35-322fa45a3a31",
+  "comment": "because",
+  "isPositive": false
+}
