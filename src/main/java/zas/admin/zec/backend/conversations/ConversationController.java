@@ -89,7 +89,23 @@ public class ConversationController {
                 ? userService.getUuid(authentication.getName())
                 : null;
 
-        return pyBackendWebClient.post()
+        // make orchestrator call
+        String copilotEndpoint = WebClient.create("http://host.docker.internal:8010")
+            .get()
+            .uri(uriBuilder -> uriBuilder.path("/apy/orchestrator/query")
+                    .queryParam("query", question)
+                    .build())
+            .retrieve()
+            .bodyToMono(String.class)
+            .block();
+
+        log.info("Response from orchestrator: {}", copilotEndpoint);
+
+        WebClient dynamicPyBackendWebClient = pyBackendWebClient.mutate()
+            .baseUrl(copilotEndpoint)
+            .build();
+
+        return dynamicPyBackendWebClient.post()
                 .uri("/apy/rag/query")
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(questionToChatRequest(question, userUuid))
