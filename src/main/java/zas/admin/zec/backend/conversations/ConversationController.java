@@ -133,14 +133,22 @@ public class ConversationController {
         chatRequest.put("query", question.query());
         chatRequest.put("autocomplete", question.autocomplete());
         chatRequest.put("rag", question.rag());
-        addEntryIfValueNotNull(chatRequest, "language", question.language());
+        chatRequest.put("language", question.language());
         addEntryIfValueNotNull(chatRequest, "llm_model", question.llmModel());
+        addEntryIfValueNotNull(chatRequest, "temperature", question.temperature());
+        addEntryIfValueNotNull(chatRequest, "top_p", question.topP());
+        addEntryIfValueNotNull(chatRequest, "max_output_tokens", question.maxOutputTokens());
         addEntryIfValueNotNull(chatRequest, "response_style", question.responseStyle());
         addEntryIfValueNotNull(chatRequest, "user_uuid", userUuid);
         addEntryIfValueNotNull(chatRequest, "k_memory", question.kMemory());
-        addEntryIfValueNotNull(chatRequest, "tag", question.tags());
+        addEntryIfValueNotNull(chatRequest, "tags", question.tags());
         addEntryIfValueNotNull(chatRequest, "source", question.sources());
         addEntryIfValueNotNull(chatRequest, "retrieval_method", question.retrievalMethods());
+        addEntryIfValueNotNull(chatRequest, "k_retrieve", question.kRetrieve());
+        addEntryIfValueNotNull(chatRequest, "command", question.command());
+        addEntryIfValueNotNull(chatRequest, "command_args", question.commandArgs());
+        addEntryIfValueNotNull(chatRequest, "agentic_rag", question.agenticRag());
+        addEntryIfValueNotNull(chatRequest, "is_followup_q", question.isFollowUpQ());
 
         if (userUuid != null && question.conversationId() == null) {
             chatRequest.put("conversation_uuid", UUID.randomUUID().toString());
