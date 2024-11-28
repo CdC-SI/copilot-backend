@@ -22,7 +22,7 @@ public class SettingController {
     @GetMapping()
     public ResponseEntity<String[]> getSettings(@RequestParam SettingType type) {
         return ResponseEntity.ok(pyBackendClient.get()
-                .uri("/apy/search/" + type.getName())
+                .uri("/apy/options/" + type.getName())
                 .retrieve()
                 .bodyToMono(String[].class)
                 .block());
