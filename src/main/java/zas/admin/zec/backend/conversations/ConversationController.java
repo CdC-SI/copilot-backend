@@ -90,7 +90,7 @@ public class ConversationController {
                 : null;
 
         return pyBackendWebClient.post()
-                .uri("/apy/rag/query")
+                .uri("/apy/chat/query")
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(questionToChatRequest(question, userUuid))
                 .accept(MediaType.TEXT_EVENT_STREAM)
