@@ -38,7 +38,7 @@ public class ConversationController {
     public ResponseEntity<List<ConversationTitle>> getConversationTitles(Authentication authentication) {
         var userUuid = userService.getUuid(authentication.getName());
         List<ConversationTitle> titles = pyBackendWebClient.get()
-                .uri(uriBuilder -> uriBuilder.path("/apy/conversations/titles")
+                .uri(uriBuilder -> uriBuilder.path("/apy/v1/conversations/titles")
                         .queryParam("user_uuid", userUuid)
                         .build())
                 .retrieve()
@@ -54,7 +54,7 @@ public class ConversationController {
     public ResponseEntity<List<Message>> getConversation(@PathVariable String conversationId, Authentication authentication) {
         var userUuid = userService.getUuid(authentication.getName());
         List<Message> messages = pyBackendWebClient.get()
-                .uri(uriBuilder -> uriBuilder.path("/apy/conversations/")
+                .uri(uriBuilder -> uriBuilder.path("/apy/v1/conversations/")
                         .path(conversationId)
                         .build())
                 .retrieve()
@@ -90,7 +90,7 @@ public class ConversationController {
                 : null;
 
         return pyBackendWebClient.post()
-                .uri("/apy/chat/query")
+                .uri("/apy/v1/chat/query")
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(questionToChatRequest(question, userUuid))
                 .accept(MediaType.TEXT_EVENT_STREAM)
@@ -114,8 +114,8 @@ public class ConversationController {
         var userUuid = userService.getUuid(authentication.getName());
         pyBackendWebClient.put()
                 .uri(uriBuilder -> uriBuilder.path(feedback.isPositive()
-                                ? "/apy/conversations/feedback/thumbs_up"
-                                : "/apy/conversations/feedback/thumbs_down")
+                                ? "/apy/v1/conversations/feedback/thumbs_up"
+                                : "/apy/v1/conversations/feedback/thumbs_down")
                         .queryParam("user_uuid", userUuid)
                         .queryParam("conversation_uuid", feedback.conversationId())
                         .queryParam("message_uuid", feedback.messageId())
