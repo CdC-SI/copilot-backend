@@ -139,6 +139,7 @@ public class ConversationController {
         addEntryIfValueNotNull(chatRequest, "top_p", question.topP());
         addEntryIfValueNotNull(chatRequest, "max_output_tokens", question.maxOutputTokens());
         addEntryIfValueNotNull(chatRequest, "response_style", question.responseStyle());
+        addEntryIfValueNotNull(chatRequest, "response_format", question.responseFormat());
         addEntryIfValueNotNull(chatRequest, "user_uuid", userUuid);
         addEntryIfValueNotNull(chatRequest, "k_memory", question.kMemory());
         addEntryIfValueNotNull(chatRequest, "tags", question.tags());

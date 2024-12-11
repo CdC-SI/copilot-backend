@@ -17,6 +17,7 @@ public record Question(
     Integer kRetrieve,
     Integer kMemory,
     String responseStyle,
+    String responseFormat,
     String command,
     String commandArgs,
     Boolean autocomplete,

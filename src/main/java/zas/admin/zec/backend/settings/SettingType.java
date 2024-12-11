@@ -11,6 +11,7 @@ public enum SettingType {
     TAG("tags"),
     RETRIEVAL_METHOD("retrieval_methods"),
     RESPONSE_STYLE("response_style"),
+    RESPONSE_FORMAT("response_format"),
     AUTHORIZED_COMMANDS("authorized_commands");
 
     private final String name;
