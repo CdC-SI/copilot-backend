@@ -149,6 +149,8 @@ public class ConversationController {
         addEntryIfValueNotNull(chatRequest, "command", question.command());
         addEntryIfValueNotNull(chatRequest, "command_args", question.commandArgs());
         addEntryIfValueNotNull(chatRequest, "agentic_rag", question.agenticRag());
+        addEntryIfValueNotNull(chatRequest, "source_validation", question.sourceValidation());
+        addEntryIfValueNotNull(chatRequest, "topic_check", question.topicCheck());
         addEntryIfValueNotNull(chatRequest, "is_followup_q", question.isFollowUpQ());
 
         if (userUuid != null && question.conversationId() == null) {

@@ -23,6 +23,8 @@ public record Question(
     Boolean autocomplete,
     Boolean rag,
     Boolean agenticRag,
+    Boolean sourceValidation,
+    Boolean topicCheck,
     Boolean isFollowUpQ,
     String conversationId
 ) {}
