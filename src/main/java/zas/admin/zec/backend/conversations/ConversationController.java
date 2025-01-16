@@ -89,10 +89,17 @@ public class ConversationController {
                 ? userService.getUuid(authentication.getName())
                 : null;
 
+        List<String> userOrganizations = null;
+        if (authentication != null) {
+            userOrganizations = userService.getOrganizations(authentication.getName());
+        }
+
+        Map<String, Object> requestBody = questionToChatRequest(question, userUuid, userOrganizations);
+
         return pyBackendWebClient.post()
                 .uri("/apy/v1/chat/query")
                 .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(questionToChatRequest(question, userUuid))
+                .bodyValue(requestBody)
                 .accept(MediaType.TEXT_EVENT_STREAM)
                 .exchangeToFlux(response -> {
                     if (response.statusCode().is2xxSuccessful()) {
@@ -128,7 +135,7 @@ public class ConversationController {
         return ResponseEntity.ok().build();
     }
 
-    private Map<String, Object> questionToChatRequest(Question question, String userUuid) {
+    private Map<String, Object> questionToChatRequest(Question question, String userUuid, List<String> organizations) {
         Map<String, Object> chatRequest = new HashMap<>();
         chatRequest.put("query", question.query());
         chatRequest.put("autocomplete", question.autocomplete());
@@ -141,6 +148,7 @@ public class ConversationController {
         addEntryIfValueNotNull(chatRequest, "response_style", question.responseStyle());
         addEntryIfValueNotNull(chatRequest, "response_format", question.responseFormat());
         addEntryIfValueNotNull(chatRequest, "user_uuid", userUuid);
+        addEntryIfValueNotNull(chatRequest, "organizations", organizations);
         addEntryIfValueNotNull(chatRequest, "k_memory", question.kMemory());
         addEntryIfValueNotNull(chatRequest, "tags", question.tags());
         addEntryIfValueNotNull(chatRequest, "source", question.sources());
@@ -152,6 +160,12 @@ public class ConversationController {
         addEntryIfValueNotNull(chatRequest, "source_validation", question.sourceValidation());
         addEntryIfValueNotNull(chatRequest, "topic_check", question.topicCheck());
         addEntryIfValueNotNull(chatRequest, "is_followup_q", question.isFollowUpQ());
+
+        if (organizations != null && !organizations.isEmpty()) {
+            chatRequest.put("organizations", organizations);
+        } else {
+            log.warn("No organizations found for request");
+        }
 
         if (userUuid != null && question.conversationId() == null) {
             chatRequest.put("conversation_uuid", UUID.randomUUID().toString());

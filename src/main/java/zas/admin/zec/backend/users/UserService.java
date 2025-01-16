@@ -23,6 +23,13 @@ public class UserService {
                 .getUuid();
     }
 
+    public List<String> getOrganizations(String username) {
+        List<String> orgs = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"))
+                .getOrganizations();
+        return orgs;
+    }
+
     public User getByUsername(String username) {
         Optional<UserEntity> byUsername = userRepository.findByUsername(username);
         return byUsername
