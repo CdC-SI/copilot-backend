@@ -13,7 +13,8 @@ public enum SettingType {
     RESPONSE_STYLE("response_style"),
     RESPONSE_FORMAT("response_format"),
     AUTHORIZED_COMMANDS("authorized_commands"),
-    PROJECT_VERSION("project_version");
+    PROJECT_VERSION("project_version"),
+    ORGANIZATION("organization");
 
     private final String name;
 }
