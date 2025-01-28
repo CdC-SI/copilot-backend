@@ -29,7 +29,7 @@ public class SettingController {
 
         String uri = "/apy/v1/settings/" + type.getName();
 
-        if (type == SettingType.SOURCE && authentication != null) {
+        if ((type == SettingType.SOURCE || type == SettingType.TAG) && authentication != null) {
             String userUuid = userService.getUuid(authentication.getName());
 
             List<String> organizations = userService.getOrganizations(authentication.getName());
