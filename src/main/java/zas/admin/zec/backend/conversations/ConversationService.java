@@ -40,6 +40,11 @@ public class ConversationService {
                 });
     }
 
+    public void delete(String userId, String conversationId) {
+        conversationRepository.deleteByUserIdAndConversationId(userId, conversationId);
+        conversationTitleRepository.deleteByUserIdAndConversationId(userId, conversationId);
+    }
+
     private void save(Message message, String userId, String conversationId) {
         var entity = new MessageEntity();
         entity.setUserId(userId);

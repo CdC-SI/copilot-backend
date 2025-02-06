@@ -83,6 +83,13 @@ public class ConversationController {
         return ResponseEntity.ok().build();
     }
 
+    @DeleteMapping("/{conversationId}")
+    public ResponseEntity<Void> deleteConversation(@PathVariable String conversationId, Authentication authentication) {
+        var userUuid = userService.getUuid(authentication.getName());
+        conversationService.delete(userUuid, conversationId);
+        return ResponseEntity.ok().build();
+    }
+
     @PostMapping(produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<String> askQuestion(@RequestBody Question question, Authentication authentication) {
         var userUuid = authentication != null
