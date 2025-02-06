@@ -46,6 +46,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST,"/api/users", "/api/conversations/**", "/api/auth").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/faq-items", "/api/settings", "/api/conversations/**").permitAll()
                         .requestMatchers(HttpMethod.DELETE, "/api/conversations/**").permitAll()
+                        .requestMatchers(HttpMethod.PUT, "/api/conversations/**").permitAll()
                         .requestMatchers("/api/admin/**", "/api/faq-items").hasAnyAuthority("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/documents/**").authenticated()
                         .anyRequest().authenticated())
