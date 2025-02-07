@@ -83,6 +83,31 @@ public class ConversationController {
         return ResponseEntity.ok().build();
     }
 
+    @PutMapping("/{conversationId}/title")
+    public ResponseEntity<Map<String, Object>> updateConversationTitle(
+            @PathVariable String conversationId,
+            @RequestBody Map<String, String> titleRequest,
+            Authentication authentication) {
+        var userUuid = userService.getUuid(authentication.getName());
+
+        pyBackendWebClient.put()
+                .uri(uriBuilder -> uriBuilder.path("/apy/v1/conversations/")
+                        .path(conversationId)
+                        .path("/title")
+                        .build())
+                .bodyValue(titleRequest)
+                .retrieve()
+                .toEntity(Map.class)
+                .block();
+
+        conversationService.renameConversation(userUuid, conversationId, titleRequest.get("title"));
+
+        return ResponseEntity.ok(Map.of(
+                "status", "success",
+                "message", "Title updated successfully"
+        ));
+    }
+
     @DeleteMapping("/{conversationId}")
     public ResponseEntity<Void> deleteConversation(@PathVariable String conversationId, Authentication authentication) {
         var userUuid = userService.getUuid(authentication.getName());
