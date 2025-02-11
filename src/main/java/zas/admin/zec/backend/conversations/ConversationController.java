@@ -50,6 +50,28 @@ public class ConversationController {
         return ResponseEntity.ok(titles);
     }
 
+    @PutMapping("/titles/{conversationId}")
+    public ResponseEntity<Void> updateConversationTitle(@PathVariable String conversationId,
+                                                        @RequestBody ConversationTitleUpdate titleUpdate,
+                                                        Authentication authentication) {
+
+        var userUuid = userService.getUuid(authentication.getName());
+
+        pyBackendWebClient.put()
+                .uri(uriBuilder -> uriBuilder.path("/apy/v1/conversations/")
+                        .path(conversationId)
+                        .path("/title")
+                        .build())
+                .bodyValue(titleUpdate)
+                .retrieve()
+                .toEntity(Map.class)
+                .block();
+
+        conversationService.renameConversation(userUuid, conversationId, titleUpdate.newTitle());
+
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping("/{conversationId}")
     public ResponseEntity<List<Message>> getConversation(@PathVariable String conversationId, Authentication authentication) {
         var userUuid = userService.getUuid(authentication.getName());
@@ -81,31 +103,6 @@ public class ConversationController {
         conversationService.update(userUuid, conversationId, messages);
 
         return ResponseEntity.ok().build();
-    }
-
-    @PutMapping("/{conversationId}/title")
-    public ResponseEntity<Map<String, Object>> updateConversationTitle(
-            @PathVariable String conversationId,
-            @RequestBody Map<String, String> titleRequest,
-            Authentication authentication) {
-        var userUuid = userService.getUuid(authentication.getName());
-
-        pyBackendWebClient.put()
-                .uri(uriBuilder -> uriBuilder.path("/apy/v1/conversations/")
-                        .path(conversationId)
-                        .path("/title")
-                        .build())
-                .bodyValue(titleRequest)
-                .retrieve()
-                .toEntity(Map.class)
-                .block();
-
-        conversationService.renameConversation(userUuid, conversationId, titleRequest.get("title"));
-
-        return ResponseEntity.ok(Map.of(
-                "status", "success",
-                "message", "Title updated successfully"
-        ));
     }
 
     @DeleteMapping("/{conversationId}")
