@@ -1,6 +1,7 @@
 package zas.admin.zec.backend.conversations;
 
 import io.hypersistence.utils.hibernate.type.array.IntArrayType;
+import io.hypersistence.utils.hibernate.type.array.StringArrayType;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -40,8 +41,9 @@ public class MessageEntity {
     @Column(name = "timestamp", nullable = false)
     private LocalDateTime timestamp;
 
-    @Column(name = "url")
-    private String url;
+    @Type(StringArrayType.class)
+    @Column(name = "sources", columnDefinition = "text[]")
+    private String[] sources;
 
     @Column(name = "faq_id")
     private Long faqId;

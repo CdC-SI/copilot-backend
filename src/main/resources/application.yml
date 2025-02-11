@@ -21,11 +21,14 @@ spring:
   servlet:
     multipart:
       enabled: true
-      max-file-size: 10MB
-      max-request-size: 10MB
+      max-file-size: 20MB
+      max-request-size: 20MB
       file-size-threshold: 2KB
 py-backend:
   baseUrl: ${PY_BACKEND_URL}
 jwt:
   secret-key: ${JWT_SECRET_KEY}
   expiration-time: ${JWT_EXPIRATION_TIME:36000000}
+server:
+  tomcat:
+    max-swallow-size: -1
