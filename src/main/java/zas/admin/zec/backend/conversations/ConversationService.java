@@ -41,6 +41,20 @@ public class ConversationService {
                 });
     }
 
+    public void delete(String userId, String conversationId) {
+        conversationRepository.deleteByUserIdAndConversationId(userId, conversationId);
+        conversationTitleRepository.deleteByUserIdAndConversationId(userId, conversationId);
+    }
+
+    public void renameConversation(String userId, String conversationId, String newTitle) {
+        conversationTitleRepository.findByUserIdAndConversationId(userId, conversationId)
+                .ifPresent(title -> {
+                    title.setTitle(newTitle);
+                    title.setTimestamp(LocalDateTime.now());
+                    conversationTitleRepository.save(title);
+                });
+    }
+
     private void save(Message message, String userId, String conversationId) {
         var entity = new MessageEntity();
         entity.setUserId(userId);
