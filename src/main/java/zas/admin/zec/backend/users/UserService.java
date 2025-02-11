@@ -24,10 +24,9 @@ public class UserService {
     }
 
     public List<String> getOrganizations(String username) {
-        List<String> orgs = userRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"))
-                .getOrganizations();
-        return orgs;
+        UserEntity user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        return user.getOrganizations();
     }
 
     public User getByUsername(String username) {
