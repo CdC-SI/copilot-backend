@@ -23,14 +23,23 @@ public class UserService {
                 .getUuid();
     }
 
+    public List<String> getOrganizations(String username) {
+        UserEntity user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        return user.getOrganizations();
+    }
+
     public User getByUsername(String username) {
         Optional<UserEntity> byUsername = userRepository.findByUsername(username);
         return byUsername
-                .map(userEntity -> new User(userEntity.getUsername(), userEntity.getPassword(), userEntity.getRoles().stream().map(Role::from).toList()))
+                .map(userEntity -> new User(userEntity.getUsername(),
+                                          userEntity.getPassword(),
+                                          userEntity.getRoles().stream().map(Role::from).toList(),
+                                          userEntity.getOrganizations()))
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
     }
 
-    public String register(String username, String password) {
+    public String register(String username, String password, List<String> organizations) {
         if (userRepository.findByUsername(username).isPresent()) {
             throw new IllegalArgumentException("User already exists");
         }
@@ -39,8 +48,10 @@ public class UserService {
         user.setUuid(UUID.randomUUID().toString());
         user.setUsername(username);
         user.setPassword(passwordEncoder.encode(password));
+        user.setOrganizations(organizations);
         user.setRoles(List.of(Role.USER.name()));
 
-        return userRepository.save(user).getUuid();
+        UserEntity savedUser = userRepository.save(user);
+        return savedUser.getUuid();
     }
 }

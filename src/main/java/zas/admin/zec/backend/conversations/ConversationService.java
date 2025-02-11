@@ -5,6 +5,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -40,6 +41,20 @@ public class ConversationService {
                 });
     }
 
+    public void delete(String userId, String conversationId) {
+        conversationRepository.deleteByUserIdAndConversationId(userId, conversationId);
+        conversationTitleRepository.deleteByUserIdAndConversationId(userId, conversationId);
+    }
+
+    public void renameConversation(String userId, String conversationId, String newTitle) {
+        conversationTitleRepository.findByUserIdAndConversationId(userId, conversationId)
+                .ifPresent(title -> {
+                    title.setTitle(newTitle);
+                    title.setTimestamp(LocalDateTime.now());
+                    conversationTitleRepository.save(title);
+                });
+    }
+
     private void save(Message message, String userId, String conversationId) {
         var entity = new MessageEntity();
         entity.setUserId(userId);
@@ -49,8 +64,10 @@ public class ConversationService {
         entity.setMessage(message.message());
         entity.setLanguage(message.language());
         entity.setTimestamp(message.timestamp());
-        entity.setUrl(message.url());
         entity.setFaqId(message.faqItemId());
+        entity.setSources(Objects.isNull(message.sources())
+                ? new String[0]
+                : message.sources().toArray(String[]::new));
 
         conversationRepository.save(entity);
     }

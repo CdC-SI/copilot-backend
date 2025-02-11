@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.annotation.Nullable;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record Message(
         @Nullable @JsonAlias("message_uuid") String messageId,
@@ -13,6 +14,6 @@ public record Message(
         @JsonAlias("lang") String language,
         String message,
         @JsonAlias("source") String role,
-        @Nullable String url,
+        @Nullable List<String> sources,
         LocalDateTime timestamp) {
 }

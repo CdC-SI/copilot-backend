@@ -27,8 +27,12 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         }
 
         UserEntity userEntity = byUsername.get();
-        return new User(userEntity.getUsername(), userEntity.getPassword(), userEntity.getRoles().stream()
+        return new User(
+            userEntity.getUsername(),
+            userEntity.getPassword(),
+            userEntity.getRoles().stream()
                 .map(SimpleGrantedAuthority::new)
-                .toList());
+                .toList()
+        );
     }
 }

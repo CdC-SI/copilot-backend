@@ -21,7 +21,7 @@ public class FAQItemsController {
     @GetMapping
     public ResponseEntity<Object> searchFAQItems(@RequestParam String question) {
         return pyBackendWebClient.get()
-                .uri(uriBuilder -> uriBuilder.path("/apy/autocomplete/")
+                .uri(uriBuilder -> uriBuilder.path("/apy/v1/autocomplete/")
                         .queryParam("question", question)
                         .build())
                 .retrieve()
@@ -32,7 +32,7 @@ public class FAQItemsController {
     @PutMapping
     public ResponseEntity<Object> updateFAQItem(@RequestBody FAQItem faqItem) {
         return pyBackendWebClient.put()
-                .uri(uriBuilder -> uriBuilder.path("/apy/indexing/data")
+                .uri(uriBuilder -> uriBuilder.path("/apy/v1/indexing/data")
                         .build())
                 .bodyValue(faqItem)
                 .retrieve()

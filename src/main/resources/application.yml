@@ -18,8 +18,17 @@ spring:
     console:
       enabled: true
       path: /h2-console
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 20MB
+      max-request-size: 20MB
+      file-size-threshold: 2KB
 py-backend:
   baseUrl: ${PY_BACKEND_URL}
 jwt:
   secret-key: ${JWT_SECRET_KEY}
   expiration-time: ${JWT_EXPIRATION_TIME:36000000}
+server:
+  tomcat:
+    max-swallow-size: -1

@@ -38,7 +38,7 @@ public class ConversationController {
     public ResponseEntity<List<ConversationTitle>> getConversationTitles(Authentication authentication) {
         var userUuid = userService.getUuid(authentication.getName());
         List<ConversationTitle> titles = pyBackendWebClient.get()
-                .uri(uriBuilder -> uriBuilder.path("/apy/conversations/titles")
+                .uri(uriBuilder -> uriBuilder.path("/apy/v1/conversations/titles")
                         .queryParam("user_uuid", userUuid)
                         .build())
                 .retrieve()
@@ -50,11 +50,33 @@ public class ConversationController {
         return ResponseEntity.ok(titles);
     }
 
+    @PutMapping("/titles/{conversationId}")
+    public ResponseEntity<Void> updateConversationTitle(@PathVariable String conversationId,
+                                                        @RequestBody ConversationTitleUpdate titleUpdate,
+                                                        Authentication authentication) {
+
+        var userUuid = userService.getUuid(authentication.getName());
+
+        pyBackendWebClient.put()
+                .uri(uriBuilder -> uriBuilder.path("/apy/v1/conversations/")
+                        .path(conversationId)
+                        .path("/title")
+                        .build())
+                .bodyValue(titleUpdate)
+                .retrieve()
+                .toEntity(Map.class)
+                .block();
+
+        conversationService.renameConversation(userUuid, conversationId, titleUpdate.newTitle());
+
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping("/{conversationId}")
     public ResponseEntity<List<Message>> getConversation(@PathVariable String conversationId, Authentication authentication) {
         var userUuid = userService.getUuid(authentication.getName());
         List<Message> messages = pyBackendWebClient.get()
-                .uri(uriBuilder -> uriBuilder.path("/apy/conversations/")
+                .uri(uriBuilder -> uriBuilder.path("/apy/v1/conversations/")
                         .path(conversationId)
                         .build())
                 .retrieve()
@@ -83,16 +105,30 @@ public class ConversationController {
         return ResponseEntity.ok().build();
     }
 
+    @DeleteMapping("/{conversationId}")
+    public ResponseEntity<Void> deleteConversation(@PathVariable String conversationId, Authentication authentication) {
+        var userUuid = userService.getUuid(authentication.getName());
+        conversationService.delete(userUuid, conversationId);
+        return ResponseEntity.ok().build();
+    }
+
     @PostMapping(produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<String> askQuestion(@RequestBody Question question, Authentication authentication) {
         var userUuid = authentication != null
                 ? userService.getUuid(authentication.getName())
                 : null;
 
+        List<String> userOrganizations = null;
+        if (authentication != null) {
+            userOrganizations = userService.getOrganizations(authentication.getName());
+        }
+
+        Map<String, Object> requestBody = questionToChatRequest(question, userUuid, userOrganizations);
+
         return pyBackendWebClient.post()
-                .uri("/apy/rag/query")
+                .uri("/apy/v1/chat/query")
                 .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(questionToChatRequest(question, userUuid))
+                .bodyValue(requestBody)
                 .accept(MediaType.TEXT_EVENT_STREAM)
                 .exchangeToFlux(response -> {
                     if (response.statusCode().is2xxSuccessful()) {
@@ -114,8 +150,8 @@ public class ConversationController {
         var userUuid = userService.getUuid(authentication.getName());
         pyBackendWebClient.put()
                 .uri(uriBuilder -> uriBuilder.path(feedback.isPositive()
-                                ? "/apy/conversations/feedback/thumbs_up"
-                                : "/apy/conversations/feedback/thumbs_down")
+                                ? "/apy/v1/conversations/feedback/thumbs_up"
+                                : "/apy/v1/conversations/feedback/thumbs_down")
                         .queryParam("user_uuid", userUuid)
                         .queryParam("conversation_uuid", feedback.conversationId())
                         .queryParam("message_uuid", feedback.messageId())
@@ -128,19 +164,37 @@ public class ConversationController {
         return ResponseEntity.ok().build();
     }
 
-    private Map<String, Object> questionToChatRequest(Question question, String userUuid) {
+    private Map<String, Object> questionToChatRequest(Question question, String userUuid, List<String> organizations) {
         Map<String, Object> chatRequest = new HashMap<>();
         chatRequest.put("query", question.query());
         chatRequest.put("autocomplete", question.autocomplete());
         chatRequest.put("rag", question.rag());
-        addEntryIfValueNotNull(chatRequest, "language", question.language());
+        chatRequest.put("language", question.language());
         addEntryIfValueNotNull(chatRequest, "llm_model", question.llmModel());
+        addEntryIfValueNotNull(chatRequest, "temperature", question.temperature());
+        addEntryIfValueNotNull(chatRequest, "top_p", question.topP());
+        addEntryIfValueNotNull(chatRequest, "max_output_tokens", question.maxOutputTokens());
         addEntryIfValueNotNull(chatRequest, "response_style", question.responseStyle());
+        addEntryIfValueNotNull(chatRequest, "response_format", question.responseFormat());
         addEntryIfValueNotNull(chatRequest, "user_uuid", userUuid);
+        addEntryIfValueNotNull(chatRequest, "organizations", organizations);
         addEntryIfValueNotNull(chatRequest, "k_memory", question.kMemory());
-        addEntryIfValueNotNull(chatRequest, "tag", question.tags());
+        addEntryIfValueNotNull(chatRequest, "tags", question.tags());
         addEntryIfValueNotNull(chatRequest, "source", question.sources());
         addEntryIfValueNotNull(chatRequest, "retrieval_method", question.retrievalMethods());
+        addEntryIfValueNotNull(chatRequest, "k_retrieve", question.kRetrieve());
+        addEntryIfValueNotNull(chatRequest, "command", question.command());
+        addEntryIfValueNotNull(chatRequest, "command_args", question.commandArgs());
+        addEntryIfValueNotNull(chatRequest, "agentic_rag", question.agenticRag());
+        addEntryIfValueNotNull(chatRequest, "source_validation", question.sourceValidation());
+        addEntryIfValueNotNull(chatRequest, "topic_check", question.topicCheck());
+        addEntryIfValueNotNull(chatRequest, "is_followup_q", question.isFollowUpQ());
+
+        if (organizations != null && !organizations.isEmpty()) {
+            chatRequest.put("organizations", organizations);
+        } else {
+            log.warn("No organizations found for request");
+        }
 
         if (userUuid != null && question.conversationId() == null) {
             chatRequest.put("conversation_uuid", UUID.randomUUID().toString());
