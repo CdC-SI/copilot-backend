@@ -1,7 +1,9 @@
 package zas.admin.zec.backend.config;
 
+import org.springframework.boot.autoconfigure.security.SecurityProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -39,15 +41,24 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    @Order(SecurityProperties.DEFAULT_FILTER_ORDER - 2)
+    public SecurityFilterChain publicFilterChain(HttpSecurity http) throws Exception {
         http.csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(smc -> smc.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST,"/api/users", "/api/auth").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/faq-items", "/api/settings", "/api/conversations/**").permitAll()
-                        .requestMatchers("/api/conversations/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/faq-items", "/api/settings").permitAll());
+
+        return http.build();
+    }
+
+    @Bean
+    @Order(SecurityProperties.DEFAULT_FILTER_ORDER - 1)
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http.csrf(AbstractHttpConfigurer::disable)
+                .sessionManagement(smc -> smc.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/admin/**", "/api/faq-items").hasAnyAuthority("ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/documents/**").authenticated()
                         .anyRequest().authenticated())
                 .authenticationProvider(daoAuthenticationProvider());
 

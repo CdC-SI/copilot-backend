@@ -1,3 +1,9 @@
+decorator:
+  datasource:
+    flexy-pool:
+      threshold.connection:
+        acquire: 1
+        lease: 0
 spring:
   application:
     name: copilot-backend

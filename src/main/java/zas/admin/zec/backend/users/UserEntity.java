@@ -5,7 +5,6 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.util.List;
-import java.util.ArrayList;
 
 @Setter
 @Getter
@@ -26,12 +25,12 @@ public class UserEntity {
     @ElementCollection(fetch = FetchType.EAGER)
     private List<String> roles;
 
-    @ElementCollection(fetch = FetchType.EAGER)
+    @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(
         name = "user_entity_organizations",
         joinColumns = @JoinColumn(name = "user_uuid")
     )
     @Column(name = "organization")
-    private List<String> organizations = new ArrayList<>();
+    private List<String> organizations;
 
 }

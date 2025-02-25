@@ -83,6 +83,17 @@
             <artifactId>hypersistence-utils-hibernate-63</artifactId>
             <version>3.8.3</version>
         </dependency>
+        <dependency>
+            <groupId>com.github.gavlyukovskiy</groupId>
+            <artifactId>datasource-proxy-spring-boot-starter</artifactId>
+            <version>1.9.1</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.gavlyukovskiy</groupId>
+            <artifactId>flexy-pool-spring-boot-starter</artifactId>
+            <version>1.9.1</version>
+        </dependency>
+
 
         <!-- Utilities -->
         <dependency>

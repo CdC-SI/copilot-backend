@@ -56,17 +56,6 @@ public class ConversationController {
                                                         Authentication authentication) {
 
         var userUuid = userService.getUuid(authentication.getName());
-
-        pyBackendWebClient.put()
-                .uri(uriBuilder -> uriBuilder.path("/apy/v1/conversations/")
-                        .path(conversationId)
-                        .path("/title")
-                        .build())
-                .bodyValue(titleUpdate)
-                .retrieve()
-                .toEntity(Map.class)
-                .block();
-
         conversationService.renameConversation(userUuid, conversationId, titleUpdate.newTitle());
 
         return ResponseEntity.ok().build();
