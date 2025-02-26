@@ -1,4 +1,4 @@
-package zas.admin.zec.backend.users;
+package zas.admin.zec.backend.persistence;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 

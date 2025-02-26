@@ -1,4 +1,4 @@
-package zas.admin.zec.backend.documents;
+package zas.admin.zec.backend.actions.upload;
 
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
-import zas.admin.zec.backend.users.UserService;
+import zas.admin.zec.backend.actions.authorize.UserService;
 
 @Slf4j
 @RestController

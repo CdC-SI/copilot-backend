@@ -1,4 +1,4 @@
-package zas.admin.zec.backend.documents;
+package zas.admin.zec.backend.actions.upload;
 
 import jakarta.validation.constraints.NotNull;
 import org.springframework.web.multipart.MultipartFile;

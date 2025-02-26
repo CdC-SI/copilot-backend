@@ -1,7 +1,9 @@
-package zas.admin.zec.backend.users;
+package zas.admin.zec.backend.actions.authorize;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import zas.admin.zec.backend.persistence.UserEntity;
+import zas.admin.zec.backend.persistence.UserRepository;
 
 import java.util.List;
 import java.util.Optional;

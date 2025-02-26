@@ -1,8 +1,4 @@
-package zas.admin.zec.backend.conversations;
-
-import jakarta.annotation.Nullable;
-
-import java.util.List;
+package zas.admin.zec.backend.actions.converse;
 
 public record Question(
     String query,

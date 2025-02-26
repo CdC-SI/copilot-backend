@@ -1,4 +1,4 @@
-package zas.admin.zec.backend.documents;
+package zas.admin.zec.backend.actions.upload;
 
 import jakarta.validation.Constraint;
 import jakarta.validation.Payload;

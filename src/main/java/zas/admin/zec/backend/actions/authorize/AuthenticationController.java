@@ -1,4 +1,4 @@
-package zas.admin.zec.backend.authentications;
+package zas.admin.zec.backend.actions.authorize;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;

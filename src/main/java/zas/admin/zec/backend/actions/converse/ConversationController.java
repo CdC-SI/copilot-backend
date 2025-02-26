@@ -1,4 +1,4 @@
-package zas.admin.zec.backend.conversations;
+package zas.admin.zec.backend.actions.converse;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -11,7 +11,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
-import zas.admin.zec.backend.users.UserService;
+import zas.admin.zec.backend.actions.authorize.UserService;
 
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;

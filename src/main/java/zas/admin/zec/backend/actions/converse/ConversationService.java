@@ -1,7 +1,11 @@
-package zas.admin.zec.backend.conversations;
+package zas.admin.zec.backend.actions.converse;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import zas.admin.zec.backend.persistence.ConversationRepository;
+import zas.admin.zec.backend.persistence.ConversationTitleEntity;
+import zas.admin.zec.backend.persistence.ConversationTitleRepository;
+import zas.admin.zec.backend.persistence.MessageEntity;
 
 import java.time.LocalDateTime;
 import java.util.List;

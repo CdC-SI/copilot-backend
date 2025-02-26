@@ -1,4 +1,4 @@
-package zas.admin.zec.backend.conversations;
+package zas.admin.zec.backend.persistence;
 
 import io.hypersistence.utils.hibernate.type.array.IntArrayType;
 import io.hypersistence.utils.hibernate.type.array.StringArrayType;

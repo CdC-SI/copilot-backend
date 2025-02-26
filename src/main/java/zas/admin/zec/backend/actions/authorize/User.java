@@ -1,4 +1,4 @@
-package zas.admin.zec.backend.users;
+package zas.admin.zec.backend.actions.authorize;
 
 import java.util.List;
 

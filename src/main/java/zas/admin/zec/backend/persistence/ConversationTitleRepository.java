@@ -1,4 +1,4 @@
-package zas.admin.zec.backend.conversations;
+package zas.admin.zec.backend.persistence;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 

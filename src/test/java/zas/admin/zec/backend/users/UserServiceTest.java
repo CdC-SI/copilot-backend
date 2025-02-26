@@ -8,6 +8,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import zas.admin.zec.backend.actions.authorize.Role;
+import zas.admin.zec.backend.actions.authorize.User;
+import zas.admin.zec.backend.actions.authorize.UserService;
+import zas.admin.zec.backend.persistence.UserEntity;
+import zas.admin.zec.backend.persistence.UserRepository;
 
 import java.util.List;
 import java.util.Optional;

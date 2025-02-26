@@ -1,4 +1,4 @@
-package zas.admin.zec.backend.faqs;
+package zas.admin.zec.backend.actions.ask;
 
 import jakarta.annotation.Nullable;
 import org.springframework.beans.factory.annotation.Qualifier;

@@ -1,4 +1,4 @@
-package zas.admin.zec.backend.conversations;
+package zas.admin.zec.backend.actions.converse;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;

@@ -1,4 +1,4 @@
-package zas.admin.zec.backend.settings;
+package zas.admin.zec.backend.actions.parametrize;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
