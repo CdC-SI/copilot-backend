@@ -29,7 +29,7 @@ public class FAQItemsController {
                 .block();
     }
 
-    @PutMapping
+    @PutMapping("/update")
     public ResponseEntity<Object> updateFAQItem(@RequestBody FAQItem faqItem) {
         return pyBackendWebClient.put()
                 .uri(uriBuilder -> uriBuilder.path("/apy/v1/indexing/data")
