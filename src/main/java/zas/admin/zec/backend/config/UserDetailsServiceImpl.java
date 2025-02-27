@@ -6,8 +6,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
-import zas.admin.zec.backend.users.UserEntity;
-import zas.admin.zec.backend.users.UserRepository;
+import zas.admin.zec.backend.persistence.UserEntity;
+import zas.admin.zec.backend.persistence.UserRepository;
 
 import java.util.Optional;
 

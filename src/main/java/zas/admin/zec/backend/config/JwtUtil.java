@@ -5,6 +5,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
+import zas.admin.zec.backend.config.properties.JwtProperties;
 
 import javax.crypto.SecretKey;
 import java.util.Date;

@@ -12,6 +12,13 @@ spring:
     username: ${DS_USERNAME}
     password: ${DS_PASSWORD}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DS_MAX_POOL_SIZE:15}
+      minimum-idle: ${DS_MIN_IDLE:1}
+      idle-timeout: ${DS_IDLE_TIMEOUT:270000}
+      keepalive-time: ${DS_KEEPALIVE_TIME:45000}
+      max-lifetime: ${DS_MAX_LIFETIME:300000}
+      auto-commit: false
   jpa:
     hibernate:
       ddl-auto: update
@@ -19,7 +26,8 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: false
-        show_sql: false
+        show_sql: true
+    open-in-view: false
   h2:
     console:
       enabled: true
@@ -30,6 +38,11 @@ spring:
       max-file-size: 20MB
       max-request-size: 20MB
       file-size-threshold: 2KB
+  ai:
+    openai:
+      embedding:
+        options:
+          model: ${OPENAI_EMBEDDING_MODEL:text-embedding-3-small}
 py-backend:
   baseUrl: ${PY_BACKEND_URL}
 jwt:
@@ -38,3 +51,12 @@ jwt:
 server:
   tomcat:
     max-swallow-size: -1
+faq:
+  search:
+    min-result-before-semantic-search: ${FAQ_MIN_RESULT_BEFORE_SEMANTIC_SEARCH:5}
+    trigram-matching:
+      limit: ${FAQ_TRIGRAM_MATCHING_LIMIT:15}
+      threshold: ${FAQ_SEARCH_THRESHOLD:0.4}
+    semantic-matching:
+      limit: ${FAQ_SEMANTIC_MATCHING_LIMIT:10}
+      metric: ${FAQ_SEMANTIC_MATCHING_METRIC:cosine_similarity}
