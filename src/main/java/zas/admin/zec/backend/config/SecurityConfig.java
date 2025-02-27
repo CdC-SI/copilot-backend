@@ -4,7 +4,6 @@ import org.springframework.boot.autoconfigure.security.SecurityProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -44,10 +43,8 @@ public class SecurityConfig {
     @Order(SecurityProperties.DEFAULT_FILTER_ORDER - 2)
     public SecurityFilterChain publicFilterChain(HttpSecurity http) throws Exception {
         http.csrf(AbstractHttpConfigurer::disable)
-                .sessionManagement(smc -> smc.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.POST,"/api/users", "/api/auth").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/faq-items", "/api/settings").permitAll());
+                .securityMatcher( "/api/users", "/api/auth", "/api/faq-items", "/api/settings")
+                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
 
         return http.build();
     }
@@ -58,7 +55,7 @@ public class SecurityConfig {
         http.csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(smc -> smc.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/admin/**", "/api/faq-items").hasAnyAuthority("ADMIN")
+                        .requestMatchers("/api/admin/**", "/api/faq-items/update").hasAnyAuthority("ADMIN")
                         .anyRequest().authenticated())
                 .authenticationProvider(daoAuthenticationProvider());
 

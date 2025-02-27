@@ -25,7 +25,7 @@ public class FAQItemsController {
         return ResponseEntity.ok(faqService.getExistingFAQItemsByMatchingQuestion(question));
     }
 
-    @PutMapping
+    @PutMapping("/update")
     public ResponseEntity<Object> updateFAQItem(@RequestBody FAQItemLight faqItem) {
         return pyBackendWebClient.put()
                 .uri(uriBuilder -> uriBuilder.path("/apy/v1/indexing/data")
