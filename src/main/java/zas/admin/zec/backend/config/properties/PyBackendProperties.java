@@ -1,4 +1,4 @@
-package zas.admin.zec.backend.config;
+package zas.admin.zec.backend.config.properties;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;

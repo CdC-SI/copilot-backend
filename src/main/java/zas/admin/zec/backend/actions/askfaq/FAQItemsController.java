@@ -1,4 +1,4 @@
-package zas.admin.zec.backend.actions.ask;
+package zas.admin.zec.backend.actions.askfaq;
 
 import jakarta.annotation.Nullable;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -10,27 +10,23 @@ import org.springframework.web.reactive.function.client.WebClient;
 @RequestMapping("/api/faq-items")
 public class FAQItemsController {
 
-    public record FAQItem(@Nullable Long id, String text, String answer, String url, String language) {}
+    public record FAQItemLight(@Nullable Long id, String text, String answer, String url, String language) {}
     @Qualifier("pyBackendWebClient")
     private final WebClient pyBackendWebClient;
+    private final FAQService faqService;
 
-    public FAQItemsController(WebClient pyBackendWebClient) {
+    public FAQItemsController(WebClient pyBackendWebClient, FAQService faqService) {
         this.pyBackendWebClient = pyBackendWebClient;
+        this.faqService = faqService;
     }
 
     @GetMapping
     public ResponseEntity<Object> searchFAQItems(@RequestParam String question) {
-        return pyBackendWebClient.get()
-                .uri(uriBuilder -> uriBuilder.path("/apy/v1/autocomplete/")
-                        .queryParam("question", question)
-                        .build())
-                .retrieve()
-                .toEntity(Object.class)
-                .block();
+        return ResponseEntity.ok(faqService.getExistingFAQItemsByMatchingQuestion(question));
     }
 
     @PutMapping
-    public ResponseEntity<Object> updateFAQItem(@RequestBody FAQItem faqItem) {
+    public ResponseEntity<Object> updateFAQItem(@RequestBody FAQItemLight faqItem) {
         return pyBackendWebClient.put()
                 .uri(uriBuilder -> uriBuilder.path("/apy/v1/indexing/data")
                         .build())
