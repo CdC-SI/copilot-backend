@@ -55,7 +55,7 @@ public class SecurityConfig {
         http.csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(smc -> smc.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/admin/**", "/api/faq-items/update").hasAnyAuthority("ADMIN")
+                        .requestMatchers("/api/admin/**", "/api/faq-items/save").hasAnyAuthority("ADMIN")
                         .anyRequest().authenticated())
                 .authenticationProvider(daoAuthenticationProvider());
 

@@ -3,11 +3,15 @@ package zas.admin.zec.backend.actions.askfaq;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.stereotype.Service;
 import zas.admin.zec.backend.config.properties.FAQSearchProperties;
+import zas.admin.zec.backend.persistence.DocumentEntity;
+import zas.admin.zec.backend.persistence.FAQItemEntity;
 import zas.admin.zec.backend.persistence.FAQItemRepository;
+import zas.admin.zec.backend.persistence.SourceEntity;
 import zas.admin.zec.backend.tools.FAQItemMapper;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 @Service
@@ -45,6 +49,47 @@ public class FAQService {
                     .distinct()
                     .toList();
         }
+    }
+
+    public FAQItem save(FAQItemLight faqItem) {
+        return faqItem.id() != null
+                ? update(faqItem)
+                : create(faqItem);
+    }
+
+    private FAQItem create(FAQItemLight faqItemLight) {
+        SourceEntity source = new SourceEntity();
+        source.setUrl(faqItemLight.url());
+
+        DocumentEntity answer = new DocumentEntity();
+        answer.setSource(source);
+        answer.setUrl(faqItemLight.url());
+        answer.setLanguage(faqItemLight.language());
+        answer.setText(faqItemLight.answer());
+
+        FAQItemEntity faqItemEntity = new FAQItemEntity();
+        faqItemEntity.setSource(source);
+        faqItemEntity.setAnswer(answer);
+        faqItemEntity.setUrl(faqItemLight.url());
+        faqItemEntity.setLanguage(faqItemLight.language());
+        faqItemEntity.setText(faqItemLight.text());
+
+        return faqItemMapper.map(faqItemRepository.save(faqItemEntity));
+    }
+
+    private FAQItem update(FAQItemLight faqItemLight) {
+        FAQItemEntity byId = faqItemRepository.findById(Objects.requireNonNull(faqItemLight.id()))
+                .orElseThrow(() -> new IllegalArgumentException("No FAQItem found for id : " + faqItemLight.id()));
+
+        byId.setText(faqItemLight.text());
+        byId.setUrl(faqItemLight.url());
+        byId.setLanguage(faqItemLight.language());
+        byId.getAnswer().setText(faqItemLight.answer());
+        byId.getAnswer().setUrl(faqItemLight.url());
+        byId.getAnswer().setLanguage(faqItemLight.language());
+        byId.getSource().setUrl(faqItemLight.url());
+
+        return faqItemMapper.map(faqItemRepository.save(byId));
     }
 
     private List<FAQItem> getExistingFAQItemsByWordSimilarity(String question) {
