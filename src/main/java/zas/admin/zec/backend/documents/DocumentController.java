@@ -28,7 +28,7 @@ public class DocumentController {
     }
 
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<Void> uploadDocument(@Valid DocumentUpload document, Authentication authentication) {
+    public ResponseEntity<Void> uploadDocument(@Valid String conversationId, DocumentUpload document, Authentication authentication) {
         var userUuid = userService.getUuid(authentication.getName());
         var builder = new MultipartBodyBuilder();
         builder.part("files", document.multipartFile().getResource())
@@ -39,6 +39,7 @@ public class DocumentController {
                         .path("/apy/v1/indexing/upload_pdf_rag")
                         .queryParam("embed", document.embed())
                         .queryParam("user_uuid", userUuid)
+                        .queryParam("conversation_uuid", conversationId)
                         .queryParam("language", document.lang())
                         .build())
                 .contentType(MediaType.MULTIPART_FORM_DATA)

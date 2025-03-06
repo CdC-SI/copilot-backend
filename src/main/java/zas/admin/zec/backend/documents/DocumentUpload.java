@@ -6,4 +6,5 @@ import org.springframework.web.multipart.MultipartFile;
 public record DocumentUpload(
         @NotNull @ValidMultipartFile MultipartFile multipartFile,
         String lang,
-        Boolean embed) {}
+        Boolean embed,
+        String conversationId) {}
