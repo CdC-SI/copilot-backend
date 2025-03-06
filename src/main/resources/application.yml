@@ -1,3 +1,6 @@
+application:
+  name: @project.artifactId@
+  version: @project.version@
 decorator:
   datasource:
     flexy-pool:

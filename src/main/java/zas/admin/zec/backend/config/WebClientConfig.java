@@ -4,12 +4,13 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.reactive.function.client.WebClient;
+import zas.admin.zec.backend.config.properties.ApplicationProperties;
 import zas.admin.zec.backend.config.properties.FAQSearchProperties;
 import zas.admin.zec.backend.config.properties.JwtProperties;
 import zas.admin.zec.backend.config.properties.PyBackendProperties;
 
 @Configuration
-@EnableConfigurationProperties({PyBackendProperties.class, JwtProperties.class, FAQSearchProperties.class})
+@EnableConfigurationProperties({ApplicationProperties.class, PyBackendProperties.class, JwtProperties.class, FAQSearchProperties.class})
 public class WebClientConfig {
     private final PyBackendProperties pyBackendProperties;
 
