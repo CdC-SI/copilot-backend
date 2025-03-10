@@ -43,7 +43,7 @@ public class SecurityConfig {
     @Order(SecurityProperties.DEFAULT_FILTER_ORDER - 2)
     public SecurityFilterChain publicFilterChain(HttpSecurity http) throws Exception {
         http.csrf(AbstractHttpConfigurer::disable)
-                .securityMatcher( "/api/users", "/api/auth", "/api/faq-items", "/api/settings")
+                .securityMatcher( "/api/users", "/api/auth", "/api/faq-items")
                 .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
 
         return http.build();
@@ -55,6 +55,7 @@ public class SecurityConfig {
         http.csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(smc -> smc.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/settings").permitAll()
                         .requestMatchers("/api/admin/**", "/api/faq-items/save").hasAnyAuthority("ADMIN")
                         .anyRequest().authenticated())
                 .authenticationProvider(daoAuthenticationProvider());
