@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 
@@ -12,6 +13,7 @@ import java.time.LocalDateTime;
 @Setter
 @Entity
 @Table(name = "source")
+@EntityListeners(AuditingEntityListener.class)
 public class SourceEntity {
 
     @Id
@@ -31,5 +33,10 @@ public class SourceEntity {
     @LastModifiedDate
     @Column(name = "modified_at")
     private LocalDateTime modifiedAt;
+
+    public SourceEntity() {}
+    public SourceEntity(String url) {
+        this.url = url;
+    }
 
 }

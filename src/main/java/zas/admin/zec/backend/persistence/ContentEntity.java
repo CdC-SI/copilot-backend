@@ -7,12 +7,14 @@ import lombok.Setter;
 import org.hibernate.annotations.Type;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 
 @Getter
 @Setter
 @MappedSuperclass
+@EntityListeners(AuditingEntityListener.class)
 public class ContentEntity {
 
     @Id
@@ -38,23 +40,23 @@ public class ContentEntity {
     private String doctype;
 
     @Type(StringArrayType.class)
-    @Column(columnDefinition = "text[]")
+    @Column(columnDefinition = "character varying[]")
     private String[] tags;
 
     @Type(StringArrayType.class)
-    @Column(columnDefinition = "text[]")
+    @Column(columnDefinition = "character varying[]")
     private String[] subtopics;
 
     @Type(StringArrayType.class)
-    @Column(columnDefinition = "text[]")
+    @Column(columnDefinition = "character varying[]")
     private String[] hyq;
 
     @Type(StringArrayType.class)
-    @Column(name = "hyq_declarative", columnDefinition = "text[]")
+    @Column(name = "hyq_declarative", columnDefinition = "character varying[]")
     private String[] hyqDeclarative;
 
     @Type(StringArrayType.class)
-    @Column(columnDefinition = "text[]")
+    @Column(columnDefinition = "character varying[]")
     private String[] organizations;
 
     @CreatedDate

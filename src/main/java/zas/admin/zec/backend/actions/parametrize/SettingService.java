@@ -7,7 +7,6 @@ import zas.admin.zec.backend.persistence.DocumentRepository;
 import zas.admin.zec.backend.persistence.SourceEntity;
 import zas.admin.zec.backend.persistence.SourceRepository;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -51,17 +50,17 @@ public class SettingService {
     }
 
     private List<String> getPublicTags() {
-        return documentRepository.findTags(null, Collections.emptyList());
+        return documentRepository.findTags(null, null);
     }
 
     private List<String> getTags(String currentUser) {
         var userId = userService.getUuid(currentUser);
         var organizations = userService.getOrganizations(currentUser);
-        return documentRepository.findTags(userId, organizations);
+        return documentRepository.findTags(userId, organizations.toArray(String[]::new));
     }
 
     private List<String> getPublicSources() {
-        var sourceIds = documentRepository.findSourceIds(null, Collections.emptyList());
+        var sourceIds = documentRepository.findSourceIds(null, null);
         return sourceRepository.findAllById(sourceIds)
                 .stream()
                 .map(SourceEntity::getUrl)
@@ -71,7 +70,7 @@ public class SettingService {
     private List<String> getSources(String currentUser) {
         var userId = userService.getUuid(currentUser);
         var organizations = userService.getOrganizations(currentUser);
-        var sourceIds = documentRepository.findSourceIds(userId, organizations);
+        var sourceIds = documentRepository.findSourceIds(userId, organizations.toArray(String[]::new));
         return sourceRepository.findAllById(sourceIds)
                 .stream()
                 .map(SourceEntity::getUrl)
