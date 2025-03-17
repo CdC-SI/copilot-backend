@@ -17,7 +17,7 @@ public interface DocumentRepository extends JpaRepository<DocumentEntity, Intege
               """,
             nativeQuery = true
     )
-    List<String> findTags(@Param("userId") String userId, @Param("organizations") List<String> organizations);
+    List<String> findTags(@Param("userId") String userId, @Param("organizations") String[] organizations);
 
     @Query(value = """
               SELECT DISTINCT d.source_id
@@ -28,5 +28,5 @@ public interface DocumentRepository extends JpaRepository<DocumentEntity, Intege
               """,
             nativeQuery = true
     )
-    List<Integer> findSourceIds(@Param("userId") String userId, @Param("organizations") List<String> organizations);
+    List<Integer> findSourceIds(@Param("userId") String userId, @Param("organizations") String[] organizations);
 }

@@ -25,7 +25,7 @@ public class UserEntity {
     @ElementCollection(fetch = FetchType.EAGER)
     private List<String> roles;
 
-    @ElementCollection(fetch = FetchType.LAZY)
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(
         name = "user_entity_organizations",
         joinColumns = @JoinColumn(name = "user_uuid")

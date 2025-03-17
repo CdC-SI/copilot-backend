@@ -1,0 +1,104 @@
+package zas.admin.zec.backend.actions.upload;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.embedding.EmbeddingModel;
+import org.springframework.http.MediaType;
+import org.springframework.http.client.MultipartBodyBuilder;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.BodyInserters;
+import org.springframework.web.reactive.function.client.WebClient;
+import zas.admin.zec.backend.persistence.DocumentEntity;
+import zas.admin.zec.backend.persistence.DocumentRepository;
+import zas.admin.zec.backend.persistence.SourceEntity;
+import zas.admin.zec.backend.persistence.SourceRepository;
+
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+
+@Slf4j
+@Service
+public class UploadService {
+
+    private static final String UPLOAD_SOURCE = "user_pdf_upload:";
+    private final WebClient pyBackendWebClient;
+    private final SourceRepository sourceRepository;
+    private final DocumentRepository documentRepository;
+    private final EmbeddingModel embeddingModel;
+
+    public UploadService(WebClient pyBackendWebClient, SourceRepository sourceRepository,
+                         DocumentRepository documentRepository, EmbeddingModel embeddingModel) {
+
+        this.pyBackendWebClient = pyBackendWebClient;
+        this.sourceRepository = sourceRepository;
+        this.documentRepository = documentRepository;
+        this.embeddingModel = embeddingModel;
+    }
+
+    @Async
+    public void uploadPersonalDocument(DocumentToUpload document, String userUuid) {
+        try {
+            log.info("Starting async {} processing for user {}", document.name(), userUuid);
+            var chunks = parseAndChunkDocument(document)
+                    .stream()
+                    .map(chunk -> enrichAfterParsing(document, chunk, userUuid))
+                    .toList();
+            uploadChunks(document, chunks);
+            log.info("Finished async {} processing for user {}", document.name(), userUuid);
+        } catch (Exception e) {
+            log.error("Error processing {} upload for user {}", document.name(), userUuid, e);
+        }
+    }
+
+    private void uploadChunks(DocumentToUpload document, List<DocumentChunk> chunks) {
+        var documentSource = UPLOAD_SOURCE + document.name();
+        var source = sourceRepository.findByUrl(documentSource)
+                .orElseGet(() -> sourceRepository.save(new SourceEntity(documentSource)));
+
+        chunks.forEach(chunk -> uploadChunk(chunk, source, document.embed()));
+    }
+
+    private List<DocumentChunk> parseAndChunkDocument(DocumentToUpload document) {
+        var builder = new MultipartBodyBuilder();
+        builder.part("file", document.content())
+                .header("Content-Type", "application/pdf")
+                .header("Content-Disposition",
+                        "form-data; name=file; filename=" + document.name());
+
+        return Optional.ofNullable(
+                pyBackendWebClient.post()
+                        .uri("/apy/v1/indexing/parse_pdf")
+                        .contentType(MediaType.MULTIPART_FORM_DATA)
+                        .body(BodyInserters.fromMultipartData(builder.build()))
+                        .retrieve()
+                        .bodyToFlux(DocumentChunk.class)
+                        .collectList()
+                        .block()
+        ).orElse(List.of());
+    }
+
+    private DocumentChunk enrichAfterParsing(DocumentToUpload document, DocumentChunk chunk, String userUuid) {
+        var source = UPLOAD_SOURCE + document.name();
+        return new DocumentChunk(
+                chunk.text(),
+                Objects.isNull(chunk.url()) ? source : chunk.url(),
+                source,
+                userUuid,
+                document.lang());
+    }
+
+    private void uploadChunk(DocumentChunk chunk, SourceEntity source, boolean embed) {
+        var documentEntity = new DocumentEntity();
+        documentEntity.setSource(source);
+        documentEntity.setText(chunk.text());
+        documentEntity.setLanguage(chunk.language());
+        documentEntity.setUserUuid(chunk.userUuid());
+        documentEntity.setUrl(chunk.url());
+        if (embed) {
+            documentEntity.setTextEmbedding(embeddingModel.embed(chunk.text()));
+        }
+
+        documentRepository.save(documentEntity);
+    }
+}

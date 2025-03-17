@@ -11,6 +11,8 @@ import java.util.UUID;
 
 @Service
 public class UserService {
+
+    private static final String USER_NOT_FOUND = "User not found";
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
@@ -21,13 +23,14 @@ public class UserService {
 
     public String getUuid(String username) {
         return userRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"))
+                .orElseThrow(() -> new IllegalArgumentException(USER_NOT_FOUND))
                 .getUuid();
+
     }
 
     public List<String> getOrganizations(String username) {
         UserEntity user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> new IllegalArgumentException(USER_NOT_FOUND));
         return user.getOrganizations();
     }
 
@@ -38,7 +41,7 @@ public class UserService {
                                           userEntity.getPassword(),
                                           userEntity.getRoles().stream().map(Role::from).toList(),
                                           userEntity.getOrganizations()))
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> new IllegalArgumentException(USER_NOT_FOUND));
     }
 
     public String register(String username, String password, List<String> organizations) {
