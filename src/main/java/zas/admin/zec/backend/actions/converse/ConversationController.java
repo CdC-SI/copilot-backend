@@ -37,44 +37,22 @@ public class ConversationController {
     @GetMapping("/titles")
     public ResponseEntity<List<ConversationTitle>> getConversationTitles(Authentication authentication) {
         var userUuid = userService.getUuid(authentication.getName());
-        List<ConversationTitle> titles = pyBackendWebClient.get()
-                .uri(uriBuilder -> uriBuilder.path("/apy/v1/conversations/titles")
-                        .queryParam("user_uuid", userUuid)
-                        .build())
-                .retrieve()
-                .bodyToFlux(ConversationTitle.class)
-                .filter(title -> title.userId().equals(userUuid))
-                .collectList()
-                .block();
-
+        var titles = conversationService.getTitlesByUserId(userUuid);
         return ResponseEntity.ok(titles);
     }
 
     @PutMapping("/titles/{conversationId}")
-    public ResponseEntity<Void> updateConversationTitle(@PathVariable String conversationId,
-                                                        @RequestBody ConversationTitleUpdate titleUpdate,
-                                                        Authentication authentication) {
-
+    public ResponseEntity<Void> updateConversationTitle(@PathVariable String conversationId, @RequestBody ConversationTitleUpdate titleUpdate, Authentication authentication) {
         var userUuid = userService.getUuid(authentication.getName());
         conversationService.renameConversation(userUuid, conversationId, titleUpdate.newTitle());
-
         return ResponseEntity.ok().build();
     }
 
     @GetMapping("/{conversationId}")
     public ResponseEntity<List<Message>> getConversation(@PathVariable String conversationId, Authentication authentication) {
         var userUuid = userService.getUuid(authentication.getName());
-        List<Message> messages = pyBackendWebClient.get()
-                .uri(uriBuilder -> uriBuilder.path("/apy/v1/conversations/")
-                        .path(conversationId)
-                        .build())
-                .retrieve()
-                .bodyToFlux(Message.class)
-                .filter(message -> message.userId().equals(userUuid))
-                .collectList()
-                .block();
-
-        return ResponseEntity.ok(messages);
+        var conversation = conversationService.getByConversationIdAndUserId(conversationId, userUuid);
+        return ResponseEntity.ok(conversation);
     }
 
     @PostMapping("/init")

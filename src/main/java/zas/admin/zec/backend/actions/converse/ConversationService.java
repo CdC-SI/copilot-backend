@@ -23,6 +23,35 @@ public class ConversationService {
         this.conversationTitleRepository = conversationTitleRepository;
     }
 
+    public List<ConversationTitle> getTitlesByUserId(String userId) {
+        return conversationTitleRepository.findByUserId(userId)
+                .stream()
+                .map(title -> new ConversationTitle(title.getTitle(), title.getUserId(), title.getConversationId(), title.getTimestamp()))
+                .toList();
+    }
+
+    public List<Message> getByConversationIdAndUserId(String conversationId, String userId) {
+        return conversationRepository.findByConversationIdAndUserId(conversationId, userId)
+                .stream()
+                .map(message -> new Message(
+                        message.getMessageId(),
+                        message.getUserId(),
+                        message.getConversationId(),
+                        message.getFaqId(),
+                        message.getLanguage(),
+                        message.getMessage(),
+                        getRole(message),
+                        List.of(message.getSources()),
+                        message.getTimestamp()
+                ))
+                .toList();
+    }
+
+    private String getRole(MessageEntity message) {
+        if (message.getRole().equals("user")) return "USER";
+        return message.getFaqId() == null ? "LLM" : "FAQ";
+    }
+
     public void initConversation(String userId, String conversationId, List<Message> messages) {
         for (var message : messages) {
             save(message, userId, conversationId);
@@ -36,6 +65,7 @@ public class ConversationService {
 
         conversationTitleRepository.save(title);
     }
+
     public void update(String userUuid, String conversationId, List<Message> messages) {
         conversationTitleRepository.findByUserIdAndConversationId(userUuid, conversationId)
                 .ifPresent(title -> {
