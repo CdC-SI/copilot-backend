@@ -1,4 +1,4 @@
-package zas.admin.zec.backend.actions.converse;
+package zas.admin.zec.backend.actions.rate;
 
 import jakarta.annotation.Nullable;
 

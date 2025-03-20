@@ -112,25 +112,6 @@ public class ConversationController {
                 });
     }
 
-    @PostMapping("/feedbacks")
-    public ResponseEntity<Void> sendFeedback(@RequestBody Feedback feedback, Authentication authentication) {
-        var userUuid = userService.getUuid(authentication.getName());
-        pyBackendWebClient.put()
-                .uri(uriBuilder -> uriBuilder.path(feedback.isPositive()
-                                ? "/apy/v1/conversations/feedback/thumbs_up"
-                                : "/apy/v1/conversations/feedback/thumbs_down")
-                        .queryParam("user_uuid", userUuid)
-                        .queryParam("conversation_uuid", feedback.conversationId())
-                        .queryParam("message_uuid", feedback.messageId())
-                        .queryParam("comment", feedback.comment())
-                        .build())
-                .retrieve()
-                .toBodilessEntity()
-                .block();
-
-        return ResponseEntity.ok().build();
-    }
-
     private Map<String, Object> questionToChatRequest(Question question, String userUuid, List<String> organizations) {
         Map<String, Object> chatRequest = new HashMap<>();
         chatRequest.put("query", question.query());
