@@ -3,9 +3,9 @@ package zas.admin.zec.backend.actions.parametrize;
 import org.springframework.stereotype.Service;
 import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.config.properties.ApplicationProperties;
-import zas.admin.zec.backend.persistence.DocumentRepository;
-import zas.admin.zec.backend.persistence.SourceEntity;
-import zas.admin.zec.backend.persistence.SourceRepository;
+import zas.admin.zec.backend.persistence.entity.SourceEntity;
+import zas.admin.zec.backend.persistence.repository.DocumentRepository;
+import zas.admin.zec.backend.persistence.repository.SourceRepository;
 
 import java.util.List;
 import java.util.stream.Stream;

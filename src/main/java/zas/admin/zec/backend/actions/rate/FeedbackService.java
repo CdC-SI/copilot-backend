@@ -1,8 +1,8 @@
 package zas.admin.zec.backend.actions.rate;
 
 import org.springframework.stereotype.Service;
-import zas.admin.zec.backend.persistence.MessageFeedbackEntity;
-import zas.admin.zec.backend.persistence.MessageFeedbackRepository;
+import zas.admin.zec.backend.persistence.entity.MessageFeedbackEntity;
+import zas.admin.zec.backend.persistence.repository.MessageFeedbackRepository;
 
 import java.time.LocalDateTime;
 

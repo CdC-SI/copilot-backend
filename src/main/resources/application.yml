@@ -63,3 +63,15 @@ faq:
     semantic-matching:
       limit: ${FAQ_SEMANTIC_MATCHING_LIMIT:10}
       metric: ${FAQ_SEMANTIC_MATCHING_METRIC:cosine_similarity}
+rag:
+  reranking:
+    cohere-api-key: ${COHERE_API_KEY:cohere_api_key}
+logging:
+  level:
+    org:
+      springframework:
+        ai: DEBUG
+        security: DEBUG
+deepl:
+  auth-key: ${DEEPL_API_KEY:deepl_auth_key}
+  default-target-lang: 'fr'

@@ -4,17 +4,18 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.web.reactive.function.client.WebClient;
-import zas.admin.zec.backend.config.properties.ApplicationProperties;
-import zas.admin.zec.backend.config.properties.FAQSearchProperties;
-import zas.admin.zec.backend.config.properties.JwtProperties;
-import zas.admin.zec.backend.config.properties.PyBackendProperties;
+import reactor.netty.http.client.HttpClient;
+import reactor.netty.transport.ProxyProvider;
+import zas.admin.zec.backend.config.properties.*;
 
 @Configuration
 @EnableAsync
 @EnableJpaAuditing
-@EnableConfigurationProperties({ApplicationProperties.class, PyBackendProperties.class, JwtProperties.class, FAQSearchProperties.class})
+@EnableConfigurationProperties({ApplicationProperties.class, PyBackendProperties.class, JwtProperties.class,
+        FAQSearchProperties.class, RerankingProperties.class, DeepLProperties.class})
 public class WebClientConfig {
     private final PyBackendProperties pyBackendProperties;
 
@@ -27,5 +28,19 @@ public class WebClientConfig {
         return builder
                 .baseUrl(pyBackendProperties.getBaseUrl())
                 .build();
+    }
+
+    @Bean
+    public WebClient.Builder webClientBuilder() {
+        HttpClient httpClient = HttpClient.create()
+                .proxy(proxy -> proxy
+                        .type(ProxyProvider.Proxy.HTTP)
+                        .host(System.getProperty("https.proxyHost"))
+                        .port(Integer.parseInt(System.getProperty("https.proxyPort")))
+                        .nonProxyHosts(System.getProperty("https.nonProxyHosts"))
+                );
+
+        return WebClient.builder()
+                .clientConnector(new ReactorClientHttpConnector(httpClient));
     }
 }
