@@ -5,12 +5,15 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.ChatOptions;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
+import zas.admin.zec.backend.agent.Agent;
 import zas.admin.zec.backend.agent.AgentFactory;
 import zas.admin.zec.backend.persistence.entity.ConversationTitleEntity;
 import zas.admin.zec.backend.persistence.entity.MessageEntity;
@@ -27,6 +30,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 
 @Slf4j
 @Service
@@ -37,15 +42,18 @@ public class ConversationService {
     private final ConversationTitleRepository conversationTitleRepository;
     private final ChatClient chatClient;
     private final AgentFactory agentFactory;
+    private final TaskExecutor taskExecutor;
 
     public ConversationService(ConversationRepository conversationRepository,
                                ConversationTitleRepository conversationTitleRepository,
-                               ChatModel chatModel, AgentFactory agentFactory) {
+                               ChatModel chatModel, AgentFactory agentFactory,
+                               @Qualifier("asyncExecutor") TaskExecutor taskExecutor) {
 
         this.conversationRepository = conversationRepository;
         this.conversationTitleRepository = conversationTitleRepository;
         this.chatClient = ChatClient.create(chatModel);
         this.agentFactory = agentFactory;
+        this.taskExecutor = taskExecutor;
     }
 
     public List<ConversationTitle> getTitlesByUserId(String userId) {
@@ -119,13 +127,37 @@ public class ConversationService {
     }
 
     private Flux<Token> getTokenStream(Question question, String userId) {
-        var routingStatus = Flux.just(new StatusToken(RAGStatus.ROUTING, question.language()));
-        var appropriateAgent = agentFactory.selectAppropriateAgent(question);
-        var handoffStatus = Flux.just(new StatusToken(RAGStatus.AGENT_HANDOFF, question.language(), appropriateAgent.getName()));
-        var conversationHistory = getConversationHistory(question.conversationId(), userId, Limit.of(question.kMemory()));
-        var agentTokens = appropriateAgent.processQuestion(question, userId, conversationHistory);
+        Token routingStatus = new StatusToken(RAGStatus.ROUTING, question.language());
+        return Flux.just(routingStatus)
+                .concatWith(getAgentAndHistoryStream(question, userId));
+    }
 
-        return Flux.concat(routingStatus, handoffStatus, agentTokens);
+    private Flux<Token> getAgentAndHistoryStream(Question question, String userId) {
+        var agentFuture = fetchAgentAsync(question);
+        var historyFuture = fetchConversationHistoryAsync(question, userId);
+        Mono<Token> handoffFuture = Mono.fromFuture(agentFuture).map(agent -> new StatusToken(RAGStatus.AGENT_HANDOFF, question.language(), agent.getName()));
+        var combined = agentFuture.thenCombine(historyFuture,
+                (agent, history) -> agent.processQuestion(question, userId, history));
+
+        return handoffFuture.concatWith(Mono.fromFuture(combined).flatMapMany(Function.identity()));
+    }
+
+    private CompletableFuture<Agent> fetchAgentAsync(Question question) {
+        return CompletableFuture.supplyAsync(
+                () -> agentFactory.selectAppropriateAgent(question),
+                taskExecutor
+        );
+    }
+
+    private CompletableFuture<List<Message>> fetchConversationHistoryAsync(Question question, String userId) {
+        return CompletableFuture.supplyAsync(
+                () -> getConversationHistory(
+                        question.conversationId(),
+                        userId,
+                        Limit.of(question.kMemory())
+                ),
+                taskExecutor
+        );
     }
 
     private Boolean questionIsOffTopic(Question question) {

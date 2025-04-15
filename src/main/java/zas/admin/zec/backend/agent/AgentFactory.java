@@ -22,7 +22,9 @@ public class AgentFactory {
 
     record AgentSelection(String agent) {}
     public Agent selectAppropriateAgent(Question question) {
-        var systemPrompt = AgentPrompts.getAgentSelectionPrompt(question.language());
+        var systemPrompt = AgentPrompts.getAgentSelectionPrompt(question.language())
+                .formatted(question.query(), "");
+
         var inferredAgent = chatClient
                 .prompt()
                 .system(systemPrompt)
@@ -32,7 +34,7 @@ public class AgentFactory {
 
         var agentType = inferredAgent != null
                 ? AgentType.fromString(inferredAgent.agent())
-                : AgentType.RAG;
+                : AgentType.RAG_AGENT;
 
         return agents.stream()
                 .filter(agent -> agent.getType() == agentType)

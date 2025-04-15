@@ -25,7 +25,7 @@ public class RAGAgent implements Agent{
 
     @Override
     public AgentType getType() {
-        return AgentType.RAG;
+        return AgentType.RAG_AGENT;
     }
 
     @Override

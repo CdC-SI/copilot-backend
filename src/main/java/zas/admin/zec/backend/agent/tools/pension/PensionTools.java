@@ -39,8 +39,7 @@ public class PensionTools {
 
     @Tool(
             name = "calculate_reduction_rate_and_supplement",
-            description = "Calculate the reduction rate or pension supplement for women of the transitional generation.",
-            returnDirect = true
+            description = "Calculate the reduction rate or pension supplement for women of the transitional generation."
     )
     String calculateReductionRateAndSupplement(
             @ToolParam(description = "Birth date for women born between 1961 and 1969") LocalDate birthDate,
@@ -58,15 +57,16 @@ public class PensionTools {
         }
 
         var period = Period.between(birthDate, retirementDate);
+        var periodMonths = period.getYears() * 12 + period.getMonths();
         var referenceMonths = REFERENCE_AGES.get(birthDate.getYear());
         var incomeStats = getIncomeStats(averageAnnualIncome);
 
-        if (period.getMonths() >= referenceMonths) {
+        if (periodMonths >= referenceMonths) {
             var percentage = SUPPLEMENT_PERCENTAGES.get(birthDate.getYear());
             var baseSupplement = incomeStats.baseSupplement * percentage / 100;
             return new SupplementResult(lang, baseSupplement);
         } else {
-            int anticipation = (referenceMonths - period.getMonths()) / 12;
+            int anticipation = (int) Math.round((referenceMonths - periodMonths) / 12.0);
             if (anticipation < 1 || anticipation > 3) {
                 return new InvalidAnticipationResult(lang);
             }

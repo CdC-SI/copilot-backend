@@ -32,7 +32,7 @@ public class ChatAgent implements Agent {
 
     @Override
     public AgentType getType() {
-        return AgentType.CHAT;
+        return AgentType.CHAT_AGENT;
     }
 
     @Override

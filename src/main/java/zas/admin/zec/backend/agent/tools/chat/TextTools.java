@@ -22,8 +22,7 @@ public class TextTools {
 
     @Tool(
             name = "translate",
-            description = "Translate part or all the current conversation to a different language.",
-            returnDirect = true
+            description = "Translate part or all the current conversation to a different language."
     )
     String translate(
             @ToolParam(description = "Target language’s code according to ISO 639-1") String targetLanguage,

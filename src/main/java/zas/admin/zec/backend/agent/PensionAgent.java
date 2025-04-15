@@ -30,7 +30,7 @@ public class PensionAgent implements Agent {
 
     @Override
     public AgentType getType() {
-        return AgentType.PENSION;
+        return AgentType.PENSION_AGENT;
     }
 
     @Override
