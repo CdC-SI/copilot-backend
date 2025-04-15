@@ -6,9 +6,9 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import zas.admin.zec.backend.actions.converse.Message;
 import zas.admin.zec.backend.actions.converse.Question;
+import zas.admin.zec.backend.agent.tools.chat.TextTools;
 import zas.admin.zec.backend.rag.token.TextToken;
 import zas.admin.zec.backend.rag.token.Token;
-import zas.admin.zec.backend.rag.tools.TextTools;
 import zas.admin.zec.backend.tools.TranslationService;
 
 import java.util.List;
