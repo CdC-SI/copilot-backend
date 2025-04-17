@@ -80,3 +80,8 @@ zas:
     blue-token:
       public-key: ${GATEWAY_PUBLIC_KEY}
       header-name: blue
+proxy:
+  host: ${PROXY_HOST:proxy.bvcol.admin.ch}
+  port: ${PROXY_PORT:8080}
+  non-proxy-hosts: ${NON_PROXY_HOSTS:localhost,.admin.ch}
+  enabled: true

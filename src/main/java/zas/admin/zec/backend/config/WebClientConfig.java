@@ -1,5 +1,6 @@
 package zas.admin.zec.backend.config;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,12 +18,14 @@ import zas.admin.zec.backend.config.properties.*;
 @EnableAsync
 @EnableJpaAuditing
 @EnableConfigurationProperties({ApplicationProperties.class, PyBackendProperties.class,
-        FAQSearchProperties.class, RerankingProperties.class, DeepLProperties.class})
+        FAQSearchProperties.class, RerankingProperties.class, DeepLProperties.class, ProxyProperties.class})
 public class WebClientConfig {
     private final PyBackendProperties pyBackendProperties;
+    private final ProxyProperties proxyProperties;
 
-    public WebClientConfig(PyBackendProperties pyBackendProperties) {
+    public WebClientConfig(PyBackendProperties pyBackendProperties, ProxyProperties proxyProperties) {
         this.pyBackendProperties = pyBackendProperties;
+        this.proxyProperties = proxyProperties;
     }
 
     @Bean("pyBackendWebClient")
@@ -33,13 +36,14 @@ public class WebClientConfig {
     }
 
     @Bean
+    @ConditionalOnProperty(name = "proxy.enabled", havingValue = "true")
     public WebClient.Builder webClientBuilder() {
         HttpClient httpClient = HttpClient.create()
                 .proxy(proxy -> proxy
                         .type(ProxyProvider.Proxy.HTTP)
-                        .host(System.getProperty("https.proxyHost"))
-                        .port(Integer.parseInt(System.getProperty("https.proxyPort")))
-                        .nonProxyHosts(System.getProperty("https.nonProxyHosts"))
+                        .host(proxyProperties.host())
+                        .port(proxyProperties.port())
+                        .nonProxyHosts(proxyProperties.nonProxyHosts())
                 );
 
         return WebClient.builder()
