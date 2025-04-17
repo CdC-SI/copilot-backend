@@ -1,6 +1,5 @@
 package zas.admin.zec.backend.actions.authorize;
 
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import zas.admin.zec.backend.persistence.entity.UserEntity;
 import zas.admin.zec.backend.persistence.repository.UserRepository;
@@ -14,11 +13,9 @@ public class UserService {
 
     private static final String USER_NOT_FOUND = "User not found";
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
 
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public UserService(UserRepository userRepository) {
         this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
     }
 
     public String getUuid(String username) {
@@ -38,13 +35,12 @@ public class UserService {
         Optional<UserEntity> byUsername = userRepository.findByUsername(username);
         return byUsername
                 .map(userEntity -> new User(userEntity.getUsername(),
-                                          userEntity.getPassword(),
                                           userEntity.getRoles().stream().map(Role::from).toList(),
                                           userEntity.getOrganizations()))
                 .orElseThrow(() -> new IllegalArgumentException(USER_NOT_FOUND));
     }
 
-    public String register(String username, String password, List<String> organizations) {
+    public String register(String username, List<String> organizations) {
         if (userRepository.findByUsername(username).isPresent()) {
             throw new IllegalArgumentException("User already exists");
         }
@@ -52,8 +48,7 @@ public class UserService {
         var user = new UserEntity();
         user.setUuid(UUID.randomUUID().toString());
         user.setUsername(username);
-        user.setPassword(passwordEncoder.encode(password));
-        user.setOrganizations(organizations);
+        user.setOrganizations(organizations == null ? List.of() : organizations);
         user.setRoles(List.of(Role.USER.name()));
 
         UserEntity savedUser = userRepository.save(user);

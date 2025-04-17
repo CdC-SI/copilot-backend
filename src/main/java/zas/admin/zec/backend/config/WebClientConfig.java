@@ -16,7 +16,7 @@ import zas.admin.zec.backend.config.properties.*;
 @Configuration
 @EnableAsync
 @EnableJpaAuditing
-@EnableConfigurationProperties({ApplicationProperties.class, PyBackendProperties.class, JwtProperties.class,
+@EnableConfigurationProperties({ApplicationProperties.class, PyBackendProperties.class,
         FAQSearchProperties.class, RerankingProperties.class, DeepLProperties.class})
 public class WebClientConfig {
     private final PyBackendProperties pyBackendProperties;
@@ -46,7 +46,7 @@ public class WebClientConfig {
                 .clientConnector(new ReactorClientHttpConnector(httpClient));
     }
 
-    @Bean
+    @Bean(name = "asyncExecutor")
     public TaskExecutor asyncExecutor() {
         var executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(4);

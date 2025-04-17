@@ -75,3 +75,8 @@ logging:
 deepl:
   auth-key: ${DEEPL_API_KEY:deepl_auth_key}
   default-target-lang: 'fr'
+zas:
+  security:
+    blue-token:
+      public-key: ${GATEWAY_PUBLIC_KEY}
+      header-name: blue

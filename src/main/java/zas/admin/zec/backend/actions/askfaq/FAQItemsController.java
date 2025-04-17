@@ -2,6 +2,7 @@ package zas.admin.zec.backend.actions.askfaq;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import zas.admin.zec.backend.config.RequireAdmin;
 
 import java.util.List;
 
@@ -19,7 +20,8 @@ public class FAQItemsController {
         return ResponseEntity.ok(faqService.getExistingFAQItemsByMatchingQuestion(question));
     }
 
-    @PostMapping("/save")
+    @PostMapping
+    @RequireAdmin
     public ResponseEntity<FAQItem> saveFAQItem(@RequestBody FAQItemLight faqItem) {
         return ResponseEntity.ok(faqService.save(faqItem));
     }

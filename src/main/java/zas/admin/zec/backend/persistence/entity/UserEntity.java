@@ -19,9 +19,6 @@ public class UserEntity {
     @Column(name = "username")
     private String username;
 
-    @Column(name = "password")
-    private String password;
-
     @ElementCollection(fetch = FetchType.EAGER)
     private List<String> roles;
 
