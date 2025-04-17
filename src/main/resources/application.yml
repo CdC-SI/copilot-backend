@@ -46,6 +46,7 @@ spring:
       embedding:
         options:
           model: ${OPENAI_EMBEDDING_MODEL:text-embedding-3-small}
+      api-key: ${OPENAI_API_KEY}
 py-backend:
   baseUrl: ${PY_BACKEND_URL}
 jwt:
