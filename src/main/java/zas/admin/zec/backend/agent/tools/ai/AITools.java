@@ -1,9 +1,6 @@
 package zas.admin.zec.backend.agent.tools.ai;
 
-import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import org.springframework.ai.tool.ToolCallback;
-import org.springframework.ai.tool.annotation.Tool;
-import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.ai.tool.definition.ToolDefinition;
 import org.springframework.ai.tool.method.MethodToolCallback;
 import org.springframework.util.ReflectionUtils;

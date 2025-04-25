@@ -287,7 +287,6 @@ public class IncomeCalculation {
 
     /**
      * Applique la déduction forfaitaire si la capacité de travail globale <= 50 %.
-     *
      * Les règles :
      * - avant 2024 => 10 % de déduction si capacité ≤ 50 %, sinon 0 %.
      * - à partir de 2024 => 20 % si capacité ≤ 50 %, sinon 10 %.
@@ -462,9 +461,8 @@ public class IncomeCalculation {
         int ess = benef.yearOfEligibility;
 
         // nombre d'heures hebdo selon la branche et l'année
-        double heuresEss = getHeuresHebdo(branche, annee);
         updateContext(
-                "\nActivité: " + loadLabelsId().get(branche) + branche +
+                "\nActivité: " + loadLabelsId().get(branche) + branche + "niveau " + niveau +
                 "\nAnnée d'exigibilité: " + ess +
                 "\nRevenu mensuel calculé sur 40h: " + revenu + " CHF"
         );
@@ -536,7 +534,6 @@ public class IncomeCalculation {
         // Branche et infos de salaire « avant santé » (pré-atteinte) :
         StatisticalSalaryInfo sas = benef.preHealthStatisticalSalary;
         EffectiveSalaryInfo eas = benef.preHealthEffectiveSalary;
-        String branche = sas.economicBranch;
         // On considère qu'il y a un revenu de référence s'il existe une année et un salaire non nuls
         boolean hadRevenu = sas.year != 0 && sas.salary != 0.0;
         double revenuSainv;
@@ -597,7 +594,6 @@ public class IncomeCalculation {
     public static double getRevenuExigible(Beneficiary benef) {
         // données « ESS » (statistiques pré-atteinte)
         StatisticalSalaryInfo exInfo = benef.postHealthStatisticalSalary;
-        int essYear         = benef.yearOfEligibility;
         int exYear          = exInfo.year;
         double exMonthly    = exInfo.salary;
         int exSkillLevel    = exInfo.skillLevel;
@@ -649,8 +645,7 @@ public class IncomeCalculation {
      *              contenant chacune les clés "branche", "niveau_comp", "salaire"…
      * @return un résumé textuel du calcul d’invalidité
      */
-    @SuppressWarnings("unchecked")
-     static String getInvalidite(Beneficiary benef) {
+    static String getInvalidite(Beneficiary benef) {
         updateContext("Calcul du degré d'invalidité");
         // On assign le salaire TA1 selon la branche le niveau et le sexe
         benef.assignId();
