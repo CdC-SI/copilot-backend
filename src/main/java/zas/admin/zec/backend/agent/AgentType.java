@@ -1,7 +1,7 @@
 package zas.admin.zec.backend.agent;
 
 public enum AgentType {
-    RAG_AGENT, CHAT_AGENT, PENSION_AGENT;
+    RAG_AGENT, CHAT_AGENT, PENSION_AGENT, AI_AGENT;
 
     public static AgentType fromString(String type) {
         for (AgentType agentType : AgentType.values()) {
