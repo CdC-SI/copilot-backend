@@ -3,11 +3,11 @@ package zas.admin.zec.backend.actions.askfaq;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.stereotype.Service;
 import zas.admin.zec.backend.config.properties.FAQSearchProperties;
-import zas.admin.zec.backend.persistence.DocumentEntity;
-import zas.admin.zec.backend.persistence.FAQItemEntity;
-import zas.admin.zec.backend.persistence.FAQItemRepository;
-import zas.admin.zec.backend.persistence.SourceEntity;
-import zas.admin.zec.backend.tools.FAQItemMapper;
+import zas.admin.zec.backend.persistence.entity.DocumentEntity;
+import zas.admin.zec.backend.persistence.entity.FAQItemEntity;
+import zas.admin.zec.backend.persistence.entity.SourceEntity;
+import zas.admin.zec.backend.persistence.repository.FAQItemRepository;
+import zas.admin.zec.backend.tools.EntityMapper;
 
 import java.util.Arrays;
 import java.util.List;
@@ -19,16 +19,16 @@ public class FAQService {
 
     private final FAQItemRepository faqItemRepository;
     private final FAQSearchProperties faqSearchProperties;
-    private final FAQItemMapper faqItemMapper;
+    private final EntityMapper entityMapper;
     private final EmbeddingModel embeddingModel;
     private final FAQCache faqCache;
 
     public FAQService(FAQItemRepository faqItemRepository, FAQSearchProperties faqSearchProperties,
-                      FAQItemMapper faqItemMapper, EmbeddingModel embeddingModel, FAQCache faqCache) {
+                      EntityMapper entityMapper, EmbeddingModel embeddingModel, FAQCache faqCache) {
 
         this.faqItemRepository = faqItemRepository;
         this.faqSearchProperties = faqSearchProperties;
-        this.faqItemMapper = faqItemMapper;
+        this.entityMapper = entityMapper;
         this.embeddingModel = embeddingModel;
         this.faqCache = faqCache;
     }
@@ -74,7 +74,7 @@ public class FAQService {
         faqItemEntity.setLanguage(faqItemLight.language());
         faqItemEntity.setText(faqItemLight.text());
 
-        return faqItemMapper.map(faqItemRepository.save(faqItemEntity));
+        return entityMapper.map(faqItemRepository.save(faqItemEntity));
     }
 
     private FAQItem update(FAQItemLight faqItemLight) {
@@ -89,7 +89,7 @@ public class FAQService {
         byId.getAnswer().setLanguage(faqItemLight.language());
         byId.getSource().setUrl(faqItemLight.url());
 
-        return faqItemMapper.map(faqItemRepository.save(byId));
+        return entityMapper.map(faqItemRepository.save(byId));
     }
 
     private List<FAQItem> getExistingFAQItemsByWordSimilarity(String question) {
@@ -99,7 +99,7 @@ public class FAQService {
 
         return byWordSimilarity
                 .stream()
-                .map(faqItemMapper::map)
+                .map(entityMapper::map)
                 .toList();
     }
 
@@ -111,7 +111,7 @@ public class FAQService {
 
         return nearestByTextEmbedding
                 .stream()
-                .map(faqItemMapper::map)
+                .map(entityMapper::map)
                 .toList();
     }
 

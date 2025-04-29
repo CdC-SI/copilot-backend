@@ -1,5 +1,6 @@
 package zas.admin.zec.backend.config;
 
+import jakarta.servlet.DispatcherType;
 import org.springframework.boot.autoconfigure.security.SecurityProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -55,6 +56,7 @@ public class SecurityConfig {
         http.csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(smc -> smc.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
                         .requestMatchers("/api/settings").permitAll()
                         .requestMatchers("/api/admin/**", "/api/faq-items/save").hasAnyAuthority("ADMIN")
                         .anyRequest().authenticated())

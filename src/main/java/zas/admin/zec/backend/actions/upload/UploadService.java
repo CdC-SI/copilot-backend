@@ -8,10 +8,10 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
-import zas.admin.zec.backend.persistence.DocumentEntity;
-import zas.admin.zec.backend.persistence.DocumentRepository;
-import zas.admin.zec.backend.persistence.SourceEntity;
-import zas.admin.zec.backend.persistence.SourceRepository;
+import zas.admin.zec.backend.persistence.entity.DocumentEntity;
+import zas.admin.zec.backend.persistence.entity.SourceEntity;
+import zas.admin.zec.backend.persistence.repository.DocumentRepository;
+import zas.admin.zec.backend.persistence.repository.SourceRepository;
 
 import java.util.List;
 import java.util.Objects;
