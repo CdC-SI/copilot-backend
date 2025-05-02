@@ -10,6 +10,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import zas.admin.zec.backend.actions.authorize.Role;
 import zas.admin.zec.backend.actions.authorize.User;
+import zas.admin.zec.backend.actions.authorize.UserRegistration;
 import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.persistence.entity.UserEntity;
 import zas.admin.zec.backend.persistence.repository.UserRepository;
@@ -69,7 +70,7 @@ class UserServiceTest {
 
         when(userRepository.save(any(UserEntity.class))).thenReturn(savedUser);
 
-        String uuid = userService.register("newUser", List.of("testorg"));
+        String uuid = userService.register("newUser", new UserRegistration("", "", List.of("testorg")));
 
         assertNotNull(uuid);
         verify(userRepository).save(any(UserEntity.class));
@@ -80,11 +81,12 @@ class UserServiceTest {
     void register_throwsException_whenUsernameAlreadyExists() {
         UserEntity existingUser = new UserEntity();
         existingUser.setUsername("existingUser");
+        UserRegistration userRegistration = new UserRegistration("", "", List.of("testorg"));
 
         when(userRepository.findByUsername("existingUser")).thenReturn(Optional.of(existingUser));
 
         assertThrows(IllegalArgumentException.class,
-            () -> userService.register("existingUser", List.of("testorg")));
+            () -> userService.register("existingUser", userRegistration));
     }
 
     @Test
@@ -94,7 +96,7 @@ class UserServiceTest {
         List<String> organizations = List.of("testorg");
 
         // when
-        String uuid = userService.register(username, organizations);
+        String uuid = userService.register(username, new UserRegistration("", "", organizations));
 
         // then
         ArgumentCaptor<UserEntity> userEntityCaptor = ArgumentCaptor.forClass(UserEntity.class);
@@ -113,10 +115,11 @@ class UserServiceTest {
         // given
         String username = "existinguser";
         List<String> organizations = List.of("testorg");
+        UserRegistration userRegistration = new UserRegistration("", "", organizations);
         when(userRepository.findByUsername(username)).thenReturn(Optional.of(new UserEntity()));
 
         // then
         assertThrows(IllegalArgumentException.class,
-            () -> userService.register(username, organizations));
+            () -> userService.register(username, userRegistration));
     }
 }

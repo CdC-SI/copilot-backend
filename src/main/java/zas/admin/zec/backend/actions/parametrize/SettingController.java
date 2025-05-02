@@ -6,24 +6,26 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import zas.admin.zec.backend.actions.authorize.UserService;
 
 import java.util.List;
-import java.util.Objects;
 
 @RestController
 @RequestMapping("/api/settings")
 public class SettingController {
 
     private final SettingService settingService;
+    private final UserService userService;
 
-    public SettingController(SettingService settingService) {
+    public SettingController(SettingService settingService, UserService userService) {
         this.settingService = settingService;
+        this.userService = userService;
     }
 
     @GetMapping()
     public ResponseEntity<List<String>> getSettings(@RequestParam SettingType type, Authentication authentication) {
-        return Objects.isNull(authentication)
-                ? ResponseEntity.ok(settingService.getPublicSettings(type))
-                : ResponseEntity.ok(settingService.getSettings(type, authentication.getName()));
+        return userService.existsByUsername(authentication.getName())
+                ? ResponseEntity.ok(settingService.getSettings(type, authentication.getName()))
+                : ResponseEntity.ok(settingService.getPublicSettings(type));
     }
 }

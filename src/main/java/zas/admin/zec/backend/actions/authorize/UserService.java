@@ -31,16 +31,23 @@ public class UserService {
         return user.getOrganizations();
     }
 
+    public boolean existsByUsername(String username) {
+        return userRepository.findByUsername(username).isPresent();
+    }
+
     public User getByUsername(String username) {
         Optional<UserEntity> byUsername = userRepository.findByUsername(username);
         return byUsername
-                .map(userEntity -> new User(userEntity.getUsername(),
-                                          userEntity.getRoles().stream().map(Role::from).toList(),
-                                          userEntity.getOrganizations()))
+                .map(entity -> new User(
+                        entity.getUsername(),
+                        entity.getFirstName(),
+                        entity.getLastName(),
+                        entity.getRoles().stream().map(Role::from).toList(),
+                        entity.getOrganizations()))
                 .orElseThrow(() -> new IllegalArgumentException(USER_NOT_FOUND));
     }
 
-    public String register(String username, List<String> organizations) {
+    public String register(String username, UserRegistration registration) {
         if (userRepository.findByUsername(username).isPresent()) {
             throw new IllegalArgumentException("User already exists");
         }
@@ -48,7 +55,9 @@ public class UserService {
         var user = new UserEntity();
         user.setUuid(UUID.randomUUID().toString());
         user.setUsername(username);
-        user.setOrganizations(organizations == null ? List.of() : organizations);
+        user.setFirstName(registration.firstName());
+        user.setLastName(registration.lastName());
+        user.setOrganizations(registration.organizations() == null ? List.of() : registration.organizations());
         user.setRoles(List.of(Role.USER.name()));
 
         UserEntity savedUser = userRepository.save(user);
