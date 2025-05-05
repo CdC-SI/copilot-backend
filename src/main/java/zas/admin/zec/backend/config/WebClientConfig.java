@@ -34,13 +34,13 @@ public class WebClientConfig {
 
     @Bean
     public WebClient.Builder webClientBuilder() {
-        HttpClient httpClient = HttpClient.create()
-                .proxy(proxy -> proxy
-                        .type(ProxyProvider.Proxy.HTTP)
-                        .host(System.getProperty("https.proxyHost"))
-                        .port(Integer.parseInt(System.getProperty("https.proxyPort")))
-                        .nonProxyHosts(System.getProperty("https.nonProxyHosts"))
-                );
+        HttpClient httpClient = HttpClient.create();
+                // .proxy(proxy -> proxy
+                //         .type(ProxyProvider.Proxy.HTTP)
+                //         .host(System.getProperty("https.proxyHost"))
+                //         .port(Integer.parseInt(System.getProperty("https.proxyPort")))
+                //         .nonProxyHosts(System.getProperty("https.nonProxyHosts"))
+                // );
 
         return WebClient.builder()
                 .clientConnector(new ReactorClientHttpConnector(httpClient));

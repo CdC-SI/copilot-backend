@@ -44,7 +44,7 @@ public class SecurityConfig {
     @Order(SecurityProperties.DEFAULT_FILTER_ORDER - 2)
     public SecurityFilterChain publicFilterChain(HttpSecurity http) throws Exception {
         http.csrf(AbstractHttpConfigurer::disable)
-                .securityMatcher( "/api/users", "/api/auth", "/api/faq-items", "/api/settings")
+                .securityMatcher( "/api/users", "/api/auth", "/api/faq-items")
                 .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
 
         return http.build();
