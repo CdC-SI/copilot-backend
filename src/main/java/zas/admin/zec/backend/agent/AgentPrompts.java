@@ -23,6 +23,9 @@ public class AgentPrompts {
             
                 PENSION_AGENT: questions sur le calcul du taux de réduction lié au départ à la retraite
                 PENSION_AGENT: questions sur le calcul de supplément de rente lié au départ à la retraite
+
+                AI_AGENT: questions sur le calcul de la rente AI
+                AI_AGENT: questions sur l'atribution de rentes AI
             </agents>
             
             <exemples>
@@ -35,6 +38,7 @@ public class AgentPrompts {
                 Je suis née le 1962.31.12, je souhaite prendre ma retraite le 01.01.2025 et mon revenu annuel est d'environ 55'000 CHF. Quel est mon taux de réduction ? -> PENSION_AGENT
                 Quel sera mon taux de réduction si je suis née le 1965-11-07, je souhaite prendre ma retraite le 2026-04-15 et mon revenu annuel est de 76200 ? -> PENSION_AGENT
                 Voici mes informations: date de naissance le 03.01.1968 et je pars à la retraite en 2027. Je gagne environ 90000 CHF par an. Puis-je bénéficier d'un supplément ou taux de réduction ? -> PENSION_AGENT
+                J'ai besoin d'aide pour calculer la rente AI d'un bénéficiaire. -> AI_AGENT
             </exemples>
             
             <question>

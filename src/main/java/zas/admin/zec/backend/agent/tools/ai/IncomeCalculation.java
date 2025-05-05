@@ -11,7 +11,6 @@ import java.util.Objects;
 import static zas.admin.zec.backend.agent.tools.ai.StatisticalData.*;
 
 public class IncomeCalculation {
-//    @Setter
     @Getter
     private static StringBuilder fullContext = new StringBuilder();
 
@@ -206,10 +205,6 @@ public class IncomeCalculation {
 
         // 3) Résoudre la branche finale (getId gère les plages, / et +)
         String brancheFinale = getId(branche, indexList);
-//        if (brancheFinale == null) {
-//            // fallback sur la première id de "th"
-//            brancheFinale = loadIds("th")[0];
-//        }
 
         // 4) Chercher la DataPoint dont l'id correspond
         DataPoint row = df.stream()
@@ -276,10 +271,6 @@ public class IncomeCalculation {
 
         // 4) Log pour debug
         updateContext("\nNombre d'heures hebdomadaires selon la branche économique: " + heuresNormales + "  Revenu mensuel ajusté: " + salaireMensuelAdj + " CHF");
-//        System.out.printf(
-//                "Nombre d'heures hebdomadaires selon la branche économique: %.2f  Revenu mensuel ajusté: %.2f%n",
-//                heuresNormales, salaireMensuelAdj
-//        );
 
         // 5) Retourner le salaire annuel
         return salaireMensuelAdj * 12.0;
@@ -309,13 +300,6 @@ public class IncomeCalculation {
         // 3) Montant annualisé en fonction de la capacité fonctionnelle
         double montantAjuste = montantAnnuel * capaciteGlobale;
 
-//        System.out.printf(
-//                "Taux d'activité exigible: %d%%\n" +
-//                        "Diminution de rendement en pourcent: %d%%\n" +
-//                        "Capacité fonctionnelle résiduelle: %.2f%%\n" +
-//                        "Revenu annuel selon capacité: %.2f CHF%n",
-//                benef.activityRate, benef.reduction, capaciteGlobale * 100, montantAjuste
-//        );
         updateContext(
                 "\nTaux d'activité exigible: " + benef.activityRate + "%" +
                 "\nDiminution de rendement en pourcent: " + benef.reduction + "%" +
@@ -359,41 +343,42 @@ public class IncomeCalculation {
         double net = montantAjuste * (1 - deductionRate);
         res.append(String.format("  Revenu après déduction: %.2f CHF", net));
 
-//        System.out.println(res.toString());
         updateContext(res.toString());
         return net;
     }
 
-//    /**
-//     * Convertit le taux d'invalidité en quotité de rente selon le barème de l’art. 28b LAI.
-//     *
-//     * @param tauxInval taux d'invalidité en pourcentage (ex. 45.3)
-//     * @return quotité de rente correspondante en pourcentage
-//     */
-//    public static double convertTauxInvaliditeEnRente(double tauxInval) {
-//        if (tauxInval >= 70) {
-//            return 100.0;
-//        } else if (tauxInval >= 50) {
-//            // entre 50 et 69.999… : rente égale au taux
-//            return tauxInval;
-//        } else {
-//            // taux < 50 : barème dégressif
-//            int arrondi = (int) Math.floor(tauxInval);
-//            switch (arrondi) {
-//                case 49: return 47.5;
-//                case 48: return 45.0;
-//                case 47: return 42.5;
-//                case 46: return 40.0;
-//                case 45: return 37.5;
-//                case 44: return 35.0;
-//                case 43: return 32.5;
-//                case 42: return 30.0;
-//                case 41: return 27.5;
-//                case 40: return 25.0;
-//                default:  return 0.0;
-//            }
-//        }
-//    }
+    /**
+     * Convertit le taux d'invalidité en quotité de rente selon le barème de l’art. 28b LAI.
+     *
+     * @param tauxInval taux d'invalidité en pourcentage (ex. 45.3)
+     * @return quotité de rente correspondante en pourcentage
+     * 
+     * public static double convertTauxInvaliditeEnRente(double tauxInval) {
+     *    if (tauxInval >= 70) {
+     *        return 100.0;
+     *    } else if (tauxInval >= 50) {
+     *        // entre 50 et 69.999… : rente égale au taux
+     *        return tauxInval;
+     *    } else {
+     *        // taux < 50 : barème dégressif
+     *        int arrondi = (int) Math.floor(tauxInval);
+     *        switch (arrondi) {
+     *            case 49: return 47.5;
+     *            case 48: return 45.0;
+     *            case 47: return 42.5;
+     *            case 46: return 40.0;
+     *            case 45: return 37.5;
+     *            case 44: return 35.0;
+     *            case 43: return 32.5;
+     *            case 42: return 30.0;
+     *            case 41: return 27.5;
+     *            case 40: return 25.0;
+     *            default:  return 0.0;
+     *        }
+     *    }
+     * }
+     */
+   
 
     /**
      * Calcule le salaire avant l'atteinte à la santé en indexant selon la table T1.
@@ -432,16 +417,6 @@ public class IncomeCalculation {
                 "\n  " + ess + " -> " + indexEx +
                 "\n\nRevenu effectif annuel indexé: " + revenuEffectif + " CHF"
         );
-//        System.out.println("Activité: " + branche);
-//        System.out.println("Taux d'activité: " + taux + "%");
-//        System.out.println("Année du dernier revenu effectif: " + annee);
-//        System.out.println("Revenu effectif annuel réel: " + salaire
-//                + " CHF  Revenu annuel pour un 100%: " + salaire100 + " CHF");
-//        System.out.println("Année d'exigibilité: " + ess);
-//        System.out.println("Indexation du revenu:");
-//        System.out.println("  " + ess + " -> " + indexEx);
-//        System.out.println("  " + annee + " -> " + indexAnnee);
-//        System.out.println("Revenu effectif annuel indexé: " + revenuEffectif + " CHF");
 
         return revenuEffectif;
     }
@@ -466,9 +441,6 @@ public class IncomeCalculation {
                 "\nAnnée d'exigibilité: " + ess +
                 "\nRevenu mensuel calculé sur 40h: " + revenu + " CHF"
         );
-//        System.out.println("Activité: " + branche);
-//        System.out.println("Année d'exigibilité: " + ess);
-//        System.out.println("Revenu mensuel calculé sur 40h: " + revenu + " CHF");
 
         // calcul du salaire annuel ajusté selon les heures
         double revenuAnnuel = getSalaireAnnuel(benef, revenu, branche);
@@ -486,10 +458,6 @@ public class IncomeCalculation {
                 "\n  " + ess + " -> " + indexEx + " CHF" +
                 "\n\nRevenu ESS annuel indexé: " + revenuEss + " CHF"
         );
-//        System.out.println("Indexation du revenu:");
-//        System.out.println("  " + ess + " -> " + indexEx + " CHF");
-//        System.out.println("  " + annee + " -> " + indexAnnee + " CHF");
-//        System.out.println("Revenu ESS annuel indexé: " + revenuEss + " CHF");
 
         return revenuEss;
     }
@@ -510,10 +478,6 @@ public class IncomeCalculation {
                 + difference + " CHF" +
                 "\nDifférence en pourcent: " + ratioPct + "%"
         );
-
-//        System.out.println("Différence entre le revenu effectif et ESS annuel indexé: "
-//                + difference + " CHF");
-//        System.out.println("Différence en pourcent: " + ratioPct + "%");
 
         if (ratioPct > 95.0) {
             updateContext("\nLe revenu effectif est supérieur à 95% du revenu statistique.");
@@ -540,7 +504,7 @@ public class IncomeCalculation {
 
         if (hadRevenu) {
             updateContext("\n\nCalcul du revenu avant l'atteinte à la santé:");
-//            System.out.println("\nCalcul du revenu avant l'atteinte à la santé:");
+
             // revenu effectif basé sur le salaire AS (OFS) et le taux d'activité
             double revenuAvasta = getRevenuEffectif(
                     sas.economicBranch,
@@ -550,7 +514,6 @@ public class IncomeCalculation {
                     benef
             );
 
-//            System.out.println("\nCalcul du revenu exigible selon ESS:");
             updateContext("\n\nCalcul du revenu exigible selon ESS:");
             // salaire ESS post-santé: on utilise les infos statistiques « postHealthStatisticalSalary »
             double revenuEss = getRevenuEss(
@@ -562,11 +525,9 @@ public class IncomeCalculation {
             );
 
             updateContext("\n\nCalcul du revenu après parallélisme:");
-//            System.out.println("\nCalcul du revenu après parallélisme:");
             revenuSainv = getParallelisme(revenuAvasta, revenuEss);
 
         } else {
-//            System.out.println("\nCalcul du revenu exigible selon ESS (aucun revenu AS disponible) :");
             updateContext("\n\nCalcul du revenu exigible selon ESS:");
             revenuSainv = getRevenuEss(
                     benef,
@@ -576,8 +537,6 @@ public class IncomeCalculation {
                     sas.economicBranch
             );
         }
-
-//        System.out.println("\nRevenu sans invalidité (final): " + revenuSainv + " CHF");
         updateContext("\n\nRevenu sans invalidité (final): " + revenuSainv + " CHF");
         return revenuSainv;
     }
@@ -603,7 +562,6 @@ public class IncomeCalculation {
         EffectiveSalaryInfo effInfo = benef.postHealthEffectiveSalary;
         boolean hasEffectif = effInfo.salary != 0.0 && effInfo.year != 0;
 
-//        System.out.println("\nCalcul du revenu exigible selon ESS:");
         updateContext("\n\nCalcul du revenu exigible selon ESS:");
         // 1) calcul ESS + indexation
         double revenuAnnuelESS = getRevenuEss(
@@ -620,7 +578,7 @@ public class IncomeCalculation {
         double revenuEffectif = 0.0;
         if (hasEffectif) {
             updateContext("\n\nCalcul du revenu effectif:");
-//            System.out.println("\nCalcul du revenu effectif:");
+
             revenuEffectif = getRevenuEffectif(
                     branche,
                     benef.activityRate - benef.deduction,
@@ -633,7 +591,6 @@ public class IncomeCalculation {
         // 4) on prend le maximum
         double revenuFinal = Math.max(revenuESS, revenuEffectif);
         updateContext("\n\nRevenu exigible final: " + revenuFinal + " CHF\n");
-//        System.out.println("\nRevenu exigible final: " + revenuFinal + " CHF\n");
         return revenuFinal;
     }
 
@@ -656,10 +613,6 @@ public class IncomeCalculation {
         // Revenu exigible (avec atteinte)
         double revenuEx    = getRevenuExigible(benef);
 
-//        System.out.println(String.format(
-//                "Revenu sans invalidité: %.2f CHF, Revenu exigible: %.2f CHF",
-//                revenuSainv, revenuEx));
-
         // Calcul du taux d'invalidité
         double perte = revenuSainv - revenuEx;
         double tauxInval = perte * 100.0 / revenuSainv;
@@ -675,31 +628,6 @@ public class IncomeCalculation {
 
         updateContext(sb.toString());
 
-//        System.out.println(sb.toString());
         return getFullContext().toString();
     }
-
-
-//    public static void main(String[] args) {
-//        StatisticalSalaryInfo statPre = new StatisticalSalaryInfo(2022,0,2,"Construction");
-//        StatisticalSalaryInfo StatPost = new StatisticalSalaryInfo(2022,0,1,"TOTAL");
-//        EffectiveSalaryInfo EffPre = new EffectiveSalaryInfo(2021,90000);
-//        EffectiveSalaryInfo EffPost = new EffectiveSalaryInfo(0,0);
-//        Beneficiary benef = new Beneficiary(
-//                2022,
-//                "homme",
-//                EffPre,
-//                statPre,
-//                EffPost,
-//                StatPost,
-//                100,
-//                0,
-//                0
-//        );
-//
-//        System.out.println("\n\n+-------------------------------------------------------------------------------------------------+\n"
-//                + getInvalidite(benef)
-//                + "\n+-------------------------------------------------------------------------------------------------+\n\n"
-//        );
-//    }
 }
