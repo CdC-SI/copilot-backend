@@ -47,7 +47,7 @@ spring:
         options:
           model: ${OPENAI_EMBEDDING_MODEL:text-embedding-3-small}
 py-backend:
-  baseUrl: ${PY_BACKEND_URL}
+  baseUrl: http://copilot:8000
 jwt:
   secret-key: ${JWT_SECRET_KEY}
   expiration-time: ${JWT_EXPIRATION_TIME:36000000}
