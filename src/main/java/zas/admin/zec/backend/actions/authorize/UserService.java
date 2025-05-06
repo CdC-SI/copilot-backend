@@ -42,6 +42,7 @@ public class UserService {
                         entity.getUsername(),
                         entity.getFirstName(),
                         entity.getLastName(),
+                        entity.getStatus(),
                         entity.getRoles().stream().map(Role::from).toList(),
                         entity.getOrganizations()))
                 .orElseThrow(() -> new IllegalArgumentException(USER_NOT_FOUND));
@@ -57,6 +58,7 @@ public class UserService {
         user.setUsername(username);
         user.setFirstName(registration.firstName());
         user.setLastName(registration.lastName());
+        user.setStatus(UserStatus.PENDING_ACTIVATION);
         user.setOrganizations(registration.organizations() == null ? List.of() : registration.organizations());
         user.setRoles(List.of(Role.USER.name()));
 

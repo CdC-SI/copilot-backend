@@ -12,7 +12,6 @@ import java.util.List;
 @RequestMapping("/api/users")
 public class UserController {
 
-    public record UserProfile(String username, String firstName, String lastName, List<String> roles) {}
     public record UserResponse(String userId) {}
     private final UserService userService;
 
@@ -47,6 +46,7 @@ public class UserController {
                     zasUser.getUsername(),
                     zasUser.getFirstname(),
                     zasUser.getLastname(),
+                    UserStatus.GUEST,
                     List.of()
             );
         }
@@ -60,6 +60,7 @@ public class UserController {
                     username,
                     null,
                     null,
+                    UserStatus.GUEST,
                     List.of()
             );
         }
@@ -71,6 +72,7 @@ public class UserController {
                 byUsername.username(),
                 byUsername.firstName(),
                 byUsername.lastName(),
+                byUsername.status(),
                 byUsername.roles().stream().map(Role::name).toList()
         );
     }

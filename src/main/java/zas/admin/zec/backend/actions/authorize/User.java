@@ -6,6 +6,7 @@ public record User(
     String username,
     String firstName,
     String lastName,
+    UserStatus status,
     List<Role> roles,
     List<String> organizations
 ) {}
