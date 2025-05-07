@@ -2,6 +2,7 @@ package zas.admin.zec.backend.actions.converse;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.memory.InMemoryChatMemory;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.ChatOptions;
@@ -24,6 +25,10 @@ import zas.admin.zec.backend.rag.token.SourceToken;
 import zas.admin.zec.backend.rag.token.StatusToken;
 import zas.admin.zec.backend.rag.token.TextToken;
 import zas.admin.zec.backend.rag.token.Token;
+
+import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.chat.memory.InMemoryChatMemory;
+import zas.admin.zec.backend.actions.converse.Question;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -133,7 +138,45 @@ public class ConversationService {
     }
 
     private Flux<Token> getAgentAndHistoryStream(Question question, String userId) {
-        var agentFuture = fetchAgentAsync(question);
+        ChatMemory chatMemory = new InMemoryChatMemory();
+        var context = chatMemory.get(question.conversationId(), question.kMemory());
+        
+        StringBuilder concatenated = new StringBuilder();
+
+        // Append each message from the history
+        for (org.springframework.ai.chat.messages.Message message : context) {
+            concatenated.append(message.getMessageType().getValue()).append(": ").append(message.getText()).append("\n");
+        }
+
+        // Append the query at the end
+        concatenated.append("USER: ").append(question.query());
+        
+        Question conxtextualizedQuestion = new Question(
+                concatenated.toString(),
+                question.language(),
+                question.tags(),
+                question.sources(),
+                question.llmModel(),
+                question.topP(),
+                question.temperature(),
+                question.maxOutputTokens(),
+                question.retrievalMethods(),
+                question.kRetrieve(),
+                question.kMemory(),
+                question.responseStyle(),
+                question.responseFormat(),
+                question.command(),
+                question.commandArgs(),
+                question.autocomplete(),
+                question.rag(),
+                question.agenticRag(),
+                question.sourceValidation(),
+                question.topicCheck(),
+                question.isFollowUpQ(),
+                question.conversationId()
+        ).withDefaults();
+
+        var agentFuture = fetchAgentAsync(conxtextualizedQuestion);
         var historyFuture = fetchConversationHistoryAsync(question, userId);
         Mono<Token> handoffFuture = Mono.fromFuture(agentFuture).map(agent -> new StatusToken(RAGStatus.AGENT_HANDOFF, question.language(), agent.getName()));
         var combined = agentFuture.thenCombine(historyFuture,
