@@ -1,10 +1,15 @@
 package zas.admin.zec.backend.actions.authorize;
 
 import ch.admin.zas.common.security.users.ZasUser;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
+import zas.admin.zec.backend.config.RequireAdmin;
 
 import java.util.List;
 
@@ -17,6 +22,56 @@ public class UserController {
 
     public UserController(UserService userService) {
         this.userService = userService;
+    }
+
+    @GetMapping
+    @RequireAdmin
+    public ResponseEntity<Page<UserProfile>> getAllUsers(
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "pageSize", defaultValue = "10") int pageSize,
+            @RequestParam(name = "sortField", defaultValue = "status") String sortField,
+            @RequestParam(name = "sortDirection", defaultValue = "DESC") String sortDirection) {
+
+        var sort = StringUtils.hasLength(sortField)
+                ? Sort.by(Sort.Direction.valueOf(sortDirection), sortField)
+                : Sort.unsorted();
+        var pageRequest = PageRequest.of(page, pageSize, sort);
+        return ResponseEntity.ok(userService.getAllUsers(pageRequest));
+    }
+
+    @RequireAdmin
+    @PutMapping("/{username}/validate")
+    public ResponseEntity<Void> validateUser(@PathVariable String username) {
+        userService.validate(username);
+        return ResponseEntity.ok().build();
+    }
+
+    @RequireAdmin
+    @PutMapping("/{username}/reactivate")
+    public ResponseEntity<Void> reactivateUser(@PathVariable String username) {
+        userService.reactivate(username);
+        return ResponseEntity.ok().build();
+    }
+
+    @RequireAdmin
+    @PutMapping("/{username}/deactivate")
+    public ResponseEntity<Void> deactivateUser(@PathVariable String username) {
+        userService.deactivate(username);
+        return ResponseEntity.ok().build();
+    }
+
+    @RequireAdmin
+    @PutMapping("/{username}/promote")
+    public ResponseEntity<Void> promoteUser(@PathVariable String username) {
+        userService.promote(username);
+        return ResponseEntity.ok().build();
+    }
+
+    @RequireAdmin
+    @PutMapping("/{username}/demote")
+    public ResponseEntity<Void> demoteUser(@PathVariable String username) {
+        userService.demote(username);
+        return ResponseEntity.ok().build();
     }
 
     @GetMapping("/authenticated")
