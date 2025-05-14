@@ -3,6 +3,7 @@ package zas.admin.zec.backend.rag.reranker;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientRequestException;
 import zas.admin.zec.backend.actions.converse.Question;
 import zas.admin.zec.backend.config.properties.RerankingProperties;
 import zas.admin.zec.backend.rag.Document;
@@ -32,20 +33,25 @@ public class DocumentReranker {
             docsToRerank.stream().map(Document::text).toList()
         );
 
-        RerankResponse response = rerankerClient.post()
-                .bodyValue(requestBody)
-                .retrieve()
-                .bodyToMono(RerankResponse.class)
-                .block();
+        try {
+            RerankResponse response = rerankerClient.post()
+                    .bodyValue(requestBody)
+                    .retrieve()
+                    .bodyToMono(RerankResponse.class)
+                    .block();
 
-        if (response == null || response.results().isEmpty()) {
-            log.warn("Reranking failed or returned no results. Returning original documents.");
+            if (response == null || response.results().isEmpty()) {
+                log.warn("Reranking failed or returned no results. Returning original documents.");
+                return docsToRerank;
+            }
+
+            return response.results().stream()
+                    .map(result -> docsToRerank.get(result.index()))
+                    .limit(question.kRetrieve())
+                    .toList();
+        } catch (WebClientRequestException e) {
+            log.error("Error during reranking request: {}", e.getMessage());
             return docsToRerank;
         }
-
-        return response.results().stream()
-                .map(result -> docsToRerank.get(result.index()))
-                .limit(question.kRetrieve())
-                .toList();
     }
 }
