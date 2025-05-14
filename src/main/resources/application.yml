@@ -46,6 +46,7 @@ spring:
       embedding:
         options:
           model: ${OPENAI_EMBEDDING_MODEL:text-embedding-3-small}
+      api-key: ${OPENAI_API_KEY}
 py-backend:
   baseUrl: http://copilot:8000
 jwt:
@@ -75,3 +76,13 @@ logging:
 deepl:
   auth-key: ${DEEPL_API_KEY:deepl_auth_key}
   default-target-lang: 'fr'
+zas:
+  security:
+    blue-token:
+      public-key: ${GATEWAY_PUBLIC_KEY}
+      header-name: blue
+proxy:
+  host: ${PROXY_HOST:proxy.bvcol.admin.ch}
+  port: ${PROXY_PORT:8080}
+  non-proxy-hosts: ${NON_PROXY_HOSTS:localhost,.admin.ch}
+  enabled: true

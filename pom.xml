@@ -22,9 +22,15 @@
         <mapstruct.version>1.6.3</mapstruct.version>
         <spring-ai.version>1.0.0-M6</spring-ai.version>
         <caffeine.version>3.2.0</caffeine.version>
+        <zas-common-security-starter.version>3.3.5</zas-common-security-starter.version>
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>ch.admin.zas.commons</groupId>
+            <artifactId>zas-common-security-starter</artifactId>
+            <version>${zas-common-security-starter.version}</version>
+        </dependency>
         <!-- Spring -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

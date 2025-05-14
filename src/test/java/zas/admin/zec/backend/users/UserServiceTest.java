@@ -10,6 +10,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import zas.admin.zec.backend.actions.authorize.Role;
 import zas.admin.zec.backend.actions.authorize.User;
+import zas.admin.zec.backend.actions.authorize.UserRegistration;
 import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.persistence.entity.UserEntity;
 import zas.admin.zec.backend.persistence.repository.UserRepository;
@@ -36,7 +37,6 @@ class UserServiceTest {
     void getByUsername_returnUser_whenUserExists() {
         UserEntity userEntity = new UserEntity();
         userEntity.setUsername("testUser");
-        userEntity.setPassword("encodedPassword");
         userEntity.setRoles(List.of("USER"));
         userEntity.setOrganizations(List.of());
 
@@ -45,7 +45,6 @@ class UserServiceTest {
         User user = userService.getByUsername("testUser");
 
         assertEquals("testUser", user.username());
-        assertEquals("encodedPassword", user.password());
         assertEquals(List.of(Role.USER), user.roles());
     }
 
@@ -66,13 +65,12 @@ class UserServiceTest {
         UserEntity savedUser = new UserEntity();
         savedUser.setUuid(UUID.randomUUID().toString());
         savedUser.setUsername("newUser");
-        savedUser.setPassword("encodedPassword");
         savedUser.setRoles(List.of("USER"));
         savedUser.setOrganizations(List.of("testorg"));
 
         when(userRepository.save(any(UserEntity.class))).thenReturn(savedUser);
 
-        String uuid = userService.register("newUser", "password", List.of("testorg"));
+        String uuid = userService.register("newUser", new UserRegistration("", "", List.of("testorg")));
 
         assertNotNull(uuid);
         verify(userRepository).save(any(UserEntity.class));
@@ -83,22 +81,22 @@ class UserServiceTest {
     void register_throwsException_whenUsernameAlreadyExists() {
         UserEntity existingUser = new UserEntity();
         existingUser.setUsername("existingUser");
+        UserRegistration userRegistration = new UserRegistration("", "", List.of("testorg"));
 
         when(userRepository.findByUsername("existingUser")).thenReturn(Optional.of(existingUser));
 
         assertThrows(IllegalArgumentException.class,
-            () -> userService.register("existingUser", "password", List.of("testorg")));
+            () -> userService.register("existingUser", userRegistration));
     }
 
     @Test
     void register_ShouldCreateNewUser() {
         // given
         String username = "testuser";
-        String password = "password";
         List<String> organizations = List.of("testorg");
 
         // when
-        String uuid = userService.register(username, password, organizations);
+        String uuid = userService.register(username, new UserRegistration("", "", organizations));
 
         // then
         ArgumentCaptor<UserEntity> userEntityCaptor = ArgumentCaptor.forClass(UserEntity.class);
@@ -106,7 +104,6 @@ class UserServiceTest {
         UserEntity savedUser = userEntityCaptor.getValue();
 
         assertEquals(username, savedUser.getUsername());
-        assertTrue(passwordEncoder.matches(password, savedUser.getPassword()));
         assertEquals(organizations, savedUser.getOrganizations());
         assertEquals(List.of(Role.USER.name()), savedUser.getRoles());
         assertNotNull(savedUser.getUuid());
@@ -117,12 +114,12 @@ class UserServiceTest {
     void register_ShouldThrowException_WhenUserExists() {
         // given
         String username = "existinguser";
-        String password = "password";
         List<String> organizations = List.of("testorg");
+        UserRegistration userRegistration = new UserRegistration("", "", organizations);
         when(userRepository.findByUsername(username)).thenReturn(Optional.of(new UserEntity()));
 
         // then
         assertThrows(IllegalArgumentException.class,
-            () -> userService.register(username, password, organizations));
+            () -> userService.register(username, userRegistration));
     }
 }

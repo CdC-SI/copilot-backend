@@ -33,7 +33,7 @@ public class ContentEntity {
     @Column
     private String url;
 
-    @Column
+    @Column(columnDefinition = "text")
     private String summary;
 
     @Column
