@@ -38,11 +38,6 @@ public class RAGService implements IRAGService {
 
     @Override
     public Flux<Token> streamAnswer(Question question, List<Message> conversationHistory) {
-        try {
-            Thread.sleep(3000);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
         Flux<Token> statusToken = Flux.just(new StatusToken(RAGStatus.RETRIEVAL, question.language()));
         Flux<Token> retrievalAndChatTokens = Mono.fromCallable(() -> gatherer.retrieveRelatedDocuments(question))
                 .flatMapMany(Flux::fromIterable)

@@ -3,6 +3,7 @@ package zas.admin.zec.backend.persistence.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import zas.admin.zec.backend.actions.authorize.UserStatus;
 
 import java.util.List;
 
@@ -24,6 +25,10 @@ public class UserEntity {
 
     @Column(name = "last_name")
     private String lastName;
+
+    @Column(name = "status")
+    @Enumerated(EnumType.STRING)
+    private UserStatus status;
 
     @ElementCollection(fetch = FetchType.EAGER)
     private List<String> roles;

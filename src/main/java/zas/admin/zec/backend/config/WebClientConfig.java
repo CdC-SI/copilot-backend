@@ -6,9 +6,11 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
+import org.springframework.http.client.ReactorNettyClientRequestFactory;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.web.client.RestClient;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.netty.http.client.HttpClient;
 import reactor.netty.transport.ProxyProvider;
@@ -37,17 +39,28 @@ public class WebClientConfig {
 
     @Bean
     @ConditionalOnProperty(name = "proxy.enabled", havingValue = "true")
-    public WebClient.Builder webClientBuilder() {
-        HttpClient httpClient = HttpClient.create()
+    public RestClient.Builder restClientBuilder(final HttpClient httpClient) {
+        return RestClient.builder()
+                .requestFactory(new ReactorNettyClientRequestFactory(httpClient));
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "proxy.enabled", havingValue = "true")
+    public WebClient.Builder webClientBuilder(final HttpClient httpClient) {
+        return WebClient.builder()
+                .clientConnector(new ReactorClientHttpConnector(httpClient));
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "proxy.enabled", havingValue = "true")
+    public HttpClient httpClient() {
+        return HttpClient.create()
                 .proxy(proxy -> proxy
                         .type(ProxyProvider.Proxy.HTTP)
                         .host(proxyProperties.host())
                         .port(proxyProperties.port())
                         .nonProxyHosts(proxyProperties.nonProxyHosts())
                 );
-
-        return WebClient.builder()
-                .clientConnector(new ReactorClientHttpConnector(httpClient));
     }
 
     @Bean(name = "asyncExecutor")
