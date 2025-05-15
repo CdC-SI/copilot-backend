@@ -1,4 +1,4 @@
-package zas.admin.zec.backend.agent.tools.ai;
+package zas.admin.zec.backend.agent.tools.ii;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import static zas.admin.zec.backend.agent.tools.ai.StatisticalData.*;
+import static zas.admin.zec.backend.agent.tools.ii.StatisticalData.*;
 
 public class IncomeCalculation {
     @Getter

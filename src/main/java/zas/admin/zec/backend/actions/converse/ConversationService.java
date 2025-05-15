@@ -2,7 +2,6 @@ package zas.admin.zec.backend.actions.converse;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.memory.InMemoryChatMemory;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.ChatOptions;
@@ -21,14 +20,7 @@ import zas.admin.zec.backend.persistence.entity.MessageEntity;
 import zas.admin.zec.backend.persistence.repository.ConversationRepository;
 import zas.admin.zec.backend.persistence.repository.ConversationTitleRepository;
 import zas.admin.zec.backend.rag.RAGStatus;
-import zas.admin.zec.backend.rag.token.SourceToken;
-import zas.admin.zec.backend.rag.token.StatusToken;
-import zas.admin.zec.backend.rag.token.TextToken;
-import zas.admin.zec.backend.rag.token.Token;
-
-import org.springframework.ai.chat.memory.ChatMemory;
-import org.springframework.ai.chat.memory.InMemoryChatMemory;
-import zas.admin.zec.backend.actions.converse.Question;
+import zas.admin.zec.backend.rag.token.*;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -104,13 +96,19 @@ public class ConversationService {
     }
 
     public Flux<String> streamAnswer(Question question, String userId) {
+        var timestamp = LocalDateTime.now();
         String assistantMessageId = UUID.randomUUID().toString();
         StringBuilder assistantMessage = new StringBuilder();
         List<String> sourceUrls = new ArrayList<>();
+        List<String> suggestions = new ArrayList<>();
 
         return getTokenStream(question, userId)
                 .flatMap(token -> switch (token) {
                     case StatusToken statusToken -> Flux.just(statusToken.content());
+                    case SuggestionToken suggestionToken -> {
+                        suggestions.add(suggestionToken.content());
+                        yield Flux.just(suggestionToken.content());
+                    }
                     case SourceToken sourceToken -> {
                         sourceUrls.add(sourceToken.metadata().get("url"));
                         yield Flux.just(sourceToken.content());
@@ -122,7 +120,8 @@ public class ConversationService {
                 })
                 .concatWithValues("<message_uuid>%s</message_uuid>".formatted(assistantMessageId))
                 .concatWith(
-                        Mono.fromRunnable(() -> saveExchange(question, userId, assistantMessageId, assistantMessage.toString(), sourceUrls))
+                        Mono.fromRunnable(() -> saveExchange(question, userId, assistantMessageId, assistantMessage.toString(),
+                                        sourceUrls, suggestions, timestamp))
                                 .subscribeOn(Schedulers.boundedElastic())
                                 .then(Mono.empty()))
                 .onErrorResume(err -> {
@@ -138,45 +137,7 @@ public class ConversationService {
     }
 
     private Flux<Token> getAgentAndHistoryStream(Question question, String userId) {
-        ChatMemory chatMemory = new InMemoryChatMemory();
-        var context = chatMemory.get(question.conversationId(), question.kMemory());
-        
-        StringBuilder concatenated = new StringBuilder();
-
-        // Append each message from the history
-        for (org.springframework.ai.chat.messages.Message message : context) {
-            concatenated.append(message.getMessageType().getValue()).append(": ").append(message.getText()).append("\n");
-        }
-
-        // Append the query at the end
-        concatenated.append("USER: ").append(question.query());
-        
-        Question conxtextualizedQuestion = new Question(
-                concatenated.toString(),
-                question.language(),
-                question.tags(),
-                question.sources(),
-                question.llmModel(),
-                question.topP(),
-                question.temperature(),
-                question.maxOutputTokens(),
-                question.retrievalMethods(),
-                question.kRetrieve(),
-                question.kMemory(),
-                question.responseStyle(),
-                question.responseFormat(),
-                question.command(),
-                question.commandArgs(),
-                question.autocomplete(),
-                question.rag(),
-                question.agenticRag(),
-                question.sourceValidation(),
-                question.topicCheck(),
-                question.isFollowUpQ(),
-                question.conversationId()
-        ).withDefaults();
-
-        var agentFuture = fetchAgentAsync(conxtextualizedQuestion);
+        var agentFuture = fetchAgentAsync(question);
         var historyFuture = fetchConversationHistoryAsync(question, userId);
         Mono<Token> handoffFuture = Mono.fromFuture(agentFuture).map(agent -> new StatusToken(RAGStatus.AGENT_HANDOFF, question.language(), agent.getName()));
         var combined = agentFuture.thenCombine(historyFuture,
@@ -197,7 +158,7 @@ public class ConversationService {
                 () -> getConversationHistory(
                         question.conversationId(),
                         userId,
-                        Limit.of(question.kMemory())
+                        Limit.unlimited()
                 ),
                 taskExecutor
         );
@@ -222,9 +183,14 @@ public class ConversationService {
         return offTopicValue != null && !offTopicValue.value();
     }
 
-    private void saveExchange(Question question, String userId, String assistantMessageId, String answer, List<String> sources) {
-        var userMessage = new Message(UUID.randomUUID().toString(), userId, question.conversationId(), null, question.language(), question.query(), "USER", null, LocalDateTime.now());
-        var assistantMessage = new Message(assistantMessageId, userId, question.conversationId(), null, question.language(), answer, "LLM", sources, LocalDateTime.now());
+    private void saveExchange(Question question, String userId, String assistantMessageId, String answer, List<String> sources,
+                              List<String> suggestions, LocalDateTime userMessageTimestamp) {
+
+        var userMessage = new Message(UUID.randomUUID().toString(), userId, question.conversationId(), null,
+                question.language(), question.query(), "USER", null, null, userMessageTimestamp);
+        var assistantMessage = new Message(assistantMessageId, userId, question.conversationId(), null,
+                question.language(), answer, "LLM", sources, suggestions, LocalDateTime.now());
+
         save(userMessage, userId, question.conversationId());
         save(assistantMessage, userId, question.conversationId());
         generateConversationTitle(question.query(), answer, userId, question.conversationId(), question.language());
@@ -242,6 +208,7 @@ public class ConversationService {
                         message.getMessage(),
                         getRole(message),
                         List.of(message.getSources()),
+                        List.of(message.getSuggestions()),
                         message.getTimestamp()
                 ))
                 .toList();
@@ -262,6 +229,7 @@ public class ConversationService {
         entity.setLanguage(message.lang());
         entity.setTimestamp(LocalDateTime.now());
         entity.setFaqId(message.faqItemId());
+        entity.setSuggestions(new String[0]);
         entity.setSources(Objects.isNull(message.sources())
                 ? new String[0]
                 : message.sources().toArray(String[]::new));
@@ -282,6 +250,9 @@ public class ConversationService {
         entity.setSources(Objects.isNull(message.sources())
                 ? new String[0]
                 : message.sources().toArray(String[]::new));
+        entity.setSuggestions(Objects.isNull(message.suggestions())
+                ? new String[0]
+                : message.suggestions().toArray(String[]::new));
 
         conversationRepository.save(entity);
     }

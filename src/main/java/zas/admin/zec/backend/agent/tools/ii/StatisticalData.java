@@ -1,7 +1,7 @@
-package zas.admin.zec.backend.agent.tools.ai;
+package zas.admin.zec.backend.agent.tools.ii;
+
 import lombok.Getter;
 
-import java.util.Map;
 import java.util.*;
 
 public class StatisticalData {

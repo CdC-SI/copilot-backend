@@ -14,5 +14,6 @@ public record Message(
         String message,
         String role,
         @Nullable List<String> sources,
+        @Nullable List<String> suggestions,
         LocalDateTime timestamp) {
 }
