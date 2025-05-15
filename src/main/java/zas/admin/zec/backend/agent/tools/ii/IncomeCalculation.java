@@ -628,6 +628,20 @@ public class IncomeCalculation {
 
         updateContext(sb.toString());
 
-        return getFullContext().toString();
+        return formatToolResponse(revenuSainv, revenuEx, perte, tauxInval, tauxArrondi);
+    }
+
+    private static String formatToolResponse(double revenuSainv, double revenuEx, double perte, double tauxInval, double tauxArrondi) {
+        return """
+               Voici les résultats du calcul d'invalidité :
+               
+               **Revenu sans invalidité :** %.2f CHF
+               **Revenu exigible :** %.2f CHF
+               **Perte de revenu sur 100%% :** %.2f CHF
+               **Taux d’invalidité dans la partie lucrative :** %.2f%%
+               **Degré d’invalidité :** %.2f%%
+               
+               ✅ *Ce calcul est validé et n’est pas généré par un modèle de langage*
+               """.formatted(revenuSainv, revenuEx, perte, tauxInval, tauxArrondi);
     }
 }

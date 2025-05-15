@@ -71,7 +71,7 @@ public class IIAdvisor implements StreamAroundAdvisor {
                             ChatGenerationMetadata.builder().metadata("suggestion", "ii-salary").build()))))
                     .build();
         }
-        return advisedResponse;
+        return toMarkdown(advisedResponse);
     }
 
     private Predicate<AdvisedResponse> onFinishReason() {
@@ -82,5 +82,21 @@ public class IIAdvisor implements StreamAroundAdvisor {
                         && StringUtils.hasText(result.getMetadata().getFinishReason()))
                 .findFirst()
                 .isPresent();
+    }
+
+    private AdvisedResponse toMarkdown(AdvisedResponse advisedResponse) {
+        return AdvisedResponse.builder()
+                .adviseContext(advisedResponse.adviseContext())
+                .response(new ChatResponse(
+                        List.of(
+                                new Generation(
+                                        new AssistantMessage(
+                                                stringToMD(advisedResponse.response().getResult().getOutput().getText()))))))
+                .build();
+    }
+
+    private String stringToMD(String content) {
+        return content.replace("\\n", "<br>")
+                .replace("\"", "");
     }
 }

@@ -21,6 +21,7 @@ public class IITools {
     
     @Tool(
            name = "invalidity_rate_calculation",
+           returnDirect = true,
            description = """
                    Calcul le salaire exigible d'une personne bénéficiant d'une rente assurance invalidité. les paramètres sont décris comme ci-dessous:
                    
