@@ -9,6 +9,10 @@ public final class SuggestionToken implements Token {
         this.suggestion = suggestion;
     }
 
+    public String suggestion() {
+        return suggestion;
+    }
+
     @Override
     public String content() {
         return "<suggestion>%s</suggestion>".formatted(suggestion);

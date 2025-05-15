@@ -106,7 +106,7 @@ public class ConversationService {
                 .flatMap(token -> switch (token) {
                     case StatusToken statusToken -> Flux.just(statusToken.content());
                     case SuggestionToken suggestionToken -> {
-                        suggestions.add(suggestionToken.content());
+                        suggestions.add(suggestionToken.suggestion());
                         yield Flux.just(suggestionToken.content());
                     }
                     case SourceToken sourceToken -> {
