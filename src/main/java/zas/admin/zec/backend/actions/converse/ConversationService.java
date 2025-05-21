@@ -143,6 +143,7 @@ public class ConversationService {
         var combined = agentFuture.thenCombine(historyFuture,
                 (agent, history) -> agent.processQuestion(question, userId, history));
 
+        // Return combined Flux
         return handoffFuture.concatWith(Mono.fromFuture(combined).flatMapMany(Function.identity()));
     }
 
