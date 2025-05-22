@@ -2,6 +2,7 @@ package zas.admin.zec.backend.agent.tools.ii;
 
 import lombok.Getter;
 import lombok.Setter;
+import zas.admin.zec.backend.agent.tools.ii.model.DataPoint;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -69,8 +70,8 @@ public class IncomeCalculation {
                 // 3c) Scan the TA1 table for that id:
                 boolean found = false;
                 for (DataPoint dp : ta1Table) {
-                    if (dp.getId().equals(idFinal)) {
-                        Double valeur = dp.getIndexValues().get(column);
+                    if (dp.id().equals(idFinal)) {
+                        Double valeur = dp.indexValues().get(column);
                         if (valeur == null) {
                             throw new IllegalArgumentException(
                                     "Colonne introuvable '" + column +
@@ -208,13 +209,13 @@ public class IncomeCalculation {
 
         // 4) Chercher la DataPoint dont l'id correspond
         DataPoint row = df.stream()
-                .filter(dp -> dp.getId().equals(brancheFinale))
+                .filter(dp -> dp.id().equals(brancheFinale))
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("Branche introuvable dans t1: " + brancheFinale));
 
         // 5) Récupérer la valeur pour l'année demandée
         String yearKey = String.valueOf(year);
-        Double value = row.getIndexValues().get(yearKey);
+        Double value = row.indexValues().get(yearKey);
         if (value == null) {
             throw new IllegalArgumentException("Année " + year + " non trouvée pour la branche " + brancheFinale);
         }
@@ -239,14 +240,14 @@ public class IncomeCalculation {
         // 3) Charger la table th sous forme de DataPoint
         List<DataPoint> thTable = loadTh();
         DataPoint row = thTable.stream()
-                .filter(dp -> dp.getId().equals(brancheFinale))
+                .filter(dp -> dp.id().equals(brancheFinale))
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Branche introuvable dans la table th : " + brancheFinale));
 
         // 4) Récupérer la valeur pour l'année donnée
         String yearKey = String.valueOf(year);
-        Double heures = row.getIndexValues().get(yearKey);
+        Double heures = row.indexValues().get(yearKey);
         if (heures == null) {
             throw new IllegalArgumentException(
                     "Année " + year + " non trouvée pour la branche " + brancheFinale);
@@ -302,9 +303,9 @@ public class IncomeCalculation {
 
         updateContext(
                 "\nTaux d'activité exigible: " + benef.activityRate + "%" +
-                "\nDiminution de rendement en pourcent: " + benef.reduction + "%" +
-                "\nCapacité fonctionnelle résiduelle: " + capaciteGlobale * 100 + "%" +
-                "\nRevenu annuel selon capacité: " + montantAjuste + " CHF"
+                        "\nDiminution de rendement en pourcent: " + benef.reduction + "%" +
+                        "\nCapacité fonctionnelle résiduelle: " + capaciteGlobale * 100 + "%" +
+                        "\nRevenu annuel selon capacité: " + montantAjuste + " CHF"
 
         );
 
@@ -352,7 +353,7 @@ public class IncomeCalculation {
      *
      * @param tauxInval taux d'invalidité en pourcentage (ex. 45.3)
      * @return quotité de rente correspondante en pourcentage
-     * 
+     *
      * public static double convertTauxInvaliditeEnRente(double tauxInval) {
      *    if (tauxInval >= 70) {
      *        return 100.0;
@@ -378,7 +379,7 @@ public class IncomeCalculation {
      *    }
      * }
      */
-   
+
 
     /**
      * Calcule le salaire avant l'atteinte à la santé en indexant selon la table T1.
@@ -407,15 +408,15 @@ public class IncomeCalculation {
         // affichages pour debug / trace
         updateContext(
                 "\nActivité: " + loadLabelsId().get(branche) + branche +
-                "\nTaux d'activité: " + taux + "%" +
-                "\n\nAnnée du dernier revenu effectif: " + annee+
-                "\nRevenu effectif annuel réel: " + salaire
+                        "\nTaux d'activité: " + taux + "%" +
+                        "\n\nAnnée du dernier revenu effectif: " + annee+
+                        "\nRevenu effectif annuel réel: " + salaire
                         + " CHF  Revenu annuel pour un 100%: " + salaire100 + " CHF" +
-                "\nAnnée d'exigibilité: " + ess +
-                "\nIndexation du revenu:" +
-                "\n  " + annee + " -> " + indexAnnee +
-                "\n  " + ess + " -> " + indexEx +
-                "\n\nRevenu effectif annuel indexé: " + revenuEffectif + " CHF"
+                        "\nAnnée d'exigibilité: " + ess +
+                        "\nIndexation du revenu:" +
+                        "\n  " + annee + " -> " + indexAnnee +
+                        "\n  " + ess + " -> " + indexEx +
+                        "\n\nRevenu effectif annuel indexé: " + revenuEffectif + " CHF"
         );
 
         return revenuEffectif;
@@ -438,8 +439,8 @@ public class IncomeCalculation {
         // nombre d'heures hebdo selon la branche et l'année
         updateContext(
                 "\nActivité: " + loadLabelsId().get(branche) + branche + "niveau " + niveau +
-                "\nAnnée d'exigibilité: " + ess +
-                "\nRevenu mensuel calculé sur 40h: " + revenu + " CHF"
+                        "\nAnnée d'exigibilité: " + ess +
+                        "\nRevenu mensuel calculé sur 40h: " + revenu + " CHF"
         );
 
         // calcul du salaire annuel ajusté selon les heures
@@ -454,9 +455,9 @@ public class IncomeCalculation {
 
         updateContext(
                 "\n\nIndexation du revenu:" +
-                "\n  " + annee + " -> " + indexAnnee + " CHF" +
-                "\n  " + ess + " -> " + indexEx + " CHF" +
-                "\n\nRevenu ESS annuel indexé: " + revenuEss + " CHF"
+                        "\n  " + annee + " -> " + indexAnnee + " CHF" +
+                        "\n  " + ess + " -> " + indexEx + " CHF" +
+                        "\n\nRevenu ESS annuel indexé: " + revenuEss + " CHF"
         );
 
         return revenuEss;
@@ -475,8 +476,8 @@ public class IncomeCalculation {
 
         updateContext(
                 "\nDifférence entre le revenu effectif et ESS annuel indexé: "
-                + difference + " CHF" +
-                "\nDifférence en pourcent: " + ratioPct + "%"
+                        + difference + " CHF" +
+                        "\nDifférence en pourcent: " + ratioPct + "%"
         );
 
         if (ratioPct > 95.0) {
@@ -645,3 +646,4 @@ public class IncomeCalculation {
                """.formatted(revenuSainv, revenuEx, perte, tauxInval, tauxArrondi);
     }
 }
+

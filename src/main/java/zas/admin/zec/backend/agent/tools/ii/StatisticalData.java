@@ -1,23 +1,10 @@
 package zas.admin.zec.backend.agent.tools.ii;
 
-import lombok.Getter;
+import zas.admin.zec.backend.agent.tools.ii.model.DataPoint;
 
 import java.util.*;
 
 public class StatisticalData {
-
-    @Getter
-    public static class DataPoint {
-        public final String id;
-        public final String label;
-        public final Map<String, Double> indexValues; // Map year -> value
-
-        public DataPoint(String id, String label, Map<String, Double> indexValues) {
-            this.id = id;
-            this.label = label;
-            this.indexValues = indexValues;
-        }
-    }
 
     public static List<DataPoint> toDataPoints(String[] ids, String[] labels, double[][] indices) {
         List<DataPoint> dataPoints = new ArrayList<>();
