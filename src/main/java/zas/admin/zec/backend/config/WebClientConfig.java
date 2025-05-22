@@ -16,6 +16,8 @@ import reactor.netty.http.client.HttpClient;
 import reactor.netty.transport.ProxyProvider;
 import zas.admin.zec.backend.config.properties.*;
 
+import java.time.Duration;
+
 @Configuration
 @EnableAsync
 @EnableJpaAuditing
@@ -40,8 +42,10 @@ public class WebClientConfig {
     @Bean
     @ConditionalOnProperty(name = "proxy.enabled", havingValue = "true")
     public RestClient.Builder restClientBuilder(final HttpClient httpClient) {
+        ReactorNettyClientRequestFactory factory = new ReactorNettyClientRequestFactory(httpClient);
+        factory.setExchangeTimeout(Duration.ofSeconds(6));
         return RestClient.builder()
-                .requestFactory(new ReactorNettyClientRequestFactory(httpClient));
+                .requestFactory(factory);
     }
 
     @Bean

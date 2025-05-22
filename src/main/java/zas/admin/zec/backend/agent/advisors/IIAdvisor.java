@@ -7,6 +7,7 @@ import org.springframework.ai.chat.client.advisor.api.StreamAroundAdvisor;
 import org.springframework.ai.chat.client.advisor.api.StreamAroundAdvisorChain;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.metadata.ChatGenerationMetadata;
+import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
 import org.springframework.util.StringUtils;
@@ -24,10 +25,13 @@ public class IIAdvisor implements StreamAroundAdvisor {
 
     private final ConversationMetaDataHolder holder;
     private final String conversationId;
-    private final ChatClient chatClient;
+    private final ChatClient routingClient;
+    private final ChatClient convertClient;
+    private String etape;
 
-    public IIAdvisor(ConversationMetaDataHolder holder, String conversationId1, ChatClient chatClient) {
-        this.chatClient = chatClient;
+    public IIAdvisor(ConversationMetaDataHolder holder, String conversationId1, ChatModel model) {
+        this.routingClient = ChatClient.create(model);
+        this.convertClient = ChatClient.create(model);
         this.holder = holder;
         this.conversationId = conversationId1;
     }
@@ -63,8 +67,12 @@ public class IIAdvisor implements StreamAroundAdvisor {
 
     private static final String ETAPE_1 = """
                         Ton rôle est d'assister l'utilisateur à déterminer le système de calcul de rente AI pour un assuré.
-                        Pour cela, tu dois analyser et comprendre les données mis à disposition par l'utilisateur afin d'utiliser le tool get_invalidity_rate_system.
-                        Si aucune information n'est disponible, commence par poser la question3 : "S'agit-il d'une révision sur demande ou d'une révision d'office ?".
+                        Pour cela, utilise  <liste_questions/réponses> ci-dessous comme paramètres pour le tool get_invalidity_rate_system.
+                        <liste_questions/réponses>
+                            <qa_list>
+                        </liste_questions/réponses>
+                        
+                        Si aucune information n'est disponible, commence par présenter ton fonctionnement et pose la question3 : "S'agit-il d'une révision sur demande ou d'une révision d'office ?".
                         get_invalidity_rate_system schema:
                         {
                             "title": "get_invalidity_rate_system",
@@ -168,7 +176,19 @@ public class IIAdvisor implements StreamAroundAdvisor {
     private static final String CONVERT_TO_QA = """
             Ton rôle est d'identifier les questions posées par l'utilisateur et de les convertir en paires question/réponse.
             1. Interprète les informations fourni dans l'historique de conversation et identifie celles qui correspondent à des questions comprises dans la liste ci-dessous:
-             <questions>
+                - Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?,
+                - Changement de palier selon l'ancien sysème?,
+                - S'agit-il d'une révision sur demande ou d'une révision d'office?,
+                - S'agit-il d'une 1ère demande RER ou demande subséquente dépôsée avant le 01.07.2021 et échéance délai de carence avant le 01.01.2022?,
+                - Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?,
+                - Le degré d'invalidité s'est-il modifié d'au-moins 5% ?,
+                - Le degré d'invalidité est-il augmenté ?,
+                - L'âge de l'assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans ?,
+                - Le taux d'invalidité est-il d'au-moins 50% ?,
+                - Le montant de la rente est-il diminué ?,
+                - Le taux d'invalidité est-il d'au-moins 70% ?,
+                - Droit ouvert dans le sysème linéaire ?,
+                - Le montant de la rente est-il augmenté ?
             2. Pour chaque question identifiée, répond par "Oui" ou "Non" selon les informations interpretées.
             3. Si aucune information n'est disponible pour une question, répond par "unknown".
             4. pour chaque pair question/réponse , format la sous la forme suivante: "la question ? la réponse".
@@ -206,22 +226,6 @@ public class IIAdvisor implements StreamAroundAdvisor {
                         Droit ouvert dans le système linéaire ? unknown,
              """;
 
-    private static final String QUESTIONS = """
-            Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?,
-            Changement de palier selon l'ancien sysème?,
-            S'agit-il d'une révision sur demande ou d'une révision d'office?,
-            S'agit-il d'une 1ère demande RER ou demande subséquente dépôsée avant le 01.07.2021 et échéance délai de carence avant le 01.01.2022?,
-            Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?,
-            Le degré d'invalidité s'est-il modifié d'au-moins 5% ?,
-            Le degré d'invalidité est-il augmenté ?,
-            L'âge de l'assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans ?,
-            Le taux d'invalidité est-il d'au-moins 50% ?,
-            Le montant de la rente est-il diminué ?,
-            Le taux d'invalidité est-il d'au-moins 70% ?,
-            Droit ouvert dans le sysème linéaire ?,
-            Le montant de la rente est-il augmenté ?
-            """;
-
     @Override
     public Flux<AdvisedResponse> aroundStream(AdvisedRequest advisedRequest, StreamAroundAdvisorChain chain) {
         Flux<AdvisedResponse> advisedResponses =
@@ -231,7 +235,7 @@ public class IIAdvisor implements StreamAroundAdvisor {
                         .flatMapMany(chain::nextAroundStream);
 
         return advisedResponses.map(ar -> {
-            if (onFinishReason().test(ar)) {
+            if (onFinishReason().test(ar) && this.etape.equals("2")) {
                 ar = after(ar);
             }
             return ar;
@@ -253,14 +257,13 @@ public class IIAdvisor implements StreamAroundAdvisor {
         // Set the agent in use for future requests
         holder.setCurrentAgentInUse(conversationId, AgentType.II_AGENT);
 
-        var etape = routing(advisedRequest);
+        this.etape = routing(advisedRequest);
 
-        if (etape.equals("1")) {
+        if (etape.equals("1") || etape.equals("-> 1") || etape.equals("->1")) {
             var answeredQuestions = convertPrompt(advisedRequest);
-
+            
             return AdvisedRequest.from(advisedRequest)
-                    .systemText(ETAPE_1)
-                    .userText(answeredQuestions)
+                    .systemText(ETAPE_1.replace("<qa_list>", answeredQuestions))
                     .build();
 
         } else if (etape.equals("2")) {
@@ -312,33 +315,23 @@ public class IIAdvisor implements StreamAroundAdvisor {
     }
     
     public String routing(AdvisedRequest userRequest) {
-
-        String response = chatClient
+        return routingClient
                 .prompt()
                 .messages(userRequest.messages())
                 .user(userRequest.userText())
                 .system(ROUTING_PROMPT)
                 .call()
                 .content();
-
-        return response;
     }
     
     public String convertPrompt(AdvisedRequest userRequest) {
-
-        // Replace the placeholder <questions> in the CONVERT_TO_QA prompt with the
-        // actual QUESTIONS
-        String systemPrompt = CONVERT_TO_QA.replace("<questions>", QUESTIONS);
-
         // Make the LLM call
-        String response = chatClient
+        return convertClient
                 .prompt()
                 .messages(userRequest.messages())
-                .system(systemPrompt)
+                .system(CONVERT_TO_QA)
                 .user(userRequest.userText())
                 .call()
                 .content();
-
-        return response;
     }
 }

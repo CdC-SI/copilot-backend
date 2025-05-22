@@ -22,9 +22,11 @@ import java.util.List;
 public class IIAgent implements Agent {
 
     private final ChatClient client;
+    private final ChatModel model;
     private final ConversationMetaDataHolder holder;
 
     public IIAgent(ChatModel model, ConversationMetaDataHolder holder) {
+        this.model = model;
         this.client = ChatClient.create(model);
         this.holder = holder;
     }
@@ -47,7 +49,7 @@ public class IIAgent implements Agent {
                 .messages(conversationHistory.stream().map(this::convertToMessage).toList())
                 .user(question.query())
                 .tools(new IITools(holder, question.conversationId()))
-                .advisors(new IIAdvisor(holder, question.conversationId()))
+                .advisors(new IIAdvisor(holder, question.conversationId(), model))
                 .stream()
                 .chatResponse()
                 .map(this::convertToToken);
