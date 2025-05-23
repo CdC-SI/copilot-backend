@@ -1,24 +1,22 @@
 package zas.admin.zec.backend.agent.tools.ii;
 
 import lombok.extern.slf4j.Slf4j;
-
-import java.util.List;
-
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
-
-import zas.admin.zec.backend.agent.tools.ii.InvalidityRateSystem;
 import zas.admin.zec.backend.agent.tools.ii.IncomeCalculation.Beneficiary;
 import zas.admin.zec.backend.agent.tools.ii.IncomeCalculation.EffectiveSalaryInfo;
 import zas.admin.zec.backend.agent.tools.ii.IncomeCalculation.StatisticalSalaryInfo;
 import zas.admin.zec.backend.tools.ConversationMetaDataHolder;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Slf4j
 public class IITools {
 
     public static class Qa {
-        String question;
-        String answer;
+        public String question;
+        public String answer;
 
         public Qa(String question, String answer) {
             this.question = question;
@@ -119,7 +117,7 @@ public class IITools {
                                 "answer": "Non"
                             }
                         ]
-                    }                  
+                    }
                     """
     )
     String getInvalidityRateSystem(
@@ -168,7 +166,7 @@ public class IITools {
             "Le montant de la rente est-il augmenté ?"
         );
 
-        List<Qa> questionAnswerPairs = List.of();
+        List<Qa> questionAnswerPairs = new ArrayList<>();
         
         for (int i = 0; i < questions.size(); i++) {
             String question = questions.get(i);

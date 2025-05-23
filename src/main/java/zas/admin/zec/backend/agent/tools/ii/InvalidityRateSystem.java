@@ -16,7 +16,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
@@ -54,7 +54,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
@@ -91,7 +91,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
@@ -128,7 +128,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
@@ -166,7 +166,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
@@ -196,7 +196,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
@@ -224,7 +224,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
@@ -253,7 +253,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
@@ -282,7 +282,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
@@ -332,7 +332,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
@@ -383,7 +383,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
@@ -430,7 +430,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
@@ -477,7 +477,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
@@ -523,7 +523,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
@@ -575,7 +575,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
@@ -626,7 +626,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
@@ -673,7 +673,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
@@ -720,7 +720,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
@@ -766,7 +766,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
@@ -798,7 +798,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
@@ -831,7 +831,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
@@ -868,7 +868,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
@@ -905,7 +905,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
@@ -936,7 +936,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -966,7 +966,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1017,7 +1017,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1067,7 +1067,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1113,7 +1113,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1160,7 +1160,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1208,7 +1208,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1259,7 +1259,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1309,7 +1309,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1357,7 +1357,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1400,7 +1400,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1433,7 +1433,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1467,7 +1467,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1505,7 +1505,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1543,7 +1543,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1573,7 +1573,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1612,7 +1612,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1650,7 +1650,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1688,7 +1688,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1727,7 +1727,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1760,7 +1760,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1794,7 +1794,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1823,7 +1823,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision sur demande ou d'une révision d'office?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1852,14 +1852,18 @@ public class InvalidityRateSystem {
                 "  }" +
                 "]";
 
-        List<Path> allPaths;
+        List<?> allPaths;
         try {
-            allPaths = mapper.readValue(jsonTree, new TypeReference<List<Path>>() {
+            allPaths = mapper.readValue(jsonTree, new TypeReference<List<?>>() {
             });
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Error processing JSON", e);
         }
-        return allPaths;
+        @SuppressWarnings("unchecked")
+        List<Path> res = (List<Path>) allPaths;
+
+        return res;
+
     }
 
     static String getDecision(List<Qa> info) {
