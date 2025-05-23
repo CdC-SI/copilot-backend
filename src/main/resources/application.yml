@@ -86,3 +86,6 @@ proxy:
   port: ${PROXY_PORT:8080}
   non-proxy-hosts: ${NON_PROXY_HOSTS:localhost,.admin.ch}
   enabled: true
+ai:
+  agent:
+    ii-data-folder: ${II_DATA_FOLDER}

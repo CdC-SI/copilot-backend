@@ -3,9 +3,10 @@ package zas.admin.zec.backend.agent.tools.ii;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
-import zas.admin.zec.backend.agent.tools.ii.IncomeCalculation.Beneficiary;
-import zas.admin.zec.backend.agent.tools.ii.IncomeCalculation.EffectiveSalaryInfo;
-import zas.admin.zec.backend.agent.tools.ii.IncomeCalculation.StatisticalSalaryInfo;
+import zas.admin.zec.backend.agent.tools.ii.legacy.IncomeCalculation;
+import zas.admin.zec.backend.agent.tools.ii.legacy.IncomeCalculation.Beneficiary;
+import zas.admin.zec.backend.agent.tools.ii.legacy.IncomeCalculation.EffectiveSalaryInfo;
+import zas.admin.zec.backend.agent.tools.ii.legacy.IncomeCalculation.StatisticalSalaryInfo;
 import zas.admin.zec.backend.tools.ConversationMetaDataHolder;
 
 import java.util.ArrayList;
