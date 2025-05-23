@@ -1,143 +1,137 @@
 package zas.admin.zec.backend.agent.tools.ii.service;
 
-import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.text.similarity.LevenshteinDistance;
 import org.springframework.stereotype.Service;
-import zas.admin.zec.backend.agent.tools.ii.model.Beneficiary;
-import zas.admin.zec.backend.agent.tools.ii.model.Gender;
-import zas.admin.zec.backend.agent.tools.ii.model.Salary;
+import zas.admin.zec.backend.agent.tools.ii.model.*;
+import zas.admin.zec.backend.agent.tools.ii.repository.DataRepository;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Year;
+import java.util.Map;
 
+import static zas.admin.zec.backend.agent.tools.ii.utils.RangeHelper.matchingIdForTarget;
+
+@Slf4j
 @Service
-@RequiredArgsConstructor
 public class IncomeCalculationService {
 
-    private final IndexationService indexSrv;   // indices T1
-    private final HoursService      hoursSrv;   // heures hebdo TH
-    private final DeductionService  deductSrv;  // abattements & déductions
-    private final Ta1LookupService  ta1Srv;     // salaires statistiques TA1
+    private final Ta1LookupService ta1LookupService;
+    private final IndexationService indexationService;
+    private final HoursService hoursService;
+    private final DeductionService deductionService;
+    private final DataRepository repo;
 
-    /* ------------------------------------------------------------------ *
-     *  Outils privés                                                     *
-     * ------------------------------------------------------------------ */
+    public IncomeCalculationService(Ta1LookupService ta1LookupService,
+                                    IndexationService indexationService,
+                                    HoursService hoursService,
+                                    DeductionService deductionService,
+                                    DataRepository repo) {
 
-    /** Salaire annuel (CHF) ajusté aux heures hebdo réelles de la branche. */
-    private BigDecimal annual40hToAnnual(Salary monthly40h,
-                                         String branchId, Year year) {
-
-        BigDecimal hours = BigDecimal.valueOf(
-                hoursSrv.weeklyHours(branchId, year));
-
-        return monthly40h.amountMonthly()
-                .multiply(hours)               // passer de 40h → heures réelles
-                .divide(BigDecimal.valueOf(40), 10, RoundingMode.HALF_UP)
-                .multiply(BigDecimal.valueOf(12)); // mensuel → annuel
+        this.ta1LookupService = ta1LookupService;
+        this.indexationService = indexationService;
+        this.hoursService = hoursService;
+        this.deductionService = deductionService;
+        this.repo = repo;
     }
 
-    /** Indexation croisée (T1) entre deux années. */
-    private BigDecimal index(BigDecimal amount,
-                             String branchId,
-                             Year from, Year to,
-                             Gender g) {
-
-        BigDecimal idxFrom = BigDecimal.valueOf(indexSrv.index(g, branchId, from));
-        BigDecimal idxTo   = BigDecimal.valueOf(indexSrv.index(g, branchId, to));
-
-        return amount.multiply(idxTo)
-                .divide(idxFrom, 10, RoundingMode.HALF_UP);
-    }
-
-    /* ------------------------------------------------------------------ *
-     *  Revenu sans invalidité                                            *
-     * ------------------------------------------------------------------ */
-
-    public BigDecimal incomeWithoutDisability(Beneficiary b) {
-
-        /* salaire effectif avant atteinte (100 %) ---------------------- */
-        BigDecimal eff100 = b.effectiveBefore().amountMonthly()
+    public double disabilityDegree(Beneficiary beneficiary) {
+        var withoutDisability = computeSalaryWithoutDisability(beneficiary);
+        var withDisability = computeSalaryWithDisability(beneficiary);
+        var disabilityRate = withoutDisability.subtract(withDisability)
                 .multiply(BigDecimal.valueOf(100))
-                .divide(BigDecimal.valueOf(b.activityRate()), 10, RoundingMode.HALF_UP);
+                .divide(withoutDisability, 2, RoundingMode.HALF_UP)
+                .doubleValue();
 
-        BigDecimal effIndexed = index(
-                eff100, b.branchId(),
-                b.effectiveBefore().referenceYear(),
-                b.eligibilityYear(), b.gender());
-
-        /* salaire statistique TA1 avant atteinte ----------------------- */
-        BigDecimal statMonthly = ta1Srv.salary(
-                b.branchId(), b.skillLevelBefore(), b.gender());
-
-        BigDecimal statAnnual  = annual40hToAnnual(
-                new Salary(b.eligibilityYear(), statMonthly),
-                b.branchId(), b.eligibilityYear());
-
-        /* parallélisme 95 % ------------------------------------------- */
-        BigDecimal ratio = effIndexed.divide(statAnnual, 10, RoundingMode.HALF_UP);
-        return (ratio.compareTo(new BigDecimal("0.95")) >= 0)
-                ? effIndexed
-                : statAnnual.multiply(new BigDecimal("0.95"));
+        log.info("\nsalary pre health {}\nsalary post health {}\ndisability rate {}", withoutDisability.doubleValue(), withDisability.doubleValue(), disabilityRate);
+        return Math.round(disabilityRate * 100.0) / 100.0;
     }
 
-    /* ------------------------------------------------------------------ *
-     *  Revenu exigible (avec invalidité)                                 *
-     * ------------------------------------------------------------------ */
+    public BigDecimal computeSalaryWithoutDisability(Beneficiary beneficiary) {
+        var effectiveSalary = computePreHealthEffectiveSalary(beneficiary);
+        var payableSalary = computePreHealthPayableSalary(beneficiary);
+        return computeParallelism(effectiveSalary, payableSalary);
+    }
 
-    public BigDecimal incomeExigible(Beneficiary b) {
+    public BigDecimal computeSalaryWithDisability(Beneficiary beneficiary) {
+        var effectiveSalary = computePostHealthEffectiveSalary(beneficiary);
+        var payableSalary = computePostHealthPayableSalary(beneficiary);
+        return effectiveSalary.max(payableSalary);
+    }
 
-        /* ESS statistique après atteinte ------------------------------- */
-        BigDecimal statMonthly = ta1Srv.salary(
-                b.branchId(), b.skillLevelAfter(), b.gender());
+    private BigDecimal computePreHealthEffectiveSalary(Beneficiary beneficiary) {
+        return computeEffectiveSalary(beneficiary.gender(), beneficiary.eligibilityYear(), beneficiary.preHealthDetails(), beneficiary.activityRate());
+    }
 
-        BigDecimal statAnnual  = annual40hToAnnual(
-                new Salary(b.eligibilityYear(), statMonthly),
-                b.branchId(), b.eligibilityYear());
+    private BigDecimal computePostHealthEffectiveSalary(Beneficiary beneficiary) {
+        return computeEffectiveSalary(beneficiary.gender(), beneficiary.eligibilityYear(), beneficiary.postHealthDetails(), beneficiary.activityRate() - beneficiary.activityReduction());
+    }
 
-        BigDecimal essIndexed = index(
-                statAnnual, b.branchId(),
-                b.effectiveAfter().referenceYear(),
-                b.eligibilityYear(), b.gender());
+    private BigDecimal computePreHealthPayableSalary(Beneficiary beneficiary) {
+        return computePayableSalary(beneficiary.gender(), beneficiary.eligibilityYear(), beneficiary.preHealthDetails());
+    }
 
-        BigDecimal essNet = deductSrv.apply(b, essIndexed);
+    private BigDecimal computePostHealthPayableSalary(Beneficiary beneficiary) {
+        var payableSalary = computePayableSalary(beneficiary.gender(), beneficiary.eligibilityYear(), beneficiary.postHealthDetails());
+        return deductionService.apply(beneficiary, payableSalary);
+    }
 
-        /* Revenu effectif après atteinte (si présent) ------------------ */
-        BigDecimal effNet = BigDecimal.ZERO;
-        if (b.effectiveAfter().amountMonthly().compareTo(BigDecimal.ZERO) > 0) {
+    private BigDecimal computeEffectiveSalary(Gender gender, Year eligibilityYear, BeneficiaryDetails details, int activityRate) {
+        var branchId = convertLiteralBranchToId(details.economicBranch());
+        var matchingBranch = matchingIdForTarget(branchId, new IndexHF());
 
-            BigDecimal annual40 = annual40hToAnnual(
-                    b.effectiveAfter(), b.branchId(),
-                    b.effectiveAfter().referenceYear());
+        var indexForEligibilityYear = indexationService.index(gender, matchingBranch, eligibilityYear);
+        var indexForLastEffectiveSalaryYear = indexationService.index(gender, matchingBranch, details.salary().referenceYear());
 
-            effNet = index(
-                    annual40, b.branchId(),
-                    b.effectiveAfter().referenceYear(),
-                    b.eligibilityYear(), b.gender());
+        return details.salary().amount()
+                .multiply(BigDecimal.valueOf(indexForEligibilityYear))
+                .multiply(BigDecimal.valueOf(100))
+                .divide(BigDecimal.valueOf(indexForLastEffectiveSalaryYear), 2, RoundingMode.HALF_UP)
+                .divide(BigDecimal.valueOf(activityRate), 2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal computePayableSalary(Gender gender, Year eligibilityYear, BeneficiaryDetails details) {
+        var branchId = convertLiteralBranchToId(details.economicBranch());
+        var matchingBranchHF = matchingIdForTarget(branchId, new IndexHF());
+        var matchingBranchTA = matchingIdForTarget(branchId, new IndexTA());
+        var matchingBranchTH = matchingIdForTarget(branchId, new IndexTH());
+
+        var indexForEligibilityYear = indexationService.index(gender, matchingBranchHF, eligibilityYear);
+        var indexForStatisticalYear = indexationService.index(gender, matchingBranchHF, Year.of(2022));
+        BigDecimal statisticalMonthlySalary = ta1LookupService.salary(matchingBranchTA, details.skillLevel(), gender);
+
+        return hoursService.annualSalary(eligibilityYear, statisticalMonthlySalary, matchingBranchTH)
+                .multiply(BigDecimal.valueOf(indexForEligibilityYear))
+                .divide(BigDecimal.valueOf(indexForStatisticalYear), 2, RoundingMode.HALF_UP);
+    }
+
+    private String convertLiteralBranchToId(String branch) {
+        return repo.loadLabels()
+                .entrySet()
+                .stream()
+                .filter(entry -> similarityMatch(branch, entry.getValue()))
+                .map(Map.Entry::getKey)
+                .findFirst()
+                .orElse(branch);
+    }
+
+    private boolean similarityMatch(String id1, String id2) {
+        return new LevenshteinDistance(4).apply(id1, id2) != -1;
+    }
+
+    /**
+     * Compute the parallelism between the effective salary and the payable salary.
+     *
+     * @param effectiveSalary salary before the health issue
+     * @param payableSalary annual indexed salary
+     * @return the effective salary if it is greater than 95% of the payable salary, otherwise 95% of the payable salary
+     */
+    private BigDecimal computeParallelism(BigDecimal effectiveSalary, BigDecimal payableSalary) {
+        BigDecimal parallelism = payableSalary.multiply(BigDecimal.valueOf(0.95));
+        if (effectiveSalary.compareTo(parallelism) > 0) {
+            return effectiveSalary;
         }
-
-        /* On retient le plus élevé ------------------------------------ */
-        return essNet.max(effNet);
-    }
-
-    /* ------------------------------------------------------------------ *
-     *  Degré d’invalidité                                                *
-     * ------------------------------------------------------------------ */
-
-    public BigDecimal invalidityDegree(Beneficiary b) {
-
-        BigDecimal without = incomeWithoutDisability(b);
-        BigDecimal with    = incomeExigible(b);
-
-        BigDecimal lossPct = without.subtract(with)
-                .multiply(BigDecimal.valueOf(100))
-                .divide(without, 4, RoundingMode.HALF_UP);
-
-        return lossPct.setScale(2, RoundingMode.HALF_UP); // ex. 37.50
-    }
-
-    /** Wrapper « legacy » qui renvoie un double pour les anciens tests. */
-    public double invalidityDegreeAsDouble(Beneficiary b) {
-        return invalidityDegree(b).doubleValue();
+        return parallelism;
     }
 }
-
