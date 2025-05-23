@@ -2,10 +2,10 @@ package zas.admin.zec.backend.agent.tools.ii.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import zas.admin.zec.backend.agent.tools.ii.DataRepository;
 import zas.admin.zec.backend.agent.tools.ii.model.DataPoint;
 import zas.admin.zec.backend.agent.tools.ii.model.Gender;
 import zas.admin.zec.backend.agent.tools.ii.model.TableKind;
+import zas.admin.zec.backend.agent.tools.ii.repository.DataRepository;
 
 import java.time.Year;
 import java.util.EnumMap;

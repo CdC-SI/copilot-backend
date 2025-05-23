@@ -19,7 +19,7 @@ import zas.admin.zec.backend.config.properties.*;
 @Configuration
 @EnableAsync
 @EnableJpaAuditing
-@EnableConfigurationProperties({ApplicationProperties.class, PyBackendProperties.class,
+@EnableConfigurationProperties({ApplicationProperties.class, PyBackendProperties.class, AIAgentProperties.class,
         FAQSearchProperties.class, RerankingProperties.class, DeepLProperties.class, ProxyProperties.class})
 public class WebClientConfig {
     private final PyBackendProperties pyBackendProperties;

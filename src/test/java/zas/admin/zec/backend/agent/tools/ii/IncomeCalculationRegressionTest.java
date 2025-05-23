@@ -3,9 +3,9 @@ package zas.admin.zec.backend.agent.tools.ii;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
-import zas.admin.zec.backend.TestConfig;
+import zas.admin.zec.backend.agent.tools.ii.legacy.IncomeCalculation;
 import zas.admin.zec.backend.agent.tools.ii.model.Beneficiary;
+import zas.admin.zec.backend.agent.tools.ii.model.BeneficiaryDetails;
 import zas.admin.zec.backend.agent.tools.ii.model.Gender;
 import zas.admin.zec.backend.agent.tools.ii.model.Salary;
 import zas.admin.zec.backend.agent.tools.ii.service.IncomeCalculationService;
@@ -16,7 +16,6 @@ import java.time.Year;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
-@Import(TestConfig.class)
 @SpringBootTest
 class IncomeCalculationRegressionTest {
     @Autowired
@@ -29,15 +28,15 @@ class IncomeCalculationRegressionTest {
            ----------------------------------------------------------------- */
         IncomeCalculation.Beneficiary legacy =
                 new IncomeCalculation.Beneficiary(
-                        2025,                       // yearOfEligibility
+                        2022,                       // yearOfEligibility
                         "homme",                   // gender
-                        new IncomeCalculation.EffectiveSalaryInfo(2023, 78_000),
+                        new IncomeCalculation.EffectiveSalaryInfo(2022, 100_000),
                         new IncomeCalculation.StatisticalSalaryInfo(
-                                2022, 0, 3, "10-33"),             // pré-santé
+                                2022, 0, 3, "01-96"),             // pré-santé
                         new IncomeCalculation.EffectiveSalaryInfo(2024, 46_000),
                         new IncomeCalculation.StatisticalSalaryInfo(
-                                2022, 0, 3, "10-33"),             // post-santé
-                        100, 20, 5);               // activityRate, reduction, deduction
+                                2022, 0, 2, "Industries extractives"),             // post-santé
+                        100, 20, 15);               // activityRate, reduction, deduction
 
         String legacyResult = IncomeCalculation.getInvalidite(legacy);
         double legacyDegree  = extractDegree(legacyResult);
@@ -48,20 +47,25 @@ class IncomeCalculationRegressionTest {
         Beneficiary modern = new Beneficiary(
                 Year.of(2025),
                 Gender.MALE,
-                100,   // activityRate
-                20,    // performanceLoss
-                5,     // additionalDeduction
-                "10-33", // branchId
-                3,     // skillLevelBefore
-                3,     // skillLevelAfter
-                new Salary(Year.of(2023), BigDecimal.valueOf(78_000)),
-                new Salary(Year.of(2024), BigDecimal.valueOf(46_000))
+                new BeneficiaryDetails(
+                        new Salary(Year.of(2023), BigDecimal.valueOf(78_000)),
+                        "Fabrication d’équipements électriques",
+                        3
+                ),
+                new BeneficiaryDetails(
+                        new Salary(Year.of(2024), BigDecimal.valueOf(46_000)),
+                        "Industries extractives",
+                        2
+                ),
+                100,
+                20,
+                15
         );
 
         /* -----------------------------------------------------------------
            3) Comparaison
            ----------------------------------------------------------------- */
-        double modernDegree = incomeCalculationService.invalidityDegreeAsDouble(modern);
+        double modernDegree = incomeCalculationService.disabilityDegree(modern);
 
         assertThat(modernDegree)
                 .as("Le nouveau service doit reproduire exactement l’ancienne logique")

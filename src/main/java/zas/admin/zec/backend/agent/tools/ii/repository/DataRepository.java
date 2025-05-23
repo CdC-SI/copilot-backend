@@ -1,4 +1,4 @@
-package zas.admin.zec.backend.agent.tools.ii;
+package zas.admin.zec.backend.agent.tools.ii.repository;
 
 import zas.admin.zec.backend.agent.tools.ii.model.DataPoint;
 

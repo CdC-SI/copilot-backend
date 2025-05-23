@@ -3,9 +3,10 @@ package zas.admin.zec.backend.agent.tools.ii.repository;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
-import zas.admin.zec.backend.agent.tools.ii.DataRepository;
+import org.springframework.stereotype.Component;
 import zas.admin.zec.backend.agent.tools.ii.model.DataPoint;
 import zas.admin.zec.backend.agent.tools.ii.model.TableKind;
+import zas.admin.zec.backend.config.properties.AIAgentProperties;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -15,14 +16,15 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Component
 public final class CsvDataRepository implements DataRepository {
 
     private final Path baseDir;
     private final Map<String,String> branches = new HashMap<>();
     private final Map<TableKind, List<DataPoint>> cache = new EnumMap<>(TableKind.class);
 
-    public CsvDataRepository(Path baseDir) throws IOException {
-        this.baseDir = Objects.requireNonNull(baseDir);
+    public CsvDataRepository(AIAgentProperties properties) throws IOException {
+        this.baseDir = Path.of(properties.iiDataFolder());
         loadBranches();
     }
 

@@ -1,4 +1,4 @@
-package zas.admin.zec.backend.agent.tools.ii;
+package zas.admin.zec.backend.agent.tools.ii.legacy;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -9,8 +9,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import static zas.admin.zec.backend.agent.tools.ii.StatisticalData.*;
+import static zas.admin.zec.backend.agent.tools.ii.legacy.StatisticalData.*;
 
+@Deprecated
 public class IncomeCalculation {
     @Getter
     private static StringBuilder fullContext = new StringBuilder();
@@ -348,38 +349,6 @@ public class IncomeCalculation {
         return net;
     }
 
-    /**
-     * Convertit le taux d'invalidité en quotité de rente selon le barème de l’art. 28b LAI.
-     *
-     * @param tauxInval taux d'invalidité en pourcentage (ex. 45.3)
-     * @return quotité de rente correspondante en pourcentage
-     *
-     * public static double convertTauxInvaliditeEnRente(double tauxInval) {
-     *    if (tauxInval >= 70) {
-     *        return 100.0;
-     *    } else if (tauxInval >= 50) {
-     *        // entre 50 et 69.999… : rente égale au taux
-     *        return tauxInval;
-     *    } else {
-     *        // taux < 50 : barème dégressif
-     *        int arrondi = (int) Math.floor(tauxInval);
-     *        switch (arrondi) {
-     *            case 49: return 47.5;
-     *            case 48: return 45.0;
-     *            case 47: return 42.5;
-     *            case 46: return 40.0;
-     *            case 45: return 37.5;
-     *            case 44: return 35.0;
-     *            case 43: return 32.5;
-     *            case 42: return 30.0;
-     *            case 41: return 27.5;
-     *            case 40: return 25.0;
-     *            default:  return 0.0;
-     *        }
-     *    }
-     * }
-     */
-
 
     /**
      * Calcule le salaire avant l'atteinte à la santé en indexant selon la table T1.
@@ -582,7 +551,7 @@ public class IncomeCalculation {
 
             revenuEffectif = getRevenuEffectif(
                     branche,
-                    benef.activityRate - benef.deduction,
+                    benef.activityRate - benef.reduction,
                     effInfo.salary,
                     effInfo.year,
                     benef
@@ -603,7 +572,7 @@ public class IncomeCalculation {
      *              contenant chacune les clés "branche", "niveau_comp", "salaire"…
      * @return un résumé textuel du calcul d’invalidité
      */
-    static String getInvalidite(Beneficiary benef) {
+    public static String getInvalidite(Beneficiary benef) {
         updateContext("Calcul du degré d'invalidité");
         // On assign le salaire TA1 selon la branche le niveau et le sexe
         benef.assignId();
@@ -618,16 +587,6 @@ public class IncomeCalculation {
         double perte = revenuSainv - revenuEx;
         double tauxInval = perte * 100.0 / revenuSainv;
         double tauxArrondi = Math.round(tauxInval * 100.0) / 100.0;
-
-        StringBuilder sb = new StringBuilder();
-        sb.append(String.format("Revenu sans invalidité: %.2f CHF, Revenu exigible: %.2f CHF\n",
-                revenuSainv, revenuEx));
-        sb.append(String.format("Perte de revenu sur 100%%: %.2f CHF\n", perte));
-        sb.append(String.format("Taux d’invalidité dans la partie lucrative: %.2f%%\n\n",
-                tauxInval));
-        sb.append("Degré d’invalidité: ").append(tauxArrondi).append("%");
-
-        updateContext(sb.toString());
 
         return formatToolResponse(revenuSainv, revenuEx, perte, tauxInval, tauxArrondi);
     }

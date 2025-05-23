@@ -5,5 +5,5 @@ import java.time.Year;
 
 public record Salary(
         Year referenceYear,
-        BigDecimal amountMonthly) {
+        BigDecimal amount) {
 }
