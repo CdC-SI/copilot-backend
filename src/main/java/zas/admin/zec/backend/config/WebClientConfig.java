@@ -16,12 +16,10 @@ import reactor.netty.http.client.HttpClient;
 import reactor.netty.transport.ProxyProvider;
 import zas.admin.zec.backend.config.properties.*;
 
-import java.time.Duration;
-
 @Configuration
 @EnableAsync
 @EnableJpaAuditing
-@EnableConfigurationProperties({ApplicationProperties.class, PyBackendProperties.class, AIAgentProperties.class,
+@EnableConfigurationProperties({ApplicationProperties.class, PyBackendProperties.class,
         FAQSearchProperties.class, RerankingProperties.class, DeepLProperties.class, ProxyProperties.class})
 public class WebClientConfig {
     private final PyBackendProperties pyBackendProperties;
@@ -42,10 +40,8 @@ public class WebClientConfig {
     @Bean
     @ConditionalOnProperty(name = "proxy.enabled", havingValue = "true")
     public RestClient.Builder restClientBuilder(final HttpClient httpClient) {
-        ReactorNettyClientRequestFactory factory = new ReactorNettyClientRequestFactory(httpClient);
-        factory.setExchangeTimeout(Duration.ofSeconds(6));
         return RestClient.builder()
-                .requestFactory(factory);
+                .requestFactory(new ReactorNettyClientRequestFactory(httpClient));
     }
 
     @Bean

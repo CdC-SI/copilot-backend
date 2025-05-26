@@ -52,4 +52,18 @@ public class AgentFactory {
                 ? AgentType.fromString(inferredAgent.agent())
                 : AgentType.RAG_AGENT;
     }
+
+//    private Mono<AgentType> inferAgentType(Question question) {
+//        var systemPrompt = AgentPrompts.getAgentSelectionPrompt(question.language())
+//                .formatted(question.query(), "");
+//
+//        return chatClient
+//                .prompt()
+//                .system(systemPrompt)
+//                .user(question.query())
+//                .call()
+//                .entityMono(AgentSelection.class)
+//                .map(inferred -> AgentType.fromString(inferred.agent()))
+//                .defaultIfEmpty(AgentType.RAG_AGENT);
+//    }
 }

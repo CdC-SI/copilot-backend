@@ -1868,35 +1868,62 @@ public class InvalidityRateSystem {
 
     static String getDecision(List<Qa> info) {
         List<Path> allPaths = getAllPaths();
+//        List<Path> filteredPaths;
 
-        // Filter paths that match all given Qa
-        List<Path> filteredPaths = allPaths.stream()
-                .filter(path -> info.stream()
-                        .allMatch(givenQa -> path.path.stream()
-                                .anyMatch(pathQa -> pathQa.question.equals(givenQa.question) &&
-                                        pathQa.answer.equals(givenQa.answer))))
-                .toList();
-
-        if (filteredPaths.isEmpty()) {
-            return "Erreur : aucun chemin correspondant trouvé.";
-        }
-
-        if (filteredPaths.size() == 1) {
-            return "Décision : " + filteredPaths.get(0).answer.decision;
-        }
-
-        Map<String, Integer> freq = new HashMap<>();
-        for (Path p : filteredPaths) {
-            for (Qa qa : p.path) {
-                freq.put(qa.question, freq.getOrDefault(qa.question, 0) + 1);
+        if (info.isEmpty()) {
+            return "Plus d'informations sont nécessaires pour déterminer le système de rente. Pour commencer, s'agit-il d'une révision (sur demande ou d'office) ?";
+        } else {
+            List<Path> filteredPaths = new ArrayList<>();
+            for (Path path : allPaths) {
+                boolean pathMatches = true;
+                for (Qa givenQa : info) {
+                    boolean qaFound = false;
+                    for (Qa pathQa : path.path) {
+                        if (pathQa.question.equals(givenQa.question) &&
+                                pathQa.answer.equals(givenQa.answer)) {
+                            qaFound = true;
+                            break;
+                        }
+                    }
+                    if (!qaFound) {
+                        pathMatches = false;
+                        break;
+                    }
+                }
+                if (pathMatches) {
+                    filteredPaths.add(path);
+                }
             }
+
+//             Filter paths that match all given Qa
+//        List<Path> filteredPaths = allPaths.stream()
+//                .filter(path -> info.stream()
+//                        .allMatch(givenQa -> path.path.stream()
+//                                .anyMatch(pathQa -> pathQa.question.equals(givenQa.question) &&
+//                                        pathQa.answer.equals(givenQa.answer))))
+//                .toList();
+
+            if (filteredPaths.isEmpty()) {
+                return "Erreur: Aucune décision ne correspond aux informations fournies.";
+            }
+
+            if (filteredPaths.size() == 1) {
+                return "Décision : " + filteredPaths.get(0).answer.decision;
+            }
+
+            Map<String, Integer> freq = new HashMap<>();
+            for (Path p : filteredPaths) {
+                for (Qa qa : p.path) {
+                    freq.put(qa.question, freq.getOrDefault(qa.question, 0) + 1);
+                }
+            }
+
+            String mostFrequentQuestion = Collections.max(
+                    freq.entrySet(),
+                    Comparator.comparingInt(Map.Entry::getValue)).getKey();
+
+            return "Question suivante suggérée : " + mostFrequentQuestion;
         }
-
-        String mostFrequentQuestion = Collections.max(
-                freq.entrySet(),
-                Comparator.comparingInt(Map.Entry::getValue)).getKey();
-
-        return "Question suivante suggérée : " + mostFrequentQuestion;
     }
 
     public static class Answer {

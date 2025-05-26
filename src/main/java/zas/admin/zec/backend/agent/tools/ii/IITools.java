@@ -154,7 +154,7 @@ public class IITools {
         List<String> questions = List.of(
             "Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?",
             "Changement de palier selon l'ancien système ?",
-            "S'agit-il d'une révision sur demande ou d'une révision d'office ?",
+            "S'agit-il d'une révision (sur demande ou d'office) ?",
             "S'agit-il d'une 1ère demande RER ou demande subséquente déposée avant le 01.07.2021 et échéance délai de carence avant le 01.01.2022 ?",
             "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?",
             "Le degré d'invalidité s'est-il modifié d'au-moins 5% ?",
@@ -178,7 +178,8 @@ public class IITools {
                 questionAnswerPairs.add(new Qa(question, answer));
             }
         }
-        return InvalidityRateSystem.getDecision(questionAnswerPairs);
+        var decision = InvalidityRateSystem.getDecision(questionAnswerPairs);
+        return decision;
     }
 
 

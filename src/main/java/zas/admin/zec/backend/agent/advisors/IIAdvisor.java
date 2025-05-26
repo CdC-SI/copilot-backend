@@ -365,9 +365,10 @@ public class IIAdvisor implements StreamAroundAdvisor {
             for (Message message : messages1) {
                 history.append(message.getMessageType().getValue()).append(": ").append(message.getText()).append("\n");
             }
+            history.append("USER: ").append(userRequest.userText()).append("\n");
         }
 
-        Message userMessage = new UserMessage(userRequest.userText());
+        Message userMessage = new UserMessage(history.toString());
 //
         SystemPromptTemplate systemPromptTemplate = new SystemPromptTemplate(CONVERT_TO_QA.replace("<conversation_history>", history));
         Message systemMessage = systemPromptTemplate.createMessage();
