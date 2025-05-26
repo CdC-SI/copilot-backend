@@ -545,8 +545,8 @@ public class StatisticalData {
     public static Map<String, List<DataPoint>> loadT1() {
 
         Map<String, List<DataPoint>> t1 = new HashMap<>();
-        t1.put("homme", loadT1_2_10());
-        t1.put("femme", loadT1_1_10());
+        t1.put("homme", loadT1_1_10());
+        t1.put("femme", loadT1_2_10());
         t1.put("26 al. 6 RAI", loadT1_10());
 
         return t1;

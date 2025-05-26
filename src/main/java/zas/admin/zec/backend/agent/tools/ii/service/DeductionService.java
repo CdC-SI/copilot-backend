@@ -8,7 +8,7 @@ import java.math.BigDecimal;
 @Service
 public class DeductionService {
 
-    public BigDecimal apply(Beneficiary beneficiary, BigDecimal annualSalary) {
+    public BigDecimal computeAdjustedSalary(Beneficiary beneficiary, BigDecimal annualSalary) {
         var activityRatePer = beneficiary.activityRate() / 100.0;
         var reductionPer = beneficiary.activityReduction() / 100.0;
         var globalCapacity = activityRatePer - (activityRatePer * reductionPer);
