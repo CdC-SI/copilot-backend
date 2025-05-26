@@ -3,6 +3,7 @@ package zas.admin.zec.backend.agent.tools.ii;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 import zas.admin.zec.backend.agent.tools.ii.legacy.IncomeCalculation;
 import zas.admin.zec.backend.agent.tools.ii.model.Beneficiary;
 import zas.admin.zec.backend.agent.tools.ii.model.BeneficiaryDetails;
@@ -17,6 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
 @SpringBootTest
+@ActiveProfiles("test")
 class IncomeCalculationRegressionTest {
     @Autowired
     private IncomeCalculationService incomeCalculationService;

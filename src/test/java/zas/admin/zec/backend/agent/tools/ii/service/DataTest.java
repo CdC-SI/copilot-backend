@@ -4,6 +4,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 import zas.admin.zec.backend.agent.tools.ii.model.Gender;
 
 import java.time.Year;
@@ -11,6 +12,7 @@ import java.time.Year;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @SpringBootTest
+@ActiveProfiles("test")
 class DataTest {
 
     @Autowired
@@ -62,3 +64,4 @@ class DataTest {
         assertEquals(expectedTa1, ta1LookupService.salary(branchId, skill, gender).doubleValue());
     }
 }
+
