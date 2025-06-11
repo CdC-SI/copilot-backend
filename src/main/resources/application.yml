@@ -43,6 +43,7 @@ spring:
       file-size-threshold: 2KB
   ai:
     openai:
+      api-key: ${OPENAI_API_KEY}
       chat:
         enabled: false
     chat:
