@@ -6,6 +6,7 @@ import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -30,9 +31,10 @@ public class RAGService implements IRAGService {
     private final SourceValidator sourceValidator;
     private final ChatModel chatModel;
 
-    public RAGService(DocumentGatherer gatherer, SourceValidator sourceValidator, ChatModel chatModel) {
+    public RAGService(DocumentGatherer gatherer, @Qualifier("publicChatModel") ChatModel chatModel) {
+
         this.gatherer = gatherer;
-        this.sourceValidator = sourceValidator;
+        this.sourceValidator = new SourceValidator(chatModel);
         this.chatModel = chatModel;
     }
 
@@ -45,7 +47,7 @@ public class RAGService implements IRAGService {
                 .collectList()
                 .flatMapMany(docs -> {
                     Flux<Token> sourceTokens = Flux.fromIterable(docs)
-                            .map(doc -> new SourceToken(doc.url()));
+                            .map(doc -> SourceToken.fromURL(doc.url()));
 
                     Prompt prompt = buildRequestPrompt(question, conversationHistory, docs);
 
@@ -59,7 +61,7 @@ public class RAGService implements IRAGService {
         return Flux.merge(statusToken, retrievalAndChatTokens);
     }
 
-    private Prompt buildRequestPrompt(Question question, List<Message> conversationHistory, List<Document> relatedDocuments) {
+    private Prompt buildRequestPrompt(Question question, List<Message> conversationHistory, List<PublicDocument> relatedPublicDocuments) {
         var formattedHistory = conversationHistory.stream()
                 .map(message -> "%s - %s%n%s%n%n".formatted(
                         message.timestamp(),
@@ -68,8 +70,8 @@ public class RAGService implements IRAGService {
                 ))
                 .collect(Collectors.joining());
 
-        var formattedContext = IntStream.range(0, relatedDocuments.size())
-                .mapToObj(i -> "<doc_%d>%s</doc_%d>%n".formatted(i + 1, relatedDocuments.get(i).text(), i + 1))
+        var formattedContext = IntStream.range(0, relatedPublicDocuments.size())
+                .mapToObj(i -> "<doc_%d>%s</doc_%d>%n".formatted(i + 1, relatedPublicDocuments.get(i).text(), i + 1))
                 .collect(Collectors.joining());
 
         var formattedCompleteness = RAGPrompts.getResponseCompletion(question.language(), question.responseFormat());

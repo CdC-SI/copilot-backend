@@ -1,10 +1,9 @@
 package zas.admin.zec.backend.agent;
 
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.messages.AssistantMessage;
-import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import zas.admin.zec.backend.actions.converse.Message;
@@ -24,7 +23,7 @@ public class IIAgent implements Agent {
     private final ChatClient client;
     private final ConversationMetaDataHolder holder;
 
-    public IIAgent(ChatModel model, ConversationMetaDataHolder holder) {
+    public IIAgent(@Qualifier("publicChatModel") ChatModel model, ConversationMetaDataHolder holder) {
         this.client = ChatClient.create(model);
         this.holder = holder;
     }
@@ -65,11 +64,5 @@ public class IIAgent implements Agent {
         }
 
         return new TextToken(r.getResult().getOutput().getText());
-    }
-
-    private org.springframework.ai.chat.messages.Message convertToMessage(Message message) {
-        return "USER".equals(message.role())
-            ? new UserMessage(message.message())
-            : new AssistantMessage(message.message());
     }
 }

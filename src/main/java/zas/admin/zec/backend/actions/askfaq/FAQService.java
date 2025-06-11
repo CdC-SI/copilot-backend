@@ -1,10 +1,11 @@
 package zas.admin.zec.backend.actions.askfaq;
 
 import org.springframework.ai.embedding.EmbeddingModel;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import zas.admin.zec.backend.config.properties.FAQSearchProperties;
-import zas.admin.zec.backend.persistence.entity.DocumentEntity;
 import zas.admin.zec.backend.persistence.entity.FAQItemEntity;
+import zas.admin.zec.backend.persistence.entity.PublicDocumentEntity;
 import zas.admin.zec.backend.persistence.entity.SourceEntity;
 import zas.admin.zec.backend.persistence.repository.FAQItemRepository;
 import zas.admin.zec.backend.tools.EntityMapper;
@@ -24,7 +25,7 @@ public class FAQService {
     private final FAQCache faqCache;
 
     public FAQService(FAQItemRepository faqItemRepository, FAQSearchProperties faqSearchProperties,
-                      EntityMapper entityMapper, EmbeddingModel embeddingModel, FAQCache faqCache) {
+                      EntityMapper entityMapper, @Qualifier("publicEmbeddingModel") EmbeddingModel embeddingModel, FAQCache faqCache) {
 
         this.faqItemRepository = faqItemRepository;
         this.faqSearchProperties = faqSearchProperties;
@@ -61,7 +62,7 @@ public class FAQService {
         SourceEntity source = new SourceEntity();
         source.setUrl(faqItemLight.url());
 
-        DocumentEntity answer = new DocumentEntity();
+        PublicDocumentEntity answer = new PublicDocumentEntity();
         answer.setSource(source);
         answer.setUrl(faqItemLight.url());
         answer.setLanguage(faqItemLight.language());

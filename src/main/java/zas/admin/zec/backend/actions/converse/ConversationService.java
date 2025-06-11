@@ -23,10 +23,7 @@ import zas.admin.zec.backend.rag.RAGStatus;
 import zas.admin.zec.backend.rag.token.*;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
@@ -43,7 +40,7 @@ public class ConversationService {
 
     public ConversationService(ConversationRepository conversationRepository,
                                ConversationTitleRepository conversationTitleRepository,
-                               ChatModel chatModel, AgentFactory agentFactory,
+                               @Qualifier("internalChatModel") ChatModel chatModel, AgentFactory agentFactory,
                                @Qualifier("asyncExecutor") TaskExecutor taskExecutor) {
 
         this.conversationRepository = conversationRepository;
@@ -99,19 +96,23 @@ public class ConversationService {
         var timestamp = LocalDateTime.now();
         String assistantMessageId = UUID.randomUUID().toString();
         StringBuilder assistantMessage = new StringBuilder();
-        List<String> sourceUrls = new ArrayList<>();
-        List<String> suggestions = new ArrayList<>();
+        Set<Source> sources = new HashSet<>();
+        Set<String> suggestions = new HashSet<>();
 
         return getTokenStream(question, userId)
                 .flatMap(token -> switch (token) {
                     case StatusToken statusToken -> Flux.just(statusToken.content());
                     case SuggestionToken suggestionToken -> {
-                        suggestions.add(suggestionToken.suggestion());
-                        yield Flux.just(suggestionToken.content());
+                        if (suggestions.add(suggestionToken.suggestion())) {
+                            yield Flux.just(suggestionToken.content());
+                        }
+                        yield Flux.empty();
                     }
                     case SourceToken sourceToken -> {
-                        sourceUrls.add(sourceToken.metadata().get("url"));
-                        yield Flux.just(sourceToken.content());
+                        if (sources.add(Source.fromToken(sourceToken))) {
+                            yield Flux.just(sourceToken.content());
+                        }
+                        yield Flux.empty();
                     }
                     case TextToken textToken -> {
                         assistantMessage.append(textToken.content());
@@ -121,7 +122,7 @@ public class ConversationService {
                 .concatWithValues("<message_uuid>%s</message_uuid>".formatted(assistantMessageId))
                 .concatWith(
                         Mono.fromRunnable(() -> saveExchange(question, userId, assistantMessageId, assistantMessage.toString(),
-                                        sourceUrls, suggestions, timestamp))
+                                        sources, suggestions, timestamp))
                                 .subscribeOn(Schedulers.boundedElastic())
                                 .then(Mono.empty()))
                 .onErrorResume(err -> {
@@ -183,13 +184,13 @@ public class ConversationService {
         return offTopicValue != null && !offTopicValue.value();
     }
 
-    private void saveExchange(Question question, String userId, String assistantMessageId, String answer, List<String> sources,
-                              List<String> suggestions, LocalDateTime userMessageTimestamp) {
+    private void saveExchange(Question question, String userId, String assistantMessageId, String answer, Set<Source> sources,
+                              Set<String> suggestions, LocalDateTime userMessageTimestamp) {
 
         var userMessage = new Message(UUID.randomUUID().toString(), userId, question.conversationId(), null,
                 question.language(), question.query(), "USER", null, null, userMessageTimestamp);
         var assistantMessage = new Message(assistantMessageId, userId, question.conversationId(), null,
-                question.language(), answer, "LLM", sources, suggestions, LocalDateTime.now());
+                question.language(), answer, "LLM", sources.stream().toList(), suggestions.stream().toList(), LocalDateTime.now());
 
         save(userMessage, userId, question.conversationId());
         save(assistantMessage, userId, question.conversationId());
@@ -207,7 +208,9 @@ public class ConversationService {
                         message.getLanguage(),
                         message.getMessage(),
                         getRole(message),
-                        List.of(message.getSources()),
+                        Arrays.stream(message.getSources())
+                                .map(this::fromSourceString)
+                                .toList(),
                         List.of(message.getSuggestions()),
                         message.getTimestamp()
                 ))
@@ -249,12 +252,29 @@ public class ConversationService {
         entity.setFaqId(message.faqItemId());
         entity.setSources(Objects.isNull(message.sources())
                 ? new String[0]
-                : message.sources().toArray(String[]::new));
+                : message.sources()
+                    .stream()
+                    .map(this::toSourceString)
+                    .distinct()
+                    .toArray(String[]::new));
         entity.setSuggestions(Objects.isNull(message.suggestions())
                 ? new String[0]
                 : message.suggestions().toArray(String[]::new));
 
         conversationRepository.save(entity);
+    }
+
+    private String toSourceString(Source source) {
+        return source.type() == SourceType.FILE
+                ? "%s:%s".formatted(SourceType.FILE.name(), source.link())
+                : source.link();
+    }
+
+    private Source fromSourceString(String source) {
+        if (source.startsWith(SourceType.FILE.name())) {
+            return new Source(SourceType.FILE, source.substring(SourceType.FILE.name().length() + 1));
+        }
+        return new Source(SourceType.URL, source);
     }
 
     private void generateConversationTitle(String initialQuery, String initialResponse, String userId, String conversationId, String language) {

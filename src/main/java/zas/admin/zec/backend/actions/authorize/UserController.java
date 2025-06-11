@@ -74,6 +74,20 @@ public class UserController {
         return ResponseEntity.ok().build();
     }
 
+    @RequireAdmin
+    @PutMapping("/{username}/internalize")
+    public ResponseEntity<Void> internalizeUser(@PathVariable String username) {
+        userService.internalize(username);
+        return ResponseEntity.ok().build();
+    }
+
+    @RequireAdmin
+    @PutMapping("/{username}/externalize")
+    public ResponseEntity<Void> externalizeUser(@PathVariable String username) {
+        userService.externalize(username);
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping("/authenticated")
     public ResponseEntity<UserProfile> getUser(Authentication authentication) {
         if (authentication.getPrincipal() instanceof ZasUser zasUser) {
@@ -102,7 +116,8 @@ public class UserController {
                     zasUser.getFirstname(),
                     zasUser.getLastname(),
                     UserStatus.GUEST,
-                    List.of()
+                    List.of(),
+                    false
             );
         }
     }
@@ -116,7 +131,8 @@ public class UserController {
                     null,
                     null,
                     UserStatus.GUEST,
-                    List.of()
+                    List.of(),
+                    false
             );
         }
     }
@@ -128,7 +144,8 @@ public class UserController {
                 byUsername.firstName(),
                 byUsername.lastName(),
                 byUsername.status(),
-                byUsername.roles().stream().map(Role::name).toList()
+                byUsername.roles().stream().map(Role::name).toList(),
+                byUsername.internalUser()
         );
     }
 }

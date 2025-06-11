@@ -18,6 +18,11 @@ public class AuthorizationLogic {
         return hasRole(authentication.getName(), Role.USER);
     }
 
+    public boolean isInternalUser(Authentication authentication) {
+        var userId = userService.getUuid(authentication.getName());
+        return userService.hasAccessToInternalDocuments(userId);
+    }
+
     public boolean isAdmin(Authentication authentication) {
         return hasRole(authentication.getName(), Role.ADMIN);
     }

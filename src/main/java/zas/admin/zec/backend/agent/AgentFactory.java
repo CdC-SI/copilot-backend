@@ -3,6 +3,7 @@ package zas.admin.zec.backend.agent;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import zas.admin.zec.backend.actions.converse.Question;
 import zas.admin.zec.backend.tools.ConversationMetaDataHolder;
@@ -17,7 +18,7 @@ public class AgentFactory {
     private final ConversationMetaDataHolder conversationMetaDataHolder;
 
     @Autowired
-    public AgentFactory(Set<Agent> agents, ChatModel chatModel, ConversationMetaDataHolder conversationMetaDataHolder) {
+    public AgentFactory(Set<Agent> agents, @Qualifier("publicChatModel") ChatModel chatModel, ConversationMetaDataHolder conversationMetaDataHolder) {
         this.agents = agents;
         this.chatClient = ChatClient.create(chatModel);
         this.conversationMetaDataHolder = conversationMetaDataHolder;

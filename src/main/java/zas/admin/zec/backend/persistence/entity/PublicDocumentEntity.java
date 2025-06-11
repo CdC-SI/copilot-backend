@@ -11,7 +11,7 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "document")
-public class DocumentEntity extends EmbeddedContentEntity {
+public class PublicDocumentEntity extends EmbeddedContentEntity {
 
     @ManyToOne
     @JoinColumn(name = "source_id", nullable = false)
