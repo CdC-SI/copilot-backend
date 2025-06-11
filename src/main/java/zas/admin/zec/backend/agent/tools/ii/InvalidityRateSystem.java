@@ -5,7 +5,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import zas.admin.zec.backend.agent.tools.ii.IITools.Qa;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class InvalidityRateSystem {
 
@@ -16,28 +17,28 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Droit ouvert dans le système linéaire ?\"," +
+                "        \"question\": \"Droit ouvert dans le système linéaire?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité est-il augmenté ?\"," +
+                "        \"question\": \"Y a-t-il une augmentation du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }" +
                 "    ]," +
@@ -54,28 +55,28 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Droit ouvert dans le système linéaire ?\"," +
+                "        \"question\": \"Droit ouvert dans le système linéaire?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité est-il augmenté ?\"," +
+                "        \"question\": \"Y a-t-il une augmentation du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }" +
                 "    ]," +
@@ -91,28 +92,28 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Droit ouvert dans le système linéaire ?\"," +
+                "        \"question\": \"Droit ouvert dans le système linéaire?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité est-il augmenté ?\"," +
+                "        \"question\": \"Y a-t-il une augmentation du degré d'invalidité?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }" +
                 "    ]," +
@@ -128,28 +129,28 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Droit ouvert dans le système linéaire ?\"," +
+                "        \"question\": \"Droit ouvert dans le système linéaire?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité est-il augmenté ?\"," +
+                "        \"question\": \"Y a-t-il une augmentation du degré d'invalidité?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }" +
                 "    ]," +
@@ -166,20 +167,20 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Droit ouvert dans le système linéaire ?\"," +
+                "        \"question\": \"Droit ouvert dans le système linéaire?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }" +
                 "    ]," +
@@ -196,20 +197,20 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Droit ouvert dans le système linéaire ?\"," +
+                "        \"question\": \"Droit ouvert dans le système linéaire?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }" +
                 "    ]," +
@@ -224,20 +225,20 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Droit ouvert dans le système linéaire ?\"," +
+                "        \"question\": \"Droit ouvert dans le système linéaire?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }" +
                 "    ]," +
@@ -253,20 +254,20 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Droit ouvert dans le système linéaire ?\"," +
+                "        \"question\": \"Droit ouvert dans le système linéaire?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans ?\","
+                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?\","
                 +
                 "        \"answer\": \"Oui\"" +
                 "      }" +
@@ -282,41 +283,41 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Droit ouvert dans le système linéaire ?\"," +
+                "        \"question\": \"Droit ouvert dans le système linéaire?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans ?\","
+                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?\","
                 +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité est-il augmenté ?\"," +
+                "        \"question\": \"Y a-t-il une augmentation du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le montant de la rente est-il diminué ?\"," +
+                "        \"question\": \"Y a-t-il une diminution du montant de la rente?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le taux d'invalidité est-il d'au-moins 70% ?\"," +
+                "        \"question\": \"Le taux d'invalidité est-il d'au-moins 70%?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }" +
                 "    ]," +
@@ -332,41 +333,41 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Droit ouvert dans le système linéaire ?\"," +
+                "        \"question\": \"Droit ouvert dans le système linéaire?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans ?\","
+                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?\","
                 +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité est-il augmenté ?\"," +
+                "        \"question\": \"Y a-t-il une augmentation du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le montant de la rente est-il diminué ?\"," +
+                "        \"question\": \"Y a-t-il une diminution du montant de la rente?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le taux d'invalidité est-il d'au-moins 70% ?\"," +
+                "        \"question\": \"Le taux d'invalidité est-il d'au-moins 70%?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }" +
                 "    ]," +
@@ -383,37 +384,37 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Droit ouvert dans le système linéaire ?\"," +
+                "        \"question\": \"Droit ouvert dans le système linéaire?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans ?\","
+                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?\","
                 +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité est-il augmenté ?\"," +
+                "        \"question\": \"Y a-t-il une augmentation du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le montant de la rente est-il diminué ?\"," +
+                "        \"question\": \"Y a-t-il une diminution du montant de la rente?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }" +
                 "    ]," +
@@ -430,37 +431,37 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Droit ouvert dans le système linéaire ?\"," +
+                "        \"question\": \"Droit ouvert dans le système linéaire?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans ?\","
+                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?\","
                 +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité est-il augmenté ?\"," +
+                "        \"question\": \"Y a-t-il une augmentation du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le montant de la rente est-il diminué ?\"," +
+                "        \"question\": \"Y a-t-il une diminution du montant de la rente?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }" +
                 "    ]," +
@@ -477,37 +478,37 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Droit ouvert dans le système linéaire ?\"," +
+                "        \"question\": \"Droit ouvert dans le système linéaire?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans ?\","
+                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?\","
                 +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité est-il augmenté ?\"," +
+                "        \"question\": \"Y a-t-il une augmentation du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le montant de la rente est-il diminué ?\"," +
+                "        \"question\": \"Y a-t-il une diminution du montant de la rente?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }" +
                 "    ]," +
@@ -523,41 +524,41 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Droit ouvert dans le système linéaire ?\"," +
+                "        \"question\": \"Droit ouvert dans le système linéaire?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans ?\","
+                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?\","
                 +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité est-il augmenté ?\"," +
+                "        \"question\": \"Y a-t-il une augmentation du degré d'invalidité?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le montant de la rente est-il augmenté ?\"," +
+                "        \"question\": \"Y a-t-il une augmentation du montant de la rente?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le taux d'invalidité est-il d'au-moins 50% ?\"," +
+                "        \"question\": \"Le taux d'invalidité est-il d'au-moins 50%?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }" +
                 "    ]," +
@@ -575,41 +576,41 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Droit ouvert dans le système linéaire ?\"," +
+                "        \"question\": \"Droit ouvert dans le système linéaire?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans ?\","
+                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?\","
                 +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité est-il augmenté ?\"," +
+                "        \"question\": \"Y a-t-il une augmentation du degré d'invalidité?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le montant de la rente est-il augmenté ?\"," +
+                "        \"question\": \"Y a-t-il une augmentation du montant de la rente?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le taux d'invalidité est-il d'au-moins 50% ?\"," +
+                "        \"question\": \"Le taux d'invalidité est-il d'au-moins 50%?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }" +
                 "    ]," +
@@ -626,37 +627,37 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Droit ouvert dans le système linéaire ?\"," +
+                "        \"question\": \"Droit ouvert dans le système linéaire?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans ?\","
+                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?\","
                 +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité est-il augmenté ?\"," +
+                "        \"question\": \"Y a-t-il une augmentation du degré d'invalidité?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le montant de la rente est-il augmenté ?\"," +
+                "        \"question\": \"Y a-t-il une augmentation du montant de la rente?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }" +
                 "    ]," +
@@ -673,37 +674,37 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Droit ouvert dans le système linéaire ?\"," +
+                "        \"question\": \"Droit ouvert dans le système linéaire?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans ?\","
+                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?\","
                 +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité est-il augmenté ?\"," +
+                "        \"question\": \"Y a-t-il une augmentation du degré d'invalidité?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le montant de la rente est-il augmenté ?\"," +
+                "        \"question\": \"Y a-t-il une augmentation du montant de la rente?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }" +
                 "    ]," +
@@ -720,37 +721,37 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Droit ouvert dans le système linéaire ?\"," +
+                "        \"question\": \"Droit ouvert dans le système linéaire?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans ?\","
+                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?\","
                 +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité est-il augmenté ?\"," +
+                "        \"question\": \"Y a-t-il une augmentation du degré d'invalidité?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le montant de la rente est-il augmenté ?\"," +
+                "        \"question\": \"Y a-t-il une augmentation du montant de la rente?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }" +
                 "    ]," +
@@ -766,25 +767,25 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Droit ouvert dans le système linéaire ?\"," +
+                "        \"question\": \"Droit ouvert dans le système linéaire?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans ?\","
+                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?\","
                 +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }" +
                 "    ]," +
@@ -798,24 +799,24 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Droit ouvert dans le système linéaire ?\"," +
+                "        \"question\": \"Droit ouvert dans le système linéaire?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }" +
                 "    ]," +
@@ -831,28 +832,28 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Droit ouvert dans le système linéaire ?\"," +
+                "        \"question\": \"Droit ouvert dans le système linéaire?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Changement de palier selon l'ancien système?\"," +
+                "        \"question\": \"Y a-t-il un changement de palier selon l'ancien système?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }" +
                 "    ]," +
@@ -868,28 +869,28 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Droit ouvert dans le système linéaire ?\"," +
+                "        \"question\": \"Droit ouvert dans le système linéaire?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Changement de palier selon l'ancien système?\"," +
+                "        \"question\": \"Y a-t-il un changement de palier selon l'ancien système?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }" +
                 "    ]," +
@@ -905,20 +906,20 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Droit ouvert dans le système linéaire ?\"," +
+                "        \"question\": \"Droit ouvert dans le système linéaire?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }" +
                 "    ]," +
@@ -936,7 +937,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -945,12 +946,12 @@ public class InvalidityRateSystem {
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans ?\","
+                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?\","
                 +
                 "        \"answer\": \"Oui\"" +
                 "      }" +
@@ -966,7 +967,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -975,33 +976,33 @@ public class InvalidityRateSystem {
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans ?\","
+                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?\","
                 +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité est-il augmenté ?\"," +
+                "        \"question\": \"Y a-t-il une augmentation du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le montant de la rente est-il diminué ?\"," +
+                "        \"question\": \"Y a-t-il une diminution du montant de la rente?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le taux d'invalidité est-il d'au-moins 70% ?\"," +
+                "        \"question\": \"Le taux d'invalidité est-il d'au-moins 70%?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }" +
                 "    ]," +
@@ -1017,7 +1018,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1026,33 +1027,33 @@ public class InvalidityRateSystem {
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans ?\","
+                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?\","
                 +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité est-il augmenté ?\"," +
+                "        \"question\": \"Y a-t-il une augmentation du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le montant de la rente est-il diminué ?\"," +
+                "        \"question\": \"Y a-t-il une diminution du montant de la rente?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le taux d'invalidité est-il d'au-moins 70% ?\"," +
+                "        \"question\": \"Le taux d'invalidité est-il d'au-moins 70%?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }" +
                 "    ]," +
@@ -1067,7 +1068,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1076,29 +1077,29 @@ public class InvalidityRateSystem {
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans ?\","
+                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?\","
                 +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité est-il augmenté ?\"," +
+                "        \"question\": \"Y a-t-il une augmentation du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le montant de la rente est-il diminué ?\"," +
+                "        \"question\": \"Y a-t-il une diminution du montant de la rente?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }" +
                 "    ]," +
@@ -1113,7 +1114,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1122,29 +1123,29 @@ public class InvalidityRateSystem {
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans ?\","
+                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?\","
                 +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité est-il augmenté ?\"," +
+                "        \"question\": \"Y a-t-il une augmentation du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le montant de la rente est-il diminué ?\"," +
+                "        \"question\": \"Y a-t-il une diminution du montant de la rente?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }" +
                 "    ]," +
@@ -1160,7 +1161,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1169,29 +1170,29 @@ public class InvalidityRateSystem {
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans ?\","
+                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?\","
                 +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité est-il augmenté ?\"," +
+                "        \"question\": \"Y a-t-il une augmentation du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le montant de la rente est-il diminué ?\"," +
+                "        \"question\": \"Y a-t-il une diminution du montant de la rente?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }" +
                 "    ]," +
@@ -1208,7 +1209,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1217,33 +1218,33 @@ public class InvalidityRateSystem {
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans ?\","
+                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?\","
                 +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité est-il augmenté ?\"," +
+                "        \"question\": \"Y a-t-il une augmentation du degré d'invalidité?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le montant de la rente est-il augmenté ?\"," +
+                "        \"question\": \"Y a-t-il une augmentation du montant de la rente?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le taux d'invalidité est-il d'au-moins 50% ?\"," +
+                "        \"question\": \"Le taux d'invalidité est-il d'au-moins 50%?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }" +
                 "    ]," +
@@ -1259,7 +1260,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1268,33 +1269,33 @@ public class InvalidityRateSystem {
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans ?\","
+                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?\","
                 +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité est-il augmenté ?\"," +
+                "        \"question\": \"Y a-t-il une augmentation du degré d'invalidité?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le montant de la rente est-il augmenté ?\"," +
+                "        \"question\": \"Y a-t-il une augmentation du montant de la rente?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le taux d'invalidité est-il d'au-moins 50% ?\"," +
+                "        \"question\": \"Le taux d'invalidité est-il d'au-moins 50%?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }" +
                 "    ]," +
@@ -1309,7 +1310,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1318,29 +1319,29 @@ public class InvalidityRateSystem {
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans ?\","
+                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?\","
                 +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité est-il augmenté ?\"," +
+                "        \"question\": \"Y a-t-il une augmentation du degré d'invalidité?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le montant de la rente est-il augmenté ?\"," +
+                "        \"question\": \"Y a-t-il une augmentation du montant de la rente?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }" +
                 "    ]," +
@@ -1357,7 +1358,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1366,25 +1367,25 @@ public class InvalidityRateSystem {
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans ?\","
+                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?\","
                 +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité est-il augmenté ?\"," +
+                "        \"question\": \"Y a-t-il une augmentation du degré d'invalidité?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le montant de la rente est-il augmenté ?\"," +
+                "        \"question\": \"Y a-t-il une augmentation du montant de la rente?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }" +
                 "    ]," +
@@ -1400,7 +1401,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1409,17 +1410,17 @@ public class InvalidityRateSystem {
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans ?\","
+                "        \"question\": \"L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?\","
                 +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }" +
                 "    ]," +
@@ -1433,7 +1434,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1442,16 +1443,16 @@ public class InvalidityRateSystem {
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }" +
                 "    ]," +
@@ -1467,7 +1468,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1476,20 +1477,20 @@ public class InvalidityRateSystem {
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Changement de palier selon l'ancien système?\"," +
+                "        \"question\": \"Y a-t-il un changement de palier selon l'ancien système?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }" +
                 "    ]," +
@@ -1505,7 +1506,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1514,20 +1515,20 @@ public class InvalidityRateSystem {
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Changement de palier selon l'ancien système?\"," +
+                "        \"question\": \"Y a-t-il un changement de palier selon l'ancien système?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }" +
                 "    ]," +
@@ -1543,7 +1544,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1552,12 +1553,12 @@ public class InvalidityRateSystem {
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }" +
                 "    ]," +
@@ -1573,7 +1574,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1582,20 +1583,20 @@ public class InvalidityRateSystem {
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité est-il augmenté ?\"," +
+                "        \"question\": \"Y a-t-il une augmentation du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }" +
                 "    ]," +
@@ -1612,7 +1613,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1621,20 +1622,20 @@ public class InvalidityRateSystem {
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité est-il augmenté ?\"," +
+                "        \"question\": \"Y a-t-il une augmentation du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }" +
                 "    ]," +
@@ -1650,7 +1651,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1659,20 +1660,20 @@ public class InvalidityRateSystem {
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité est-il augmenté ?\"," +
+                "        \"question\": \"Y a-t-il une augmentation du degré d'invalidité?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }" +
                 "    ]," +
@@ -1688,7 +1689,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1697,20 +1698,20 @@ public class InvalidityRateSystem {
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité est-il augmenté ?\"," +
+                "        \"question\": \"Y a-t-il une augmentation du degré d'invalidité?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }" +
                 "    ]," +
@@ -1727,7 +1728,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1736,16 +1737,16 @@ public class InvalidityRateSystem {
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }" +
                 "    ]," +
@@ -1760,7 +1761,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1769,16 +1770,16 @@ public class InvalidityRateSystem {
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Oui\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Le degré d’invalidité s’est-il modifié d’au-moins 5% ?\"," +
+                "        \"question\": \"Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }" +
                 "    ]," +
@@ -1794,7 +1795,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1803,12 +1804,12 @@ public class InvalidityRateSystem {
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Oui\"" +
                 "      }" +
                 "    ]," +
@@ -1823,7 +1824,7 @@ public class InvalidityRateSystem {
                 "  {" +
                 "    \"path\": [" +
                 "      {" +
-                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office) ?\"," +
+                "        \"question\": \"S'agit-il d'une révision (sur demande ou d'office)?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
@@ -1832,12 +1833,12 @@ public class InvalidityRateSystem {
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023 ?\","
+                "        \"question\": \"Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?\","
                 +
                 "        \"answer\": \"Non\"" +
                 "      }," +
                 "      {" +
-                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?\"," +
+                "        \"question\": \"Y a-t-il eu une augmentation du taux depuis le 01.01.2024?\"," +
                 "        \"answer\": \"Non\"" +
                 "      }" +
                 "    ]," +
@@ -1852,17 +1853,15 @@ public class InvalidityRateSystem {
                 "  }" +
                 "]";
 
-        List<?> allPaths;
+        List<Path> allPaths;
         try {
-            allPaths = mapper.readValue(jsonTree, new TypeReference<List<?>>() {
+            allPaths = mapper.readValue(jsonTree, new TypeReference<List<Path>>() {
             });
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Error processing JSON", e);
         }
-        @SuppressWarnings("unchecked")
-        List<Path> res = (List<Path>) allPaths;
 
-        return res;
+        return allPaths;
 
     }
 
@@ -1871,29 +1870,73 @@ public class InvalidityRateSystem {
 //        List<Path> filteredPaths;
 
         if (info.isEmpty()) {
-            return "Plus d'informations sont nécessaires pour déterminer le système de rente. Pour commencer, s'agit-il d'une révision (sur demande ou d'office) ?";
+            return "Plus d'informations sont nécessaires pour déterminer le système de rente. Pour commencer, S'agit-il d'une révision (sur demande ou d'office) ?";
         } else {
             List<Path> filteredPaths = new ArrayList<>();
+            Path bestMatchPath = allPaths.getFirst();
+            int maxMatches = 0;
+
             for (Path path : allPaths) {
-                boolean pathMatches = true;
+                int currentMatches = 0;
+                boolean allPathQasMatch = true;
+
+                // Count how many QAs from info match this path
                 for (Qa givenQa : info) {
-                    boolean qaFound = false;
                     for (Qa pathQa : path.path) {
-                        if (pathQa.question.equals(givenQa.question) &&
-                                pathQa.answer.equals(givenQa.answer)) {
+                        if (pathQa.equals(givenQa)) {
+                            currentMatches++;
+                            break;
+                        }
+                    }
+                }
+
+                // Check if all QAs in the path are present in info
+                for (Qa pathQa : path.path) {
+                    boolean qaFound = false;
+                    for (Qa givenQa : info) {
+                        if (pathQa.equals(givenQa)) {
                             qaFound = true;
                             break;
                         }
                     }
                     if (!qaFound) {
-                        pathMatches = false;
+                        allPathQasMatch = false;
                         break;
                     }
                 }
-                if (pathMatches) {
-                    filteredPaths.add(path);
+
+                // If all path QAs match, we've found our perfect match
+                if (allPathQasMatch) {
+//                    bestMatchPath = path;
+                    return "Décision : " + path.answer.decision;
+//                    break;
+                }
+
+                // Otherwise, update bestMatchPath if this path has more matches
+                if (currentMatches > maxMatches) {
+                    maxMatches = currentMatches;
+                    bestMatchPath = path;
                 }
             }
+
+                // Find first question from bestMatchPath that's not in info
+            for (Qa pathQa : bestMatchPath.path) {
+                boolean qaExists = false;
+                for (Qa givenQa : info) {
+                    if (pathQa.equals(givenQa)) {
+                        qaExists = true;
+                        break;
+                    }
+                }
+                if (!qaExists) {
+                    return "Question suivante suggérée : " + pathQa.question();  // Return the first question that's not in info
+                }
+            }
+            return "";
+
+            // Now bestMatchPath contains either:
+            // 1. A path where all its QAs match (if we found one)
+            // 2. The path with the most matching QAs (if no perfect match was found)
 
 //             Filter paths that match all given Qa
 //        List<Path> filteredPaths = allPaths.stream()
@@ -1903,26 +1946,26 @@ public class InvalidityRateSystem {
 //                                        pathQa.answer.equals(givenQa.answer))))
 //                .toList();
 
-            if (filteredPaths.isEmpty()) {
-                return "Erreur: Aucune décision ne correspond aux informations fournies.";
-            }
+//            if (filteredPaths.isEmpty()) {
+//                return "Erreur: Aucune décision ne correspond aux informations fournies.";
+//            }
 
-            if (filteredPaths.size() == 1) {
-                return "Décision : " + filteredPaths.get(0).answer.decision;
-            }
+//            if (bestMatchPath.path.size() == Max) {
+//                return "Décision : " + filteredPaths.get(0).answer.decision;
+//            }
 
-            Map<String, Integer> freq = new HashMap<>();
-            for (Path p : filteredPaths) {
-                for (Qa qa : p.path) {
-                    freq.put(qa.question, freq.getOrDefault(qa.question, 0) + 1);
-                }
-            }
+//            Map<String, Integer> freq = new HashMap<>();
+//            for (Path p : filteredPaths) {
+//                for (Qa qa : p.path) {
+//                    freq.put(qa.question(), freq.getOrDefault(qa.question(), 0) + 1);
+//                }
+//            }
 
-            String mostFrequentQuestion = Collections.max(
-                    freq.entrySet(),
-                    Comparator.comparingInt(Map.Entry::getValue)).getKey();
+//            String mostFrequentQuestion = Collections.max(
+//                    freq.entrySet(),
+//                    Comparator.comparingInt(Map.Entry::getValue)).getKey();
 
-            return "Question suivante suggérée : " + mostFrequentQuestion;
+//            return "Question suivante suggérée : " + mostFrequentQuestion;
         }
     }
 
