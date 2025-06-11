@@ -89,9 +89,10 @@ public class ChatModelsConfig {
     }
 
     @Bean(name = "publicEmbeddingModel")
-    public OpenAiEmbeddingModel publicEmbeddingModel() {
+    public OpenAiEmbeddingModel publicEmbeddingModel(ObjectProvider<RestClient.Builder> restClientBuilderProvider) {
         var openAiApi = OpenAiApi.builder()
                 .apiKey(publicChatModelProperties.apiKey())
+                .restClientBuilder(restClientBuilderProvider.getIfAvailable(RestClient::builder))
                 .build();
 
         return new OpenAiEmbeddingModel(
