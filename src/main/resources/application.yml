@@ -43,15 +43,30 @@ spring:
       file-size-threshold: 2KB
   ai:
     openai:
-      embedding:
-        options:
-          model: ${OPENAI_EMBEDDING_MODEL:text-embedding-3-small}
-      api-key: ${OPENAI_API_KEY}
+      chat:
+        enabled: false
+    chat:
+      public:
+        api-key: ${OPENAI_API_KEY}
+        chat-model: ${PUBLIC_CHAT_MODEL}
+        embedding-model: ${PUBLIC_EMBEDDING_MODEL}
+      internal:
+        api-key: ${OPENAI_API_KEY}
+        chat-model: ${INTERNAL_CHAT_MODEL}
+        chat-base-url: ${INTERNAL_CHAT_BASE_URL}
+        embedding-model: ${INTERNAL_EMBEDDING_MODEL}
+        embedding-base-url: ${INTERNAL_EMBEDDING_BASE_URL}
+        embedding-dimensions: ${EMBEDDING_DIMENSIONS:1024}
+    vectorstore:
+      pgvector:
+        dimensions: ${PGVECTOR_DIMENSIONS:1024}
+        distance-type: cosine_distance
+        max-document-batch-size: 10000
+        index-type: hnsw
+        table-name: internal_documents
+        initialize-schema: true
 py-backend:
   baseUrl: http://copilot:8000
-jwt:
-  secret-key: ${JWT_SECRET_KEY}
-  expiration-time: ${JWT_EXPIRATION_TIME:36000000}
 server:
   tomcat:
     max-swallow-size: -1
