@@ -24,8 +24,8 @@ public class RankedDocumentJoiner implements DocumentJoiner {
     public List<Document> join(Map<Query, List<List<Document>>> documentsForQuery) {
         return documentsForQuery.entrySet().stream()
                 .flatMap(entry -> entry.getValue().stream()
-                        .flatMap(List::stream)
-                        .filter(doc -> sourceValidator.isValidSource(entry.getKey().text(), "fr", doc)))
+                        .flatMap(List::stream))
+                        //.filter(doc -> sourceValidator.isValidSource(entry.getKey().text(), "fr", doc)))
                 .sorted(Comparator.comparingDouble(Document::getScore).reversed())
                 .limit(topK)
                 .toList();

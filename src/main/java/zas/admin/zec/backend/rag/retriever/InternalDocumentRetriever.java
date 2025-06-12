@@ -31,7 +31,7 @@ public final class InternalDocumentRetriever implements DocumentRetriever {
     public List<Document> retrieve(Query query) {
         var publicDocuments = publicDocumentRetriever.retrieve(query);
         var internalRetriever = VectorStoreDocumentRetriever.builder()
-                .similarityThreshold(0.5)
+                .similarityThreshold(0.0)
                 .filterExpression(filterExpression)
                 .vectorStore(internalDocumentStore)
                 .topK(topK)

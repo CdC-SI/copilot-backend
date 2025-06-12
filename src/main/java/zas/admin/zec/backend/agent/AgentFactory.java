@@ -34,8 +34,7 @@ public class AgentFactory {
     }
 
     private AgentType selectAgentType(Question question) {
-        return conversationMetaDataHolder.getCurrentAgentInUse(question.conversationId())
-                .orElseGet(() -> inferAgentType(question));
+        return AgentType.RAG_AGENT;
     }
 
     private AgentType inferAgentType(Question question) {
