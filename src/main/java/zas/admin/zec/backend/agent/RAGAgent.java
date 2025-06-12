@@ -118,7 +118,7 @@ public class RAGAgent implements Agent {
                                 </context>
                                 
                                 <format_de_réponse>
-                                    Réponse détaillée en markdown
+                                    Réponse détaillée
                                 </format_de_réponse>
                                 
                                 Question: {query}
