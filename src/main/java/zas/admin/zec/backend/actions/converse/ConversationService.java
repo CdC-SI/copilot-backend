@@ -51,7 +51,7 @@ public class ConversationService {
     }
 
     public List<ConversationTitle> getTitlesByUserId(String userId) {
-        return conversationTitleRepository.findByUserId(userId)
+        return conversationTitleRepository.findByUserIdOrderByTimestamp(userId)
                 .stream()
                 .map(title -> new ConversationTitle(title.getTitle(), title.getUserId(), title.getConversationId(), title.getTimestamp()))
                 .toList();
@@ -235,7 +235,11 @@ public class ConversationService {
         entity.setSuggestions(new String[0]);
         entity.setSources(Objects.isNull(message.sources())
                 ? new String[0]
-                : message.sources().toArray(String[]::new));
+                : message.sources()
+                    .stream()
+                    .map(this::toSourceString)
+                    .distinct()
+                    .toArray(String[]::new));
 
         conversationRepository.save(entity);
     }
