@@ -5,11 +5,21 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import zas.admin.zec.backend.agent.tools.ii.IITools.Qa;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class InvalidityRateSystem {
 
+    /**
+     * Retrieves all possible paths as a list of Path objects.
+     *
+     * The method parses predefined JSON string data and extracts a collection of paths,
+     * where each path represents a sequence of questions and answers, along with an
+     * accompanying decision and its sources. The extracted paths are stored and returned
+     * as a list of Path objects.
+     *
+     * @return a list of Path objects containing questions, answers, and related decision
+     *         information derived from the JSON input data.
+     */
     private static List<Path> getAllPaths() {
         ObjectMapper mapper = new ObjectMapper();
 
@@ -1865,14 +1875,25 @@ public class InvalidityRateSystem {
 
     }
 
-    static String getDecision(List<Qa> info) {
+    /**
+     * Determines the decision or next question suggestion based on the given input information.
+     *
+     * The method processes a list of provided question-answer pairs (info) and attempts to match
+     * them against predefined paths. If there is a perfect match, it returns a decision and its
+     * sources. If no complete match is found, it suggests the next relevant question. If the input
+     * information is empty, it prompts the user to provide initial information.
+     *
+     * @param info a list of {@code Qa} objects representing the input question-answer pairs.
+     *             These pairs are used to determine the corresponding decision or next step.
+     * @return a {@code String} containing the decision, the sources of the decision, a suggestion
+     *         for the next question if further input is required, or a fallback message if no input is provided.
+     */
+    public static String getDecision(List<Qa> info) {
         List<Path> allPaths = getAllPaths();
-//        List<Path> filteredPaths;
 
         if (info.isEmpty()) {
             return "Plus d'informations sont nécessaires pour déterminer le système de rente. Pour commencer, S'agit-il d'une révision (sur demande ou d'office) ?";
         } else {
-            List<Path> filteredPaths = new ArrayList<>();
             Path bestMatchPath = allPaths.getFirst();
             int maxMatches = 0;
 
@@ -1880,7 +1901,6 @@ public class InvalidityRateSystem {
                 int currentMatches = 0;
                 boolean allPathQasMatch = true;
 
-                // Count how many QAs from info match this path
                 for (Qa givenQa : info) {
                     for (Qa pathQa : path.path) {
                         if (pathQa.equals(givenQa)) {
@@ -1890,7 +1910,6 @@ public class InvalidityRateSystem {
                     }
                 }
 
-                // Check if all QAs in the path are present in info
                 for (Qa pathQa : path.path) {
                     boolean qaFound = false;
                     for (Qa givenQa : info) {
@@ -1905,21 +1924,16 @@ public class InvalidityRateSystem {
                     }
                 }
 
-                // If all path QAs match, we've found our perfect match
                 if (allPathQasMatch) {
-//                    bestMatchPath = path;
-                    return "Décision : " + path.answer.decision;
-//                    break;
+                    return "Décision : " + path.answer.decision + "\nSources: " + path.answer.sources;
                 }
 
-                // Otherwise, update bestMatchPath if this path has more matches
                 if (currentMatches > maxMatches) {
                     maxMatches = currentMatches;
                     bestMatchPath = path;
                 }
             }
 
-                // Find first question from bestMatchPath that's not in info
             for (Qa pathQa : bestMatchPath.path) {
                 boolean qaExists = false;
                 for (Qa givenQa : info) {
@@ -1933,42 +1947,17 @@ public class InvalidityRateSystem {
                 }
             }
             return "";
-
-            // Now bestMatchPath contains either:
-            // 1. A path where all its QAs match (if we found one)
-            // 2. The path with the most matching QAs (if no perfect match was found)
-
-//             Filter paths that match all given Qa
-//        List<Path> filteredPaths = allPaths.stream()
-//                .filter(path -> info.stream()
-//                        .allMatch(givenQa -> path.path.stream()
-//                                .anyMatch(pathQa -> pathQa.question.equals(givenQa.question) &&
-//                                        pathQa.answer.equals(givenQa.answer))))
-//                .toList();
-
-//            if (filteredPaths.isEmpty()) {
-//                return "Erreur: Aucune décision ne correspond aux informations fournies.";
-//            }
-
-//            if (bestMatchPath.path.size() == Max) {
-//                return "Décision : " + filteredPaths.get(0).answer.decision;
-//            }
-
-//            Map<String, Integer> freq = new HashMap<>();
-//            for (Path p : filteredPaths) {
-//                for (Qa qa : p.path) {
-//                    freq.put(qa.question(), freq.getOrDefault(qa.question(), 0) + 1);
-//                }
-//            }
-
-//            String mostFrequentQuestion = Collections.max(
-//                    freq.entrySet(),
-//                    Comparator.comparingInt(Map.Entry::getValue)).getKey();
-
-//            return "Question suivante suggérée : " + mostFrequentQuestion;
         }
     }
 
+    /**
+     * Represents an answer with a decision and its associated sources.
+     *
+     * The Answer class encapsulates the result of a decision-making process, including
+     * the final decision and the references or sources associated with that decision.
+     * Instances of this class can be constructed with or without initializing the
+     * decision and sources.
+     */
     public static class Answer {
         public String decision;
         public List<String> sources;
@@ -1982,6 +1971,15 @@ public class InvalidityRateSystem {
         }
     }
 
+    /**
+     * Represents a path consisting of a sequence of question-answer pairs
+     * and an associated decision with its sources.
+     *
+     * The Path class is used to encapsulate a series of {@code Qa} objects
+     * (questions and their corresponding answers) and an {@code Answer} object
+     * that contains the decision and its related sources. It provides constructors
+     * for creating instances with or without initializing the fields.
+     */
     public static class Path {
         public List<Qa> path;
         public Answer answer;

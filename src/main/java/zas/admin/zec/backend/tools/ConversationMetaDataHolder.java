@@ -39,6 +39,17 @@ public final class ConversationMetaDataHolder {
                 .put("answeredQuestion", question);
     }
 
+    public Optional<String> getEtape(String conversationId) {
+        return Optional.ofNullable(metaDataByConversationId.get(conversationId))
+                .map(metaData -> (String) metaData.get("etape"));
+    }
+
+    public void setEtape(String conversationId, String etape) {
+        metaDataByConversationId
+                .computeIfAbsent(conversationId, k -> new HashMap<>())
+                .put("etape", etape);
+    }
+
     public void clearMetaData(String conversationId) {
         metaDataByConversationId.remove(conversationId);
     }

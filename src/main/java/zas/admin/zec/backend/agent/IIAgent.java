@@ -25,25 +25,49 @@ public class IIAgent implements Agent {
     private final ChatModel model;
     private final ConversationMetaDataHolder holder;
 
+    /**
+     * Constructs an instance of IIAgent.
+     *
+     * @param model the ChatModel instance representing the language model used for processing user input
+     * @param holder the ConversationMetaDataHolder instance for managing metadata related to conversations
+     */
     public IIAgent(ChatModel model, ConversationMetaDataHolder holder) {
         this.model = model;
         this.client = ChatClient.create(model);
         this.holder = holder;
     }
 
+    /**
+     * Retrieves the name of this agent.
+     *
+     * @return the name of the agent as a String
+     */
     @Override
     public String getName() {
         return "AI_AGENT";
     }
 
+    /**
+     * Retrieves the type of this agent.
+     *
+     * @return the type of the agent as an instance of AgentType
+     */
     @Override
     public AgentType getType() {
         return AgentType.II_AGENT;
     }
 
+    /**
+     * Processes the given question by analyzing the input, utilizing the conversation history,
+     * applying tools and advisors, and streaming the resulting tokens.
+     *
+     * @param question the Question object containing the details of the query to be processed
+     * @param userId the identifier for the user submitting the query
+     * @param conversationHistory a list of previous messages in the conversation, used for context
+     * @return a Flux stream of Token objects, representing the processed response to the question
+     */
     @Override
     public Flux<Token> processQuestion(Question question, String userId, List<Message> conversationHistory) {
-        //holder.setCurrentAgentInUse(question.conversationId(), AgentType.II_AGENT);
         return client
                 .prompt()
                 .messages(conversationHistory.stream().map(this::convertToMessage).toList())
@@ -55,6 +79,14 @@ public class IIAgent implements Agent {
                 .map(this::convertToToken);
     }
 
+    /**
+     * Converts a ChatResponse object into a corresponding Token instance. The conversion logic
+     * determines the type of token based on the content and metadata of the ChatResponse.
+     * If no relevant data is found, a default empty TextToken is returned.
+     *
+     * @param r the ChatResponse object to be converted into a Token
+     * @return a Token object reflecting the content or metadata of the ChatResponse
+     */
     private Token convertToToken(ChatResponse r) {
         if (r.getResults() == null || r.getResults().isEmpty()) {
             return new TextToken("");
