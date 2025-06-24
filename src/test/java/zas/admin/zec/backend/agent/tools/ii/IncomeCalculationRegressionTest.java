@@ -3,6 +3,7 @@ package zas.admin.zec.backend.agent.tools.ii;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 import zas.admin.zec.backend.agent.tools.ii.legacy.IncomeCalculation;
 import zas.admin.zec.backend.agent.tools.ii.model.Beneficiary;
 import zas.admin.zec.backend.agent.tools.ii.model.BeneficiaryDetails;
@@ -17,6 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
 @SpringBootTest
+@ActiveProfiles("test")
 class IncomeCalculationRegressionTest {
     @Autowired
     private IncomeCalculationService incomeCalculationService;
@@ -28,15 +30,15 @@ class IncomeCalculationRegressionTest {
            ----------------------------------------------------------------- */
         IncomeCalculation.Beneficiary legacy =
                 new IncomeCalculation.Beneficiary(
-                        2022,                       // yearOfEligibility
+                        2025,                       // yearOfEligibility
                         "homme",                   // gender
-                        new IncomeCalculation.EffectiveSalaryInfo(2022, 100_000),
+                        new IncomeCalculation.EffectiveSalaryInfo(2023, 78_000),
                         new IncomeCalculation.StatisticalSalaryInfo(
-                                2022, 0, 3, "01-96"),             // pré-santé
+                                2022, 0, 3, "Fabrication d’équipements électriques"),             // pré-santé
                         new IncomeCalculation.EffectiveSalaryInfo(2024, 46_000),
                         new IncomeCalculation.StatisticalSalaryInfo(
                                 2022, 0, 2, "Industries extractives"),             // post-santé
-                        100, 20, 15);               // activityRate, reduction, deduction
+                        80, 20, 0);               // activityRate, reduction, deduction
 
         String legacyResult = IncomeCalculation.getInvalidite(legacy);
         double legacyDegree  = extractDegree(legacyResult);
@@ -57,9 +59,9 @@ class IncomeCalculationRegressionTest {
                         "Industries extractives",
                         2
                 ),
-                100,
+                80,
                 20,
-                15
+                0
         );
 
         /* -----------------------------------------------------------------

@@ -13,7 +13,7 @@ public class DocumentRetrieverFactory {
     private static final Map<RetrievalMethod, IDocumentRetriever> RETRIEVERS = new EnumMap<>(RetrievalMethod.class);
 
     public DocumentRetrieverFactory(Set<IDocumentRetriever> retrievers) {
-        retrievers.forEach(retriever -> RETRIEVERS.put(RetrievalMethod.TOP_K, retriever));
+        retrievers.forEach(retriever -> RETRIEVERS.put(retriever.getRetrievalMethod(), retriever));
     }
 
     public Optional<IDocumentRetriever> getRetriever(RetrievalMethod method) {

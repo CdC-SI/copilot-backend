@@ -13,7 +13,7 @@ public record Message(
         String language,
         String message,
         String role,
-        @Nullable List<String> sources,
+        @Nullable List<Source> sources,
         @Nullable List<String> suggestions,
         LocalDateTime timestamp) {
 }

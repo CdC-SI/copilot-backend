@@ -74,10 +74,15 @@ public class IncomeCalculationService {
 
     private BigDecimal computePostHealthPayableSalary(Beneficiary beneficiary) {
         var payableSalary = computePayableSalary(beneficiary.gender(), beneficiary.eligibilityYear(), beneficiary.postHealthDetails());
-        return deductionService.apply(beneficiary, payableSalary);
+        return deductionService.computeAdjustedSalary(beneficiary, payableSalary);
     }
 
     private BigDecimal computeEffectiveSalary(Gender gender, Year eligibilityYear, BeneficiaryDetails details, int activityRate) {
+        if (details.salary() == null || details.salary().amount().equals(BigDecimal.ZERO) || details.salary().referenceYear() == null || details.salary().referenceYear().equals(Year.of(0))) {
+            log.info("Missing effective salary infos we don’t compute it {}", details);
+            return BigDecimal.ZERO;
+        }
+
         var branchId = convertLiteralBranchToId(details.economicBranch());
         var matchingBranch = matchingIdForTarget(branchId, new IndexHF());
 

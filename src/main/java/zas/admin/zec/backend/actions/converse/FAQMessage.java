@@ -9,6 +9,6 @@ public record FAQMessage(
         String message,
         String source,
         @Nullable Long faqItemId,
-        @Nullable List<String> sources
+        @Nullable List<Source> sources
 ) {
 }
