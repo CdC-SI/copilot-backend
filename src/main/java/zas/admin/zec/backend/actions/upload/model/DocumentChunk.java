@@ -1,4 +1,4 @@
-package zas.admin.zec.backend.actions.upload;
+package zas.admin.zec.backend.actions.upload.model;
 
 import jakarta.annotation.Nullable;
 

@@ -6,7 +6,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientRequestException;
 import zas.admin.zec.backend.actions.converse.Question;
 import zas.admin.zec.backend.config.properties.RerankingProperties;
-import zas.admin.zec.backend.rag.Document;
+import zas.admin.zec.backend.rag.PublicDocument;
 
 import java.util.List;
 
@@ -24,13 +24,13 @@ public class DocumentReranker {
                 .build();
     }
 
-    public List<Document> rerank(List<Document> docsToRerank, Question question) {
+    public List<PublicDocument> rerank(List<PublicDocument> docsToRerank, Question question) {
         log.info("Reranking {} documents based on the question: {}", docsToRerank.size(), question.query());
 
         RerankRequest requestBody = new RerankRequest(
             "rerank-multilingual-v3.0",
             question.query(),
-            docsToRerank.stream().map(Document::text).toList()
+            docsToRerank.stream().map(PublicDocument::text).toList()
         );
 
         try {

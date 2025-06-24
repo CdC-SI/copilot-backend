@@ -19,6 +19,6 @@ public class FAQItemEntity extends EmbeddedContentEntity {
 
     @ManyToOne
     @JoinColumn(name = "answer_id", nullable = false)
-    private DocumentEntity answer;
+    private PublicDocumentEntity answer;
 
 }

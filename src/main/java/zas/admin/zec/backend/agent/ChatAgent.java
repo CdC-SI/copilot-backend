@@ -2,6 +2,7 @@ package zas.admin.zec.backend.agent;
 
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import zas.admin.zec.backend.actions.converse.Message;
@@ -20,7 +21,7 @@ public class ChatAgent implements Agent {
     private final TranslationService translationService;
     private final ChatClient client;
 
-    public ChatAgent(TranslationService translationService, ChatModel model) {
+    public ChatAgent(TranslationService translationService, @Qualifier("publicChatModel") ChatModel model) {
         this.translationService = translationService;
         this.client = ChatClient.create(model);
     }

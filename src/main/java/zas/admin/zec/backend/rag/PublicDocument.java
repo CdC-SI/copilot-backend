@@ -1,6 +1,6 @@
 package zas.admin.zec.backend.rag;
 
-public record Document(
+public record PublicDocument(
         String text,
         String url,
         String[] tags,
@@ -10,5 +10,6 @@ public record Document(
         String language,
         String[] hyqDeclarative,
         String[] hyq,
-        String doctype) {
+        String doctype,
+        Double score) {
 }

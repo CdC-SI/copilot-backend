@@ -2,11 +2,10 @@ package zas.admin.zec.backend.rag.validation;
 
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.stereotype.Component;
+import org.springframework.ai.document.Document;
 import zas.admin.zec.backend.actions.converse.Question;
-import zas.admin.zec.backend.rag.Document;
+import zas.admin.zec.backend.rag.PublicDocument;
 
-@Component
 public class SourceValidator {
 
     private static final String SOURCE_VALIDATION_SYSTEM_MESSAGE_FR = """
@@ -42,7 +41,7 @@ public class SourceValidator {
         this.chatClient = ChatClient.create(chatModel);
     }
 
-    public Boolean isValidSource(Question question, Document source) {
+    public Boolean isValidSource(Question question, PublicDocument source) {
         var validation = chatClient.prompt()
                 .system(systemMessage(question, source))
                 .user(question.query())
@@ -52,12 +51,31 @@ public class SourceValidator {
         return validation != null && validation.isValid();
     }
 
-    private String systemMessage(Question question, Document source) {
+    public Boolean isValidSource(String query, String lang, Document doc) {
+        var validation = chatClient.prompt()
+                .system(systemMessage(query, lang, doc))
+                .user(query)
+                .call()
+                .entity(UniqueSourceValidation.class);
+
+        return validation != null && validation.isValid();
+    }
+
+    private String systemMessage(Question question, PublicDocument source) {
         return switch (question.language()) {
             default -> SOURCE_VALIDATION_SYSTEM_MESSAGE_FR.formatted(
                     source.tags() == null ? "" : String.join(",", source.tags()),
                     source.text(),
                     question.query());
+        };
+    }
+
+    private String systemMessage(String query, String lang, Document doc) {
+        return switch (lang) {
+            default -> SOURCE_VALIDATION_SYSTEM_MESSAGE_FR.formatted(
+                    doc.getMetadata().get("tags") == null ? "" : doc.getMetadata().get("tags"),
+                    doc.getText(),
+                    query);
         };
     }
 }
