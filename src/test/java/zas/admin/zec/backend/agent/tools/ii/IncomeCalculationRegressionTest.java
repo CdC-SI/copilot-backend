@@ -67,7 +67,7 @@ class IncomeCalculationRegressionTest {
         /* -----------------------------------------------------------------
            3) Comparaison
            ----------------------------------------------------------------- */
-        double modernDegree = incomeCalculationService.disabilityDegree(modern);
+        double modernDegree = incomeCalculationService.disabilityDegree(modern).disabilityRate();
 
         assertThat(modernDegree)
                 .as("Le nouveau service doit reproduire exactement l’ancienne logique")

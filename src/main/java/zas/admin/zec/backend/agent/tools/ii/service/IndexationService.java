@@ -26,6 +26,7 @@ public class IndexationService {
         TableKind kind = switch (gender) {
             case MALE   -> TableKind.T1_MALE;
             case FEMALE -> TableKind.T1_FEMALE;
+            case RAI -> TableKind.T1_RAI;
         };
 
         Map<String, Map<String, Double>> table =
