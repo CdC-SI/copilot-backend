@@ -8,6 +8,12 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.rag.generation.augmentation.ContextualQueryAugmenter;
+import org.springframework.ai.rag.generation.augmentation.QueryAugmenter;
+import org.springframework.ai.rag.preretrieval.query.expansion.MultiQueryExpander;
+import org.springframework.ai.rag.preretrieval.query.expansion.QueryExpander;
+import org.springframework.ai.rag.preretrieval.query.transformation.CompressionQueryTransformer;
+import org.springframework.ai.rag.preretrieval.query.transformation.QueryTransformer;
+import org.springframework.ai.rag.preretrieval.query.transformation.RewriteQueryTransformer;
 import org.springframework.ai.rag.retrieval.search.DocumentRetriever;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -22,6 +28,7 @@ import zas.admin.zec.backend.rag.token.SourceToken;
 import zas.admin.zec.backend.rag.token.TextToken;
 import zas.admin.zec.backend.rag.token.Token;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -67,7 +74,7 @@ public class RAGAgent implements Agent {
     @Override
     public Flux<Token> processQuestion(Question question, String userId, List<Message> conversationHistory) {
         boolean hasAccessToInternalDocuments = userService.hasAccessToInternalDocuments(userId);
-        Advisor rag = getRagAdvisor(hasAccessToInternalDocuments);
+        Advisor rag = getRagAdvisor(hasAccessToInternalDocuments, !conversationHistory.isEmpty());
         ChatClient client = hasAccessToInternalDocuments
                 ? internalChatClient
                 : publicChatClient;
@@ -82,7 +89,17 @@ public class RAGAgent implements Agent {
                 .flatMap(this::toToken);
     }
 
-    private Advisor getRagAdvisor(boolean userHasAccessToInternalDocuments) {
+    private Advisor getRagAdvisor(boolean userHasAccessToInternalDocuments, boolean hasHistory) {
+        var chatClient = userHasAccessToInternalDocuments
+                ? internalChatClient
+                : publicChatClient;
+
+        var transformers = new ArrayList<QueryTransformer>();
+        if (hasHistory) {
+            transformers.add(compresser(chatClient));
+        }
+        transformers.add(rewriter(chatClient));
+        var queryExpander = expander(chatClient);
         var documentRetriever = userHasAccessToInternalDocuments
                 ? InternalDocumentRetriever.builder()
                     .internalDocumentStore(internalDocumentStore)
@@ -95,7 +112,79 @@ public class RAGAgent implements Agent {
                 ? new RankedDocumentJoiner(internalChatModel, 5)
                 : new RankedDocumentJoiner(publicChatModel, 5);
 
-        var queryAugmenter = ContextualQueryAugmenter.builder()
+        var queryAugmenter = augmenter();
+
+        return RetrievalAugmentationAdvisor.builder()
+                .queryTransformers(transformers)
+                .queryExpander(queryExpander)
+                .documentRetriever(documentRetriever)
+                .documentJoiner(documentJoiner)
+                .queryAugmenter(queryAugmenter)
+                .build();
+    }
+
+    private QueryTransformer compresser(ChatClient client) {
+        return CompressionQueryTransformer.builder()
+                .chatClientBuilder(client.mutate())
+                .promptTemplate(new PromptTemplate("""
+                        Étant donné l'historique de conversation suivant et une question de suivi, votre tâche est de synthétiser
+                        une requête concise qui intègre le contexte de l'historique.
+                        Assurez-vous que la requête soit claire, spécifique et respecte l'intention de l'utilisateur.
+        
+                        Historique de conversation :
+                        {history}
+        
+                        Question de suivi :
+                        {query}
+        
+                        Requête :
+                        """))
+                .build();
+    }
+
+    private QueryTransformer rewriter(ChatClient client) {
+        return RewriteQueryTransformer.builder()
+                .chatClientBuilder(client.mutate())
+                .promptTemplate(new PromptTemplate("""
+                        Étant donné une requête utilisateur, réécrivez-la pour obtenir de meilleurs résultats lors de la recherche dans un {target}.
+                        Supprimez toute information non pertinente et assurez-vous que la requête soit concise et spécifique.
+                        
+                        Requête originale :
+                        {query}
+                        
+                        Requête réécrite :
+                        """))
+                .build();
+    }
+
+    private QueryExpander expander(ChatClient client) {
+        return MultiQueryExpander.builder()
+                .chatClientBuilder(client.mutate())
+                .promptTemplate
+                        (new PromptTemplate("""
+                                Vous êtes un expert en recherche d'informations et en optimisation des recherches.
+                                Votre tâche consiste à générer {number} versions différentes de la requête donnée.
+                                
+                                Chaque variante doit couvrir différentes perspectives ou aspects du sujet,
+                                tout en conservant l'intention principale de la requête originale.
+                                Les variantes peuvent également couvrir des sous-questions ou des sujets connexes qui pourraient aider à
+                                retrouver des informations pertinentes.
+                                
+                                L'objectif est d'élargir l'espace de recherche et d'améliorer les chances de trouver des informations pertinentes.
+                                
+                                N'expliquez pas vos choix et n'ajoutez aucun autre texte.
+                                Fournissez les variantes de requêtes séparées par des sauts de ligne, sans numérotation ni puces.
+                                
+                                Requête originale : {query}
+                                
+                                Variantes de requêtes :
+                                """))
+                .numberOfQueries(5)
+                .build();
+    }
+
+    private QueryAugmenter augmenter() {
+        return ContextualQueryAugmenter.builder()
                 .promptTemplate
                         (new PromptTemplate("""
                                 <instructions>
@@ -123,12 +212,6 @@ public class RAGAgent implements Agent {
                                 
                                 Question: {query}
                                 """))
-                .build();
-
-        return RetrievalAugmentationAdvisor.builder()
-                .documentRetriever(documentRetriever)
-                .documentJoiner(documentJoiner)
-                .queryAugmenter(queryAugmenter)
                 .build();
     }
 
