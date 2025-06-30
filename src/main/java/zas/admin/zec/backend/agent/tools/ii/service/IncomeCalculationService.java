@@ -36,7 +36,7 @@ public class IncomeCalculationService {
         this.repo = repo;
     }
 
-    public double disabilityDegree(Beneficiary beneficiary) {
+    public IIResult disabilityDegree(Beneficiary beneficiary) {
         var withoutDisability = computeSalaryWithoutDisability(beneficiary);
         var withDisability = computeSalaryWithDisability(beneficiary);
         var disabilityRate = withoutDisability.subtract(withDisability)
@@ -45,16 +45,16 @@ public class IncomeCalculationService {
                 .doubleValue();
 
         log.info("\nsalary pre health {}\nsalary post health {}\ndisability rate {}", withoutDisability.doubleValue(), withDisability.doubleValue(), disabilityRate);
-        return Math.round(disabilityRate * 100.0) / 100.0;
+        return new IIResult(withoutDisability, withDisability, disabilityRate);
     }
 
-    public BigDecimal computeSalaryWithoutDisability(Beneficiary beneficiary) {
+    private BigDecimal computeSalaryWithoutDisability(Beneficiary beneficiary) {
         var effectiveSalary = computePreHealthEffectiveSalary(beneficiary);
         var payableSalary = computePreHealthPayableSalary(beneficiary);
         return computeParallelism(effectiveSalary, payableSalary);
     }
 
-    public BigDecimal computeSalaryWithDisability(Beneficiary beneficiary) {
+    private BigDecimal computeSalaryWithDisability(Beneficiary beneficiary) {
         var effectiveSalary = computePostHealthEffectiveSalary(beneficiary);
         var payableSalary = computePostHealthPayableSalary(beneficiary);
         return effectiveSalary.max(payableSalary);
