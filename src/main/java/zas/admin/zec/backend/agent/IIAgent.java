@@ -9,7 +9,9 @@ import reactor.core.publisher.Flux;
 import zas.admin.zec.backend.actions.converse.Message;
 import zas.admin.zec.backend.actions.converse.Question;
 import zas.admin.zec.backend.agent.advisors.IIAdvisor;
+import zas.admin.zec.backend.agent.tools.IIStep;
 import zas.admin.zec.backend.agent.tools.ii.IncomeCalculationTool;
+import zas.admin.zec.backend.agent.tools.ii.ModuleAndExplanationTool;
 import zas.admin.zec.backend.agent.tools.ii.SystemEvaluationTool;
 import zas.admin.zec.backend.agent.tools.ii.model.DecisionOutcome;
 import zas.admin.zec.backend.agent.tools.ii.model.FollowUpOutcome;
@@ -57,12 +59,12 @@ public class IIAgent implements Agent {
     @Override
     public Flux<Token> processQuestion(Question question, String userId, List<Message> conversationHistory) {
         holder.setCurrentAgentInUse(question.conversationId(), getType());
-        Optional<String> step = holder.getStep(question.conversationId());
-        if (step.isEmpty() || step.get().equals("decision_tree")) {
-            return determineEvaluationSystem(question, conversationHistory);
-        } else {
-            return calculateIncome(question, conversationHistory);
-        }
+        Optional<IIStep> step = holder.getStep(question.conversationId());
+        return switch (step.orElse(IIStep.DECISION)) {
+            case DECISION -> determineEvaluationSystem(question, conversationHistory);
+            case CALCUL -> calculateIncome(question, conversationHistory);
+            case EXPLANATION -> helpAndGiveExplanation(question, conversationHistory);
+        };
     }
 
     private Flux<Token> determineEvaluationSystem(Question question, List<Message> conversationHistory) {
@@ -100,7 +102,7 @@ public class IIAgent implements Agent {
                 .entity(SystemEvaluation.class);
 
         if (evaluation != null && evaluation.systemAlreadyEvaluated()) {
-            holder.setStep(question.conversationId(), "income_calculation");
+            holder.setStep(question.conversationId(), IIStep.CALCUL);
             return calculateIncome(question, conversationHistory);
         }
 
@@ -111,15 +113,17 @@ public class IIAgent implements Agent {
         var outcome = evaluationService.evaluate(evaluation);
         var outcomeString = switch (outcome) {
             case DecisionOutcome(int id, String decision, List<String> rationale, List<String> sources) -> {
-                holder.setStep(question.conversationId(), "income_calculation");
-                yield """
+                var fDecision = """
                     ✅ **Decision :** %s <br>
                     **Cheminement :** <br>
                         %s <br>
-                    **Sources :**
+                    **Sources :** <br>
                         %s <br><br>
-                     Souhaitez-vous de l’aide pour le calcul du montant de la rente ?
+                    Souhaitez-vous de l’aide pour le calcul ESS ?
                     """.formatted(decision, String.join("<br>", rationale), String.join("<br>", sources));
+                holder.setDecision(question.conversationId(), fDecision);
+                holder.setStep(question.conversationId(), IIStep.CALCUL);
+                yield fDecision;
             }
             case FollowUpOutcome(int id, String questionToAsk) -> """
                     ❓ Question de suivi : %s
@@ -164,6 +168,24 @@ public class IIAgent implements Agent {
                 .user(question.query())
                 .tools(new IncomeCalculationTool(holder, question.conversationId(), incomeCalculationService))
                 .advisors(new IIAdvisor(holder, question.conversationId()))
+                .stream()
+                .chatResponse()
+                .map(this::convertToToken);
+    }
+
+    private Flux<Token> helpAndGiveExplanation(Question question, List<Message> conversationHistory) {
+        var decision = holder.getDecision(question.conversationId());
+        var calculation = holder.getCalculation(question.conversationId());
+        return client
+                .prompt()
+                .system(system -> system.text(
+                        AgentPrompts.getModuleExplanationPrompt().getTemplate())
+                        .param("decision", decision)
+                        .param("calculation", calculation)
+                )
+                .messages(conversationHistory.stream().map(this::convertToMessage).toList())
+                .user(question.query())
+                .tools(new ModuleAndExplanationTool())
                 .stream()
                 .chatResponse()
                 .map(this::convertToToken);

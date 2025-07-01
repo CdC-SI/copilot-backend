@@ -3,6 +3,7 @@ package zas.admin.zec.backend.agent.tools.ii;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
+import zas.admin.zec.backend.agent.tools.IIStep;
 import zas.admin.zec.backend.agent.tools.ii.model.*;
 import zas.admin.zec.backend.agent.tools.ii.service.IncomeCalculationService;
 import zas.admin.zec.backend.tools.ConversationMetaDataHolder;
@@ -92,16 +93,19 @@ public class IncomeCalculationTool {
         );
 
         var toolSuccess = true;
+        var toolResponse = "";
         try {
             var result = incomeCalculationService.disabilityDegree(beneficiary);
-            return formatToolResponse(result);
+            toolResponse = formatToolResponse(result);
+            return toolResponse;
         } catch (Exception ex) {
             toolSuccess = false;
             log.error("Error during the tool call invalidity_rate_calculation", ex);
             throw ex;
         } finally {
             if (toolSuccess) {
-                holder.clearMetaData(conversationId);
+                holder.setCalculation(conversationId, toolResponse);
+                holder.setStep(conversationId, IIStep.EXPLANATION);
             }
         }
     }

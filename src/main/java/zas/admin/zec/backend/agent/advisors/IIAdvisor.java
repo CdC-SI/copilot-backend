@@ -10,7 +10,7 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
 import org.springframework.util.StringUtils;
 import reactor.core.publisher.Flux;
-import zas.admin.zec.backend.agent.AgentType;
+import zas.admin.zec.backend.agent.tools.IIStep;
 import zas.admin.zec.backend.tools.ConversationMetaDataHolder;
 
 import java.util.List;
@@ -89,9 +89,9 @@ public class IIAdvisor implements StreamAroundAdvisor {
      *         depending on the conversation's current step
      */
     private AdvisedResponse after(AdvisedResponse advisedResponse) {
-        Optional<AgentType> currentAgentInUse = holder.getCurrentAgentInUse(conversationId);
+        Optional<IIStep> step = holder.getStep(conversationId);
 
-        if (currentAgentInUse.isPresent()) {
+        if (step.isPresent() && step.get().equals(IIStep.CALCUL)) {
             return AdvisedResponse.builder()
                     .adviseContext(advisedResponse.adviseContext())
                     .response(new ChatResponse(List.of(new Generation(

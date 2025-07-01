@@ -2,9 +2,7 @@ package zas.admin.zec.backend.actions.converse;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.data.domain.Limit;
@@ -21,6 +19,7 @@ import zas.admin.zec.backend.persistence.repository.ConversationRepository;
 import zas.admin.zec.backend.persistence.repository.ConversationTitleRepository;
 import zas.admin.zec.backend.rag.RAGStatus;
 import zas.admin.zec.backend.rag.token.*;
+import zas.admin.zec.backend.tools.ConversationMetaDataHolder;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -34,17 +33,20 @@ public class ConversationService {
 
     private final ConversationRepository conversationRepository;
     private final ConversationTitleRepository conversationTitleRepository;
+    private final ConversationMetaDataHolder conversationMetaDataHolder;
     private final ChatClient chatClient;
     private final AgentFactory agentFactory;
     private final TaskExecutor taskExecutor;
 
     public ConversationService(ConversationRepository conversationRepository,
                                ConversationTitleRepository conversationTitleRepository,
+                               ConversationMetaDataHolder conversationMetaDataHolder,
                                @Qualifier("internalChatModel") ChatModel chatModel, AgentFactory agentFactory,
                                @Qualifier("asyncExecutor") TaskExecutor taskExecutor) {
 
         this.conversationRepository = conversationRepository;
         this.conversationTitleRepository = conversationTitleRepository;
+        this.conversationMetaDataHolder = conversationMetaDataHolder;
         this.chatClient = ChatClient.create(chatModel);
         this.agentFactory = agentFactory;
         this.taskExecutor = taskExecutor;
@@ -79,6 +81,7 @@ public class ConversationService {
     }
 
     public void delete(String userId, String conversationId) {
+        conversationMetaDataHolder.clearMetaData(conversationId);
         conversationRepository.deleteByUserIdAndConversationId(userId, conversationId);
         conversationTitleRepository.deleteByUserIdAndConversationId(userId, conversationId);
     }
@@ -164,25 +167,6 @@ public class ConversationService {
                 ),
                 taskExecutor
         );
-    }
-
-    private Boolean questionIsOffTopic(Question question) {
-        var systemPrompt = ConversationPrompts.getTopicCheckPrompt(question.language())
-                .formatted(question.query());
-
-        record Bool(boolean value) {}
-        var offTopicValue = chatClient.prompt()
-                .options(ChatOptions.builder()
-                        .topP(0.95)
-                        .maxTokens(512)
-                        .model(question.llmModel())
-                        .temperature(0D)
-                        .build())
-                .messages(new SystemMessage(systemPrompt))
-                .call()
-                .entity(Bool.class);
-
-        return offTopicValue != null && !offTopicValue.value();
     }
 
     private void saveExchange(Question question, String userId, String assistantMessageId, String answer, Set<Source> sources,

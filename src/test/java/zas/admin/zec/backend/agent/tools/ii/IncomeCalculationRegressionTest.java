@@ -30,15 +30,15 @@ class IncomeCalculationRegressionTest {
            ----------------------------------------------------------------- */
         IncomeCalculation.Beneficiary legacy =
                 new IncomeCalculation.Beneficiary(
-                        2025,                       // yearOfEligibility
+                        2022,                       // yearOfEligibility
                         "homme",                   // gender
-                        new IncomeCalculation.EffectiveSalaryInfo(2023, 78_000),
+                        new IncomeCalculation.EffectiveSalaryInfo(2020, 100_000),
                         new IncomeCalculation.StatisticalSalaryInfo(
-                                2022, 0, 3, "Fabrication d’équipements électriques"),             // pré-santé
-                        new IncomeCalculation.EffectiveSalaryInfo(2024, 46_000),
+                                2022, 0, 4, "Industries extractives"),             // pré-santé
+                        new IncomeCalculation.EffectiveSalaryInfo(2021, 70_000),
                         new IncomeCalculation.StatisticalSalaryInfo(
-                                2022, 0, 2, "Industries extractives"),             // post-santé
-                        80, 20, 0);               // activityRate, reduction, deduction
+                                2022, 0, 2, "Industrie manufacturière"),             // post-santé
+                        100, 70, 0);               // activityRate, reduction, deduction
 
         String legacyResult = IncomeCalculation.getInvalidite(legacy);
         double legacyDegree  = extractDegree(legacyResult);
@@ -47,20 +47,20 @@ class IncomeCalculationRegressionTest {
            2) Construire le bénéficiaire pour la NOUVELLE API
            ----------------------------------------------------------------- */
         Beneficiary modern = new Beneficiary(
-                Year.of(2025),
+                Year.of(2022),
                 Gender.MALE,
                 new BeneficiaryDetails(
-                        new Salary(Year.of(2023), BigDecimal.valueOf(78_000)),
-                        "Fabrication d’équipements électriques",
-                        3
+                        new Salary(Year.of(2020), BigDecimal.valueOf(100_000)),
+                        "Industries extractives",
+                        4
                 ),
                 new BeneficiaryDetails(
-                        new Salary(Year.of(2024), BigDecimal.valueOf(46_000)),
-                        "Industries extractives",
+                        new Salary(Year.of(2021), BigDecimal.valueOf(70_000)),
+                        "Industrie manufacturière",
                         2
                 ),
-                80,
-                20,
+                100,
+                70,
                 0
         );
 

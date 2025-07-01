@@ -1,5 +1,7 @@
 package zas.admin.zec.backend.agent;
 
+import org.springframework.ai.chat.prompt.PromptTemplate;
+
 public class AgentPrompts {
     private static final String AGENT_SELECTION_PROMPT_FR = """
             <instructions>
@@ -141,6 +143,21 @@ public class AgentPrompts {
             <storia_conversazionale>
             """;
 
+    private static final PromptTemplate MODULE_EXPLANATION_FR = new PromptTemplate("""
+            Tu es un agent d’assistance expert pour l’AVS/AI.
+            L’objectif de cette conversation était de déterminer un système de rente à utiliser et de calculer le salaire exigible.
+            Pour rappel voici ce que tu as déjà fait :
+                Décision:
+                {decision}
+            
+                Calcul:
+                {calculation}
+            
+            Tu dois maintenant répondre aux intérrogations de l’utilisateur (qui est un gestionnaire AI) et lui fournir l’aide demandée.
+            Notamment sur l’aide à la formulation d’une réponse à l’assuré, tu peux utiliser la fonction module_explanation (si requis par l’utilisateur).
+            En t’inspirant des exemples tu peux proposer une réponse synthétique des informations obtenues précédemment.
+            """);
+
     private AgentPrompts() {}
 
     public static String getAgentSelectionPrompt(String language) {
@@ -149,5 +166,9 @@ public class AgentPrompts {
             case "it" -> AGENT_SELECTION_PROMPT_IT;
             default -> AGENT_SELECTION_PROMPT_DE;
         };
+    }
+
+    public static PromptTemplate getModuleExplanationPrompt() {
+        return MODULE_EXPLANATION_FR;
     }
 }
