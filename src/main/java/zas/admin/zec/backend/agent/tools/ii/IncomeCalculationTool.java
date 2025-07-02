@@ -97,7 +97,8 @@ public class IncomeCalculationTool {
         try {
             var result = incomeCalculationService.disabilityDegree(beneficiary);
             toolResponse = formatToolResponse(result);
-            return toolResponse;
+            return toolResponse
+                    .concat("\nSouhaitez vous que je fasse une proposition de réponse à apporter à l’assuré ?");
         } catch (Exception ex) {
             toolSuccess = false;
             log.error("Error during the tool call invalidity_rate_calculation", ex);

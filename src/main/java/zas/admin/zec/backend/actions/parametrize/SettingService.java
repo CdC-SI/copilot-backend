@@ -3,8 +3,8 @@ package zas.admin.zec.backend.actions.parametrize;
 import org.springframework.stereotype.Service;
 import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.config.properties.ApplicationProperties;
-import zas.admin.zec.backend.persistence.entity.SourceEntity;
 import zas.admin.zec.backend.persistence.repository.DocumentRepository;
+import zas.admin.zec.backend.persistence.repository.InternalDocumentRepository;
 import zas.admin.zec.backend.persistence.repository.SourceRepository;
 
 import java.util.List;
@@ -17,14 +17,17 @@ public class SettingService {
     private final UserService userService;
     private final DocumentRepository documentRepository;
     private final SourceRepository sourceRepository;
+    private final InternalDocumentRepository internalDocumentRepository;
 
     public SettingService(ApplicationProperties properties, UserService userService,
-                          DocumentRepository documentRepository, SourceRepository sourceRepository) {
+                          DocumentRepository documentRepository, SourceRepository sourceRepository,
+                          InternalDocumentRepository internalDocumentRepository) {
 
         this.properties = properties;
         this.userService = userService;
         this.documentRepository = documentRepository;
         this.sourceRepository = sourceRepository;
+        this.internalDocumentRepository = internalDocumentRepository;
     }
 
     public List<String> getPublicSettings(SettingType type) {
@@ -50,31 +53,25 @@ public class SettingService {
     }
 
     private List<String> getPublicTags() {
-        return documentRepository.findTags(null, null);
+        return internalDocumentRepository.findPublicTags();
     }
 
     private List<String> getTags(String currentUser) {
         var userId = userService.getUuid(currentUser);
-        var organizations = userService.getOrganizations(currentUser);
-        return documentRepository.findTags(userId, organizations.toArray(String[]::new));
+        return userService.hasAccessToInternalDocuments(userId)
+                ? internalDocumentRepository.findTagsByOrganization("ZAS")
+                : getPublicTags();
     }
 
     private List<String> getPublicSources() {
-        var sourceIds = documentRepository.findSourceIds(null, null);
-        return sourceRepository.findAllById(sourceIds)
-                .stream()
-                .map(SourceEntity::getUrl)
-                .toList();
+        return internalDocumentRepository.findPublicSources();
     }
 
     private List<String> getSources(String currentUser) {
         var userId = userService.getUuid(currentUser);
-        var organizations = userService.getOrganizations(currentUser);
-        var sourceIds = documentRepository.findSourceIds(userId, organizations.toArray(String[]::new));
-        return sourceRepository.findAllById(sourceIds)
-                .stream()
-                .map(SourceEntity::getUrl)
-                .toList();
+        return userService.hasAccessToInternalDocuments(userId)
+                ? internalDocumentRepository.findSourcesByOrganization("ZAS")
+                : getPublicSources();
     }
 
     private List<String> getSettings(Class<? extends Enum<?>> enumClass) {
