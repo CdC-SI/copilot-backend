@@ -16,6 +16,8 @@ import org.springframework.ai.rag.preretrieval.query.transformation.QueryTransfo
 import org.springframework.ai.rag.preretrieval.query.transformation.RewriteQueryTransformer;
 import org.springframework.ai.rag.retrieval.search.DocumentRetriever;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.ai.vectorstore.filter.Filter;
+import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -23,7 +25,7 @@ import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.actions.converse.Message;
 import zas.admin.zec.backend.actions.converse.Question;
 import zas.admin.zec.backend.rag.joiner.RankedDocumentJoiner;
-import zas.admin.zec.backend.rag.retriever.InternalDocumentRetriever;
+import zas.admin.zec.backend.rag.retriever.CopilotDocumentRetriever;
 import zas.admin.zec.backend.rag.token.SourceToken;
 import zas.admin.zec.backend.rag.token.TextToken;
 import zas.admin.zec.backend.rag.token.Token;
@@ -41,23 +43,23 @@ public class RAGAgent implements Agent {
     private final ChatModel publicChatModel;
     private final ChatClient internalChatClient;
     private final ChatClient publicChatClient;
-    private final VectorStore internalDocumentStore;
-    private final DocumentRetriever publicDocRetriever;
+    private final VectorStore documentStore;
+    private final DocumentRetriever legacyDocRetriever;
     private final UserService userService;
 
     public RAGAgent(
             @Qualifier("internalChatModel") ChatModel internalChatModel,
             @Qualifier("publicChatModel") ChatModel publicChatModel,
-            VectorStore internalDocumentStore,
-            DocumentRetriever publicDocRetriever,
+            VectorStore documentStore,
+            DocumentRetriever legacyDocRetriever,
             UserService userService) {
 
         this.internalChatModel = internalChatModel;
         this.publicChatModel = publicChatModel;
         this.internalChatClient = ChatClient.create(internalChatModel);
         this.publicChatClient = ChatClient.create(publicChatModel);
-        this.internalDocumentStore = internalDocumentStore;
-        this.publicDocRetriever = publicDocRetriever;
+        this.documentStore = documentStore;
+        this.legacyDocRetriever = legacyDocRetriever;
         this.userService = userService;
     }
 
@@ -74,7 +76,7 @@ public class RAGAgent implements Agent {
     @Override
     public Flux<Token> processQuestion(Question question, String userId, List<Message> conversationHistory) {
         boolean hasAccessToInternalDocuments = userService.hasAccessToInternalDocuments(userId);
-        Advisor rag = getRagAdvisor(hasAccessToInternalDocuments, !conversationHistory.isEmpty());
+        Advisor rag = getRagAdvisor(question, hasAccessToInternalDocuments, !conversationHistory.isEmpty());
         ChatClient client = hasAccessToInternalDocuments
                 ? internalChatClient
                 : publicChatClient;
@@ -89,7 +91,7 @@ public class RAGAgent implements Agent {
                 .flatMap(this::toToken);
     }
 
-    private Advisor getRagAdvisor(boolean userHasAccessToInternalDocuments, boolean hasHistory) {
+    private Advisor getRagAdvisor(Question question, boolean userHasAccessToInternalDocuments, boolean hasHistory) {
         var chatClient = userHasAccessToInternalDocuments
                 ? internalChatClient
                 : publicChatClient;
@@ -100,13 +102,12 @@ public class RAGAgent implements Agent {
         }
         transformers.add(rewriter(chatClient));
         var queryExpander = expander(chatClient);
-        var documentRetriever = userHasAccessToInternalDocuments
-                ? InternalDocumentRetriever.builder()
-                    .internalDocumentStore(internalDocumentStore)
-                    .publicDocumentRetriever(publicDocRetriever)
-                    .topK(5)
-                    .build()
-                : publicDocRetriever;
+        var documentRetriever = CopilotDocumentRetriever.builder()
+                .documentStore(documentStore)
+                .legacyDocumentRetriever(legacyDocRetriever)
+                .filterExpression(buildExpression(question, userHasAccessToInternalDocuments))
+                .topK(5)
+                .build();
 
         var documentJoiner = userHasAccessToInternalDocuments
                 ? new RankedDocumentJoiner(internalChatModel, 5)
@@ -121,6 +122,31 @@ public class RAGAgent implements Agent {
                 .documentJoiner(documentJoiner)
                 .queryAugmenter(queryAugmenter)
                 .build();
+    }
+
+    private Filter.Expression buildExpression(Question question, boolean userHasAccessToInternalDocuments) {
+        FilterExpressionBuilder builder = new FilterExpressionBuilder();
+        List<FilterExpressionBuilder.Op> ops = new ArrayList<>();
+        if (question.tags() != null && !question.tags().isEmpty()) {
+            ops.add(builder.in("tags", List.copyOf(question.tags())));
+        }
+        if (question.sources() != null && !question.sources().isEmpty()) {
+            ops.add(builder.in("source", List.copyOf(question.sources())));
+        }
+        if (!userHasAccessToInternalDocuments) {
+           ops.add(builder.ne("organizations", "ZAS"));
+        }
+
+        if (ops.isEmpty()) {
+            return null;
+        }
+
+        FilterExpressionBuilder.Op combined = ops.getFirst();
+        for (int i = 1; i < ops.size(); i++) {
+            combined = builder.and(combined, ops.get(i));
+        }
+
+        return combined.build();
     }
 
     private QueryTransformer compresser(ChatClient client) {

@@ -13,12 +13,12 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Component
-public class PublicDocumentRetriever implements DocumentRetriever {
+public class LegacyDocumentRetriever implements DocumentRetriever {
 
     private final DocumentRepository documentRepository;
     private final EmbeddingModel embeddingModel;
 
-    public PublicDocumentRetriever(DocumentRepository documentRepository,
+    public LegacyDocumentRetriever(DocumentRepository documentRepository,
                                    @Qualifier("publicEmbeddingModel") EmbeddingModel embeddingModel) {
 
         this.documentRepository = documentRepository;
@@ -35,7 +35,7 @@ public class PublicDocumentRetriever implements DocumentRetriever {
                         .metadata("url", projection.getUrl())
                         .score(1 - projection.getDistance())
                         .build())
-                .filter(document -> document.getScore() != null && document.getScore() > 0.5)
+                .filter(document -> document.getScore() != null && document.getScore() > 0.0)
                 .collect(Collectors.toList());
     }
 }

@@ -11,34 +11,33 @@ import org.springframework.ai.vectorstore.filter.Filter;
 import java.util.List;
 import java.util.function.Supplier;
 
-public final class InternalDocumentRetriever implements DocumentRetriever {
+public final class CopilotDocumentRetriever implements DocumentRetriever {
 
-    private final DocumentRetriever publicDocumentRetriever;
-    private final VectorStore internalDocumentStore;
+    private final DocumentRetriever legacyDocumentRetriever;
+    private final VectorStore documentStore;
     private final Integer topK;
     private final Supplier<Filter.Expression> filterExpression;
 
-    public InternalDocumentRetriever(DocumentRetriever publicDocumentRetriever, VectorStore internalDocumentStore,
-                                     @Nullable Integer topK, @Nullable Filter.Expression filterExpression) {
+    public CopilotDocumentRetriever(DocumentRetriever legacyDocumentRetriever, VectorStore documentStore,
+                                    @Nullable Integer topK, @Nullable Filter.Expression filterExpression) {
 
-        this.publicDocumentRetriever = publicDocumentRetriever;
-        this.internalDocumentStore = internalDocumentStore;
+        this.legacyDocumentRetriever = legacyDocumentRetriever;
+        this.documentStore = documentStore;
         this.topK = topK != null ? topK : 5;
         this.filterExpression = filterExpression != null ? () -> filterExpression : () -> null;
     }
 
     @Override
     public List<Document> retrieve(Query query) {
-        var publicDocuments = publicDocumentRetriever.retrieve(query);
-        var internalRetriever = VectorStoreDocumentRetriever.builder()
-                .similarityThreshold(0.0)
+        var legacyDocuments = legacyDocumentRetriever.retrieve(query);
+        var retriever = VectorStoreDocumentRetriever.builder()
                 .filterExpression(filterExpression)
-                .vectorStore(internalDocumentStore)
+                .vectorStore(documentStore)
                 .topK(topK)
                 .build();
 
-        publicDocuments.addAll(internalRetriever.retrieve(query));
-        return publicDocuments;
+        legacyDocuments.addAll(retriever.retrieve(query));
+        return legacyDocuments;
     }
 
     public static Builder builder() {
@@ -46,18 +45,18 @@ public final class InternalDocumentRetriever implements DocumentRetriever {
     }
 
     public static final class Builder {
-        private DocumentRetriever publicDocumentRetriever;
-        private VectorStore internalDocumentStore;
+        private DocumentRetriever legacyDocumentRetriever;
+        private VectorStore documentStore;
         private Integer topK;
         private Filter.Expression filterExpression;
 
-        public Builder publicDocumentRetriever(DocumentRetriever publicRetriever) {
-            this.publicDocumentRetriever = publicRetriever;
+        public Builder legacyDocumentRetriever(DocumentRetriever publicRetriever) {
+            this.legacyDocumentRetriever = publicRetriever;
             return this;
         }
 
-        public Builder internalDocumentStore(VectorStore internalDocumentStore) {
-            this.internalDocumentStore = internalDocumentStore;
+        public Builder documentStore(VectorStore vectorStore) {
+            this.documentStore = vectorStore;
             return this;
         }
 
@@ -71,8 +70,8 @@ public final class InternalDocumentRetriever implements DocumentRetriever {
             return this;
         }
 
-        public InternalDocumentRetriever build() {
-            return new InternalDocumentRetriever(publicDocumentRetriever, internalDocumentStore, topK, filterExpression);
+        public CopilotDocumentRetriever build() {
+            return new CopilotDocumentRetriever(legacyDocumentRetriever, documentStore, topK, filterExpression);
         }
     }
 }

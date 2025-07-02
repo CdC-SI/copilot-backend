@@ -2,13 +2,14 @@ package zas.admin.zec.backend.actions.converse;
 
 import jakarta.validation.constraints.NotNull;
 
+import java.util.List;
 import java.util.UUID;
 
 public record Question(
     @NotNull String query,
     String language,
-    String[] tags,
-    String[] sources,
+    List<String> tags,
+    List<String> sources,
     String llmModel,
     Double topP,
     Double temperature,
@@ -32,8 +33,8 @@ public record Question(
         return new Question(
             this.query(),
             this.language() != null ? this.language() : "fr",
-            this.tags() != null ? this.tags() : new String[0],
-            this.sources() != null ? this.sources() : new String[0],
+            this.tags() != null ? this.tags() : List.of(),
+            this.sources() != null ? this.sources() : List.of(),
             this.llmModel() != null ? this.llmModel() : "gpt-4o-mini",
             this.topP() != null ? this.topP() : 0.9,
             this.temperature() != null ? this.temperature() : 0.7,
