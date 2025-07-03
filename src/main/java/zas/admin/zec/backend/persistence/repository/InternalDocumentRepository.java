@@ -26,14 +26,12 @@ public interface InternalDocumentRepository extends JpaRepository<InternalDocume
     @Query(value = """
         SELECT DISTINCT metadata ->> 'tags' AS tag
         FROM internal_documents
-        WHERE metadata ->> 'organizations' = :organization
         """, nativeQuery = true)
-    List<String> findTagsByOrganization(String organization);
+    List<String> findAllTags();
 
     @Query(value = """
         SELECT DISTINCT metadata ->> 'source' AS source
         FROM internal_documents
-        WHERE metadata ->> 'organizations' = :organization
         """, nativeQuery = true)
-    List<String> findSourcesByOrganization(String organization);
+    List<String> findAllSources();
 }

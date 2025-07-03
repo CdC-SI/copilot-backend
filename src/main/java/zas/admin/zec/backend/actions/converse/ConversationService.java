@@ -31,6 +31,8 @@ import java.util.function.Function;
 @Transactional
 public class ConversationService {
 
+    private static final String DELIM = "|";
+
     private final ConversationRepository conversationRepository;
     private final ConversationTitleRepository conversationTitleRepository;
     private final ConversationMetaDataHolder conversationMetaDataHolder;
@@ -253,17 +255,47 @@ public class ConversationService {
         conversationRepository.save(entity);
     }
 
-    private String toSourceString(Source source) {
-        return source.type() == SourceType.FILE
-                ? "%s:%s".formatted(SourceType.FILE.name(), source.link())
-                : source.link();
+    private String toSourceString(Source src) {
+        // Old format for strings that still have only link or FILE:link
+        if (src.pageNumber() == null
+            && src.subsection() == null
+            && src.version() == null) {
+            return src.type() == SourceType.FILE
+                    ? "%s:%s".formatted(SourceType.FILE.name(), src.link())
+                    : src.link();
+        }
+
+        // New extended format: TYPE|link|page|subsection|version   (URL-encoded parts)
+        return String.join(DELIM,
+                src.type().name(),
+                src.link(),
+                src.pageNumber(),
+                src.subsection(),
+                src.version()
+        );
     }
 
-    private Source fromSourceString(String source) {
-        if (source.startsWith(SourceType.FILE.name())) {
-            return new Source(SourceType.FILE, source.substring(SourceType.FILE.name().length() + 1));
+    private Source fromSourceString(String raw) {
+        /* -------- legacy strings -------- */
+        if (!raw.contains(DELIM)) {                 // no “|” → old style
+            if (raw.startsWith(SourceType.FILE.name() + ":")) {
+                String link = raw.substring(SourceType.FILE.name().length() + 1);
+                return new Source(SourceType.FILE, link);
+            }
+            return new Source(SourceType.URL, raw);
         }
-        return new Source(SourceType.URL, source);
+
+        /* -------- new strings (pipe-separated) -------- */
+        String[] parts = raw.split("\\|", -1);      // keep empty tail segments
+        //           0        1       2          3           4
+        //        TYPE | link | page | subsection | version
+        SourceType type       = SourceType.valueOf(parts[0]);
+        String link           = parts[1];
+        String pageNumber     = parts.length > 2 ? parts[2] : null;
+        String subsection     = parts.length > 3 ? parts[3] : null;
+        String version        = parts.length > 4 ? parts[4] : null;
+
+        return new Source(type, link, pageNumber, subsection, version);
     }
 
     private void generateConversationTitle(String initialQuery, String initialResponse, String userId, String conversationId, String language) {

@@ -70,9 +70,15 @@ public class FAQService {
     }
 
     private FAQItem create(FAQItemLight faqItemLight) {
-        SourceEntity source = new SourceEntity();
-        source.setUrl(faqItemLight.url());
-        source = sourceRepository.save(source);
+        var sourceOpt = sourceRepository.findByUrl("faq");
+        SourceEntity source;
+        if (sourceOpt.isEmpty()) {
+            source = new SourceEntity();
+            source.setUrl("faq");
+            source = sourceRepository.save(source);
+        } else {
+            source = sourceOpt.get();
+        }
 
         PublicDocumentEntity answer = new PublicDocumentEntity();
         answer.setSource(source);
@@ -101,9 +107,6 @@ public class FAQService {
         byId.getAnswer().setText(faqItemLight.answer());
         byId.getAnswer().setUrl(faqItemLight.url());
         byId.getAnswer().setLanguage(faqItemLight.language());
-        byId.getSource().setUrl(faqItemLight.url());
-
-        sourceRepository.save(byId.getSource());
         documentRepository.save(byId.getAnswer());
 
         return entityMapper.map(faqItemRepository.save(byId));

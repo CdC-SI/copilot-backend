@@ -59,7 +59,7 @@ public class SettingService {
     private List<String> getTags(String currentUser) {
         var userId = userService.getUuid(currentUser);
         return userService.hasAccessToInternalDocuments(userId)
-                ? internalDocumentRepository.findTagsByOrganization("ZAS")
+                ? internalDocumentRepository.findAllTags()
                 : getPublicTags();
     }
 
@@ -70,7 +70,7 @@ public class SettingService {
     private List<String> getSources(String currentUser) {
         var userId = userService.getUuid(currentUser);
         return userService.hasAccessToInternalDocuments(userId)
-                ? internalDocumentRepository.findSourcesByOrganization("ZAS")
+                ? internalDocumentRepository.findAllSources()
                 : getPublicSources();
     }
 
