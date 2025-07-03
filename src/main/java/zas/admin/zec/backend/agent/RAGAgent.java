@@ -263,7 +263,7 @@ public class RAGAgent implements Agent {
         return Flux.fromIterable(sources)
                 .map(doc -> {
                     var meta = doc.getMetadata();
-                    if (meta.containsKey("url")) {
+                    if (meta.containsKey("url") && meta.get("url") != "") {
                         return SourceToken.fromURLWithDetails(
                                 (String) meta.get("url"),
                                 (String) meta.get("page_num"),
