@@ -35,7 +35,7 @@ public class LegacyDocumentRetriever implements DocumentRetriever {
                         .metadata("url", projection.getUrl())
                         .score(1 - projection.getDistance())
                         .build())
-                //.filter(document -> document.getScore() != null && document.getScore() > 0.5)
+                .filter(document -> document.getScore() != null && document.getScore() > 0.5)
                 .collect(Collectors.toList());
     }
 }

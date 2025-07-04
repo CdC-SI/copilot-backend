@@ -113,7 +113,7 @@ public class RAGAgent implements Agent {
                 ? new RankedDocumentJoiner(internalChatModel, 5)
                 : new RankedDocumentJoiner(publicChatModel, 5);
 
-        var queryAugmenter = augmenter();
+        var queryAugmenter = augmenter(question.responseFormat());
 
         return RetrievalAugmentationAdvisor.builder()
                 .queryTransformers(transformers)
@@ -156,6 +156,7 @@ public class RAGAgent implements Agent {
                         Étant donné l'historique de conversation suivant et une question de suivi, votre tâche est de synthétiser
                         une requête concise qui intègre le contexte de l'historique.
                         Assurez-vous que la requête soit claire, spécifique et respecte l'intention de l'utilisateur.
+                        Ne fournissez pas d'explications ou de commentaires supplémentaires, retournez uniquement la requête.
         
                         Historique de conversation :
                         {history}
@@ -174,6 +175,7 @@ public class RAGAgent implements Agent {
                 .promptTemplate(new PromptTemplate("""
                         Étant donné une requête utilisateur, réécrivez-la pour obtenir de meilleurs résultats lors de la recherche dans un {target}.
                         Supprimez toute information non pertinente et assurez-vous que la requête soit concise et spécifique.
+                        Retournez uniquement la requête réécrite, sans explications ni commentaires supplémentaires.
                         
                         Requête originale :
                         {query}
@@ -199,7 +201,7 @@ public class RAGAgent implements Agent {
                                 L'objectif est d'élargir l'espace de recherche et d'améliorer les chances de trouver des informations pertinentes.
                                 
                                 N'expliquez pas vos choix et n'ajoutez aucun autre texte.
-                                Fournissez les variantes de requêtes séparées par des sauts de ligne, sans numérotation ni puces.
+                                Fournissez les {number} variantes de requêtes séparées par des sauts de ligne, sans numérotation ni puces.
                                 
                                 Requête originale : {query}
                                 
@@ -209,7 +211,7 @@ public class RAGAgent implements Agent {
                 .build();
     }
 
-    private QueryAugmenter augmenter() {
+    private QueryAugmenter augmenter(String format) {
         return ContextualQueryAugmenter.builder()
                 .promptTemplate
                         (new PromptTemplate("""
@@ -225,7 +227,7 @@ public class RAGAgent implements Agent {
                                     <3>Explication et justification : Si la réponse ne peut pas être entièrement déduite des documents contextuels, répondez : « Je suis désolé, je ne peux pas répondre à cette question sur la base des documents à disposition... »</3>
                                     <4>Réponse structurée et claire : formatez votre réponse en Markdown afin d'en améliorer la lisibilité. Utilisez des paragraphes clairement structurés, des listes à puces, des tableaux et, le cas échéant, des liens afin de présenter les informations de manière logique et claire</4>
                                     <5>Chain of Thought (CoT) : procédez étape par étape dans votre réponse. Expliquez le cheminement de votre pensée et comment vous êtes parvenu à votre conclusion en reliant les informations pertinentes du contexte dans un ordre logique</5>
-                                    <6>Répondez toujours en FRANCAIS !!!</6>
+                                    <6>Répondez toujours dans la langue de la question !!!</6>
                                 </notes_importantes>
                                 
                                 <context>
@@ -233,11 +235,11 @@ public class RAGAgent implements Agent {
                                 </context>
                                 
                                 <format_de_réponse>
-                                    Réponse détaillée
+                                    %s
                                 </format_de_réponse>
                                 
                                 Question: {query}
-                                """))
+                                """.formatted(format)))
                 .build();
     }
 
