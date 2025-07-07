@@ -17,17 +17,32 @@ public interface InternalDocumentRepository extends JpaRepository<InternalDocume
     List<String> findPublicTags();
 
     @Query(value = """
-        SELECT DISTINCT metadata ->> 'source' AS source
+        SELECT DISTINCT metadata ->> 'tags' AS tag
         FROM internal_documents
-        WHERE metadata ->> 'organizations' IS NULL OR metadata ->> 'organizations' = ''
+        WHERE metadata ->> 'source' IN :sources
+        AND (metadata ->> 'organizations' IS NULL OR metadata ->> 'organizations' = '')
         """, nativeQuery = true)
-    List<String> findPublicSources();
+    List<String> findPublicTagsBySources(List<String> sources);
 
     @Query(value = """
         SELECT DISTINCT metadata ->> 'tags' AS tag
         FROM internal_documents
         """, nativeQuery = true)
     List<String> findAllTags();
+
+    @Query(value = """
+        SELECT DISTINCT metadata ->> 'tags' AS tag
+        FROM internal_documents
+        WHERE metadata ->> 'source' IN :sources
+        """, nativeQuery = true)
+    List<String> findTagsBySources(List<String> sources);
+
+    @Query(value = """
+        SELECT DISTINCT metadata ->> 'source' AS source
+        FROM internal_documents
+        WHERE metadata ->> 'organizations' IS NULL OR metadata ->> 'organizations' = ''
+        """, nativeQuery = true)
+    List<String> findPublicSources();
 
     @Query(value = """
         SELECT DISTINCT metadata ->> 'source' AS source
