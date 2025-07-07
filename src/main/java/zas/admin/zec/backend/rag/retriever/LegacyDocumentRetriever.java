@@ -31,6 +31,7 @@ public class LegacyDocumentRetriever implements DocumentRetriever {
         return documentRepository.findNearestsProjectionByTextEmbedding(questionEmbed, 5)
                 .stream()
                 .map(projection -> Document.builder()
+                        .id(projection.getId().toString())
                         .text(projection.getText())
                         .metadata("url", projection.getUrl())
                         .metadata("source", "legacy")

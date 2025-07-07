@@ -5,7 +5,7 @@ public final class RAGPrompts {
     private static final String RAG_SYSTEM_PROMPT_DE = """
             <anweisungen>
                 <anweisung>Sie sind der ZAS/EAK-Copilot, ein gewissenhafter und engagierter Assistent, der detaillierte und präzise Antworten auf Fragen des Publikums zu den Sozialversicherungen in der Schweiz gibt</anweisung>
-                <anweisung>Ihre Antworten basieren ausschliesslich auf den Kontextdokumenten <doc> im <kontext> und der <gesprächsverlauf></anweisung>
+                <anweisung>Ihre Antworten basieren ausschliesslich auf den Kontextdokumenten im <kontext> und der gesprächsverlauf</anweisung>
                 <anweisung>Beantworten Sie nach den Anweisungen im <antwortformat></anweisung>
             </anweisungen>.
             
@@ -18,12 +18,8 @@ public final class RAGPrompts {
                 <6>Antworten Sie immer auf DEUTSCH!!!</6>
             </wichtige_notizen>
             
-            <gesprächsverlauf>
-                %s
-            </gesprächsverlauf>
-            
             <kontext>
-                %s
+                {context}
             </kontext>.
             
             <antwortformat>.
@@ -34,7 +30,7 @@ public final class RAGPrompts {
     private static final String RAG_SYSTEM_PROMPT_IT = """
             <istruzioni>
                 <istruzione>Sei il ZAS/EAK-Copilot, un assistente coscienzioso e impegnato che fornisce risposte dettagliate e accurate alle domande del pubblico sulle assicurazioni sociali in Svizzera</istruzione>
-                <istruzione>Le sue risposte si basano esclusivamente sui documenti contestuali <doc> nel <contesto> e nella <storia_della_conversazione></istruzione>
+                <istruzione>Le sue risposte si basano esclusivamente sui documenti contestuali nel <contesto> e nella storia della conversazione</istruzione>
                 <istruzione>Rispondete seguendo le istruzioni del <formato_di_risposta>></istruzione>
             </istruzioni>
             
@@ -44,15 +40,11 @@ public final class RAGPrompts {
                 <3>Spiegazione e giustificazione: se la risposta non può essere completamente dedotta dai documenti contestuali, rispondere “Mi dispiace, non posso rispondere a questa domanda sulla base dei documenti disponibili...”</3>.
                 <4>Risposta strutturata e chiara: formattate la risposta in Markdown per migliorare la leggibilità. Utilizzate paragrafi chiaramente strutturati, elenchi puntati, tabelle e, se opportuno, link per presentare le informazioni in modo logico e chiaro</4>
                 <5>Catena del pensiero (CoT): fate la vostra risposta un passo alla volta. Spiegate il vostro percorso di pensiero e come siete arrivati alla vostra conclusione collegando le informazioni rilevanti del contesto in un ordine logico</5>
-                <6>Rispondete sempre in francese!!!</6>
+                <6>Rispondete sempre in Italiano</6>
             </note_importanti>
             
-            <storia_della_conversazione>
-                %s
-            </storia_della_conversazione>
-            
             <contesto>
-                %s
+                {context}
             </contesto>
             
             <formato_di_risposta>
@@ -63,7 +55,7 @@ public final class RAGPrompts {
     private static final String RAG_SYSTEM_PROMPT_FR = """
             <instructions>
                 <instruction>Vous êtes le ZAS/EAK-Copilot, un assistant consciencieux et engagé qui fournit des réponses détaillées et précises aux questions du public sur les assurances sociales en Suisse</instruction>
-                <instruction>Vos réponses se basent exclusivement sur les documents contextuels <doc> dans le <contexte> et l'<historique_de_conversation></instruction>
+                <instruction>Vos réponses se basent exclusivement sur les documents contextuels dans le <contexte> et l'historique_de_conversation</instruction>
                 <instruction>Répondez en suivant les consignes dans le <format_de_réponse></instruction>
             </instructions>
         
@@ -76,12 +68,8 @@ public final class RAGPrompts {
                 <6>Répondez toujours en FRANCAIS !!!</6>
             </notes_importantes>
         
-            <historique_de_conversation>
-                %s
-            </historique_de_conversation>
-        
             <contexte>
-                %s
+                {context}
             </contexte>
         
             <format_de_réponse>
@@ -111,6 +99,138 @@ public final class RAGPrompts {
             - Assicuratevi sempre che TUTTE le informazioni contenute nel testo siano incluse nella risposta. Non abbreviare mai le informazioni.
             """;
 
+    private static final String RAG_QUERY_COMPRESSER_FR = """
+            Étant donné l'historique de conversation suivant et une question de suivi, votre tâche est de synthétiser
+            une requête concise qui intègre le contexte de l'historique.
+            Assurez-vous que la requête soit claire, spécifique et respecte l'intention de l'utilisateur.
+            Ne fournissez pas d'explications ou de commentaires supplémentaires, retournez uniquement la requête.
+
+            Historique de conversation :
+            {history}
+
+            Question de suivi :
+            {query}
+
+            Requête :
+            """;
+
+    private static final String RAG_QUERY_COMPRESSER_DE = """
+            Angesichts des folgenden Gesprächsverlaufs und einer Anschlussfrage besteht Ihre Aufgabe darin, eine prägnante Anfrage zu erstellen, die den Kontext des Verlaufs integriert.
+            Stellen Sie sicher, dass die Anfrage klar, spezifisch und die Absicht des Benutzers respektiert.
+            Geben Sie keine Erklärungen oder zusätzlichen Kommentare, sondern geben Sie nur die Anfrage zurück.
+            
+            Gesprächsverlauf:
+            {history}
+            
+            Anschlussfrage:
+            {query}
+            
+            Anfrage:
+            """;
+
+    private static final String RAG_QUERY_COMPRESSER_IT = """
+            Dato il seguente storico della conversazione e una domanda di follow-up, il tuo compito è sintetizzare
+            una richiesta concisa che integri il contesto dello storico.
+            Assicurati che la richiesta sia chiara, specifica e rispetti l'intenzione dell'utente.
+            Non fornire spiegazioni o commenti aggiuntivi, restituisci solo la richiesta.
+            
+            Storico della conversazione:
+            {history}
+            
+            Domanda di follow-up:
+            {query}
+            
+            Richiesta:
+            """;
+
+    private static final String RAG_QUERY_REWRITER_FR = """
+            Étant donné une requête utilisateur, réécrivez-la pour obtenir de meilleurs résultats lors de la recherche dans un {target}.
+            Supprimez toute information non pertinente et assurez-vous que la requête soit concise et spécifique.
+            Retournez uniquement la requête réécrite, sans explications ni commentaires supplémentaires.
+            
+            Requête originale :
+            {query}
+            
+            Requête réécrite :
+            """;
+
+    private static final String RAG_QUERY_REWRITER_DE = """
+            Angesichts einer Benutzeranfrage, schreiben Sie diese um, um bessere Ergebnisse bei der Suche in einem {target} zu erzielen.
+            Entfernen Sie alle irrelevanten Informationen und stellen Sie sicher, dass die Anfrage prägnant und spezifisch ist.
+            Geben Sie nur die umgeschriebene Anfrage zurück, ohne zusätzliche Erklärungen oder Kommentare.
+            
+            Originalanfrage:
+            {query}
+            
+            Umgeschriebene Anfrage:
+            """;
+    private static final String RAG_QUERY_REWRITER_IT = """
+            Dato una richiesta utente, riscrivetela per ottenere risultati migliori durante la ricerca in un {target}.
+            Rimuovete tutte le informazioni non pertinenti e assicuratevi che la richiesta sia concisa e specifica.
+            Restituite solo la richiesta riscritta, senza spiegazioni o commenti aggiuntivi.
+            
+            Richiesta originale:
+            {query}
+            
+            Richiesta riscritta:
+            """;
+
+    private static final String RAG_QUERY_EXPANDER_FR = """
+            Vous êtes un expert en recherche d'informations et en optimisation des recherches.
+            Votre tâche consiste à générer {number} versions différentes de la requête donnée.
+            
+            Chaque variante doit couvrir différentes perspectives ou aspects du sujet,
+            tout en conservant l'intention principale de la requête originale.
+            Les variantes peuvent également couvrir des sous-questions ou des sujets connexes qui pourraient aider à
+            retrouver des informations pertinentes.
+            
+            L'objectif est d'élargir l'espace de recherche et d'améliorer les chances de trouver des informations pertinentes.
+            
+            N'expliquez pas vos choix et n'ajoutez aucun autre texte.
+            Fournissez les {number} variantes de requêtes séparées par des sauts de ligne, sans numérotation ni puces.
+            
+            Requête originale : {query}
+            
+            Variantes de requêtes :
+            """;
+    private static final String RAG_QUERY_EXPANDER_DE = """
+            Sie sind ein Experte für Informationssuche und Optimierung von Suchanfragen.
+            Ihre Aufgabe besteht darin, {number} verschiedene Versionen der gegebenen Anfrage zu erstellen.
+            
+            Jede Variante sollte unterschiedliche Perspektiven oder Aspekte des Themas abdecken,
+            während die Hauptabsicht der ursprünglichen Anfrage beibehalten wird.
+            Die Varianten können auch Unterfragen oder verwandte Themen abdecken, die dabei helfen könnten,
+            relevante Informationen zu finden.
+            
+            Das Ziel ist es, den Suchraum zu erweitern und die Chancen zu verbessern, relevante Informationen zu finden.
+            
+            Erklären Sie Ihre Entscheidungen nicht und fügen Sie keinen weiteren Text hinzu.
+            Liefern Sie die {number} Varianten der Anfragen, getrennt durch Zeilenumbrüche, ohne Nummerierung oder Aufzählungszeichen.
+            
+            Ursprüngliche Anfrage: {query}
+            
+            Varianten der Anfragen:
+            """;
+
+    private static final String RAG_QUERY_EXPANDER_IT = """
+            Sei un esperto nella ricerca di informazioni e nell'ottimizzazione delle ricerche.
+            Il tuo compito consiste nel generare {number} versioni diverse della richiesta fornita.
+            
+            Ogni variante deve coprire diverse prospettive o aspetti dell'argomento,
+            pur mantenendo l'intenzione principale della richiesta originale.
+            Le varianti possono anche includere sotto-domande o argomenti correlati che potrebbero aiutare a
+            trovare informazioni pertinenti.
+            
+            L'obiettivo è ampliare lo spazio di ricerca e migliorare le possibilità di trovare informazioni pertinenti.
+            
+            Non spiegare le tue scelte e non aggiungere alcun altro testo.
+            Fornisci le {number} varianti di richieste separate da interruzioni di riga, senza numerazione né punti elenco.
+            
+            Richiesta originale: {query}
+            
+            Varianti di richieste:
+            """;
+
     private RAGPrompts() {}
 
     public static String getRagSystemPrompt(String lang) {
@@ -118,6 +238,30 @@ public final class RAGPrompts {
             case "fr" -> RAG_SYSTEM_PROMPT_FR;
             case "it" -> RAG_SYSTEM_PROMPT_IT;
             default -> RAG_SYSTEM_PROMPT_DE;
+        };
+    }
+
+    public static String getQueryCompresserTemplate(String lang) {
+        return switch (lang) {
+            case "fr" -> RAG_QUERY_COMPRESSER_FR;
+            case "it" -> RAG_QUERY_COMPRESSER_IT;
+            default -> RAG_QUERY_COMPRESSER_DE;
+        };
+    }
+
+    public static String getQueryRewriterTemplate(String lang) {
+        return switch (lang) {
+            case "fr" -> RAG_QUERY_REWRITER_FR;
+            case "it" -> RAG_QUERY_REWRITER_IT;
+            default -> RAG_QUERY_REWRITER_DE;
+        };
+    }
+
+    public static String getQueryExpanderTemplate(String lang) {
+        return switch (lang) {
+            case "fr" -> RAG_QUERY_EXPANDER_FR;
+            case "it" -> RAG_QUERY_EXPANDER_IT;
+            default -> RAG_QUERY_EXPANDER_DE;
         };
     }
 
