@@ -1,9 +1,9 @@
 package zas.admin.zec.backend.agent.advisors;
 
-import org.springframework.ai.chat.client.advisor.api.AdvisedRequest;
-import org.springframework.ai.chat.client.advisor.api.AdvisedResponse;
-import org.springframework.ai.chat.client.advisor.api.StreamAroundAdvisor;
-import org.springframework.ai.chat.client.advisor.api.StreamAroundAdvisorChain;
+import org.springframework.ai.chat.client.ChatClientRequest;
+import org.springframework.ai.chat.client.ChatClientResponse;
+import org.springframework.ai.chat.client.advisor.api.StreamAdvisor;
+import org.springframework.ai.chat.client.advisor.api.StreamAdvisorChain;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.metadata.ChatGenerationMetadata;
 import org.springframework.ai.chat.model.ChatResponse;
@@ -17,36 +17,19 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Predicate;
 
-public class IIAdvisor implements StreamAroundAdvisor {
+public class IIAdvisor implements StreamAdvisor {
 
     private final ConversationMetaDataHolder holder;
     private final String conversationId;
 
-    /**
-     * Constructs an instance of the IIAdvisor class with the specified conversation metadata holder,
-     * conversation ID, and chat model.
-     *
-     * @param holder the conversation metadata holder used for managing metadata associated with the conversation
-     * @param conversationId1 the ID of the conversation for which this advisor is created
-     */
     public IIAdvisor(ConversationMetaDataHolder holder, String conversationId1) {
         this.holder = holder;
         this.conversationId = conversationId1;
     }
 
-    /**
-     * Processes an advised request through a stream advisor chain, managing the interaction logic
-     * and dynamically applying pre-processing and post-processing transformations to the request and response.
-     * This method ensures specific handling depending on the conversation's current step ("etape").
-     *
-     * @param advisedRequest the input request containing conversation details, messages, and other metadata
-     * @param chain the chain of advisors responsible for orchestrating the flow of advised requests and responses
-     * @return a reactive stream (Flux) of advised responses after applying processing rules, such as pre-handling
-     *         with {@code before}, streaming through the advisor chain, and post-handling with {@code after}
-     */
     @Override
-    public Flux<AdvisedResponse> aroundStream(AdvisedRequest advisedRequest, StreamAroundAdvisorChain chain) {
-        Flux<AdvisedResponse> advisedResponses = chain.nextAroundStream(advisedRequest);
+    public Flux<ChatClientResponse> adviseStream(ChatClientRequest chatClientRequest, StreamAdvisorChain chain) {
+        Flux<ChatClientResponse> advisedResponses = chain.nextStream(chatClientRequest);
 
         return advisedResponses.map(ar -> {
             if (onFinishReason().test(ar)) {
@@ -77,30 +60,20 @@ public class IIAdvisor implements StreamAroundAdvisor {
         return 0;
     }
 
-    /**
-     * Processes the response after the main conversational logic has been handled.
-     * Depending on the current step (`etape`) of the conversation, it may modify the response
-     * or return it as is. Specifically, if the step corresponds to "2" or certain variations,
-     * it handles the response differently by checking the current agent in use and generating
-     * a specific structure. If no modifications are needed, the original response is returned.
-     *
-     * @param advisedResponse the response object containing information processed by the conversation logic
-     * @return an {@code AdvisedResponse} instance, either modified or as originally provided,
-     *         depending on the conversation's current step
-     */
-    private AdvisedResponse after(AdvisedResponse advisedResponse) {
+    private ChatClientResponse after(ChatClientResponse chatClientResponse) {
         Optional<IIStep> step = holder.getStep(conversationId);
 
         if (step.isPresent() && step.get().equals(IIStep.CALCUL)) {
-            return AdvisedResponse.builder()
-                    .adviseContext(advisedResponse.adviseContext())
-                    .response(new ChatResponse(List.of(new Generation(
-                            new AssistantMessage(""),
-                            ChatGenerationMetadata.builder().metadata("suggestion", "ii-salary").build()))))
+            return ChatClientResponse.builder()
+                    .context(chatClientResponse.context())
+                    .chatResponse(
+                            new ChatResponse(List.of(new Generation(
+                                    new AssistantMessage(""),
+                                    ChatGenerationMetadata.builder().metadata("suggestion", "ii-salary").build()))))
                     .build();
         }
 
-        return toMarkdown(advisedResponse);
+        return toMarkdown(chatClientResponse);
     }
 
     /**
@@ -111,10 +84,10 @@ public class IIAdvisor implements StreamAroundAdvisor {
      * @return a {@code Predicate<AdvisedResponse>} that returns {@code true} if at least one result in the
      *         provided {@code AdvisedResponse} matches the criteria, otherwise {@code false}
      */
-    private Predicate<AdvisedResponse> onFinishReason() {
-        return advisedResponse -> {
-            assert advisedResponse.response() != null;
-            return advisedResponse.response()
+    private Predicate<ChatClientResponse> onFinishReason() {
+        return chatClientResponse -> {
+            assert chatClientResponse.chatResponse() != null;
+            return chatClientResponse.chatResponse()
                     .getResults()
                     .stream()
                     .anyMatch(result -> result != null && result.getMetadata() != null
@@ -122,22 +95,14 @@ public class IIAdvisor implements StreamAroundAdvisor {
         };
     }
 
-    /**
-     * Transforms an {@code AdvisedResponse} instance by converting its response text into Markdown format.
-     * This method utilizes {@code stringToMD} to convert the response content and rebuilds
-     * the {@code AdvisedResponse} with the updated content.
-     *
-     * @param advisedResponse the input {@code AdvisedResponse} object containing the response text to be transformed
-     * @return a new {@code AdvisedResponse} instance with the response text converted to Markdown format
-     */
-    private AdvisedResponse toMarkdown(AdvisedResponse advisedResponse) {
-        return AdvisedResponse.builder()
-                .adviseContext(advisedResponse.adviseContext())
-                .response(new ChatResponse(
+    private ChatClientResponse toMarkdown(ChatClientResponse chatClientResponse) {
+        return ChatClientResponse.builder()
+                .context(chatClientResponse.context())
+                .chatResponse(new ChatResponse(
                         List.of(
                                 new Generation(
                                         new AssistantMessage(
-                                                stringToMD(advisedResponse.response().getResult().getOutput().getText()))))))
+                                                stringToMD(chatClientResponse.chatResponse().getResult().getOutput().getText()))))))
                 .build();
     }
 
