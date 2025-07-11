@@ -29,7 +29,7 @@ class SystemEvaluationServiceTest {
     @Test
     void evaluation_with_complete_input_should_return_correct_decision() {
         SystemEvaluation evaluation = new SystemEvaluation(
-                false,
+                SystemEvaluationType.UNKNOWN,
                 true,
                 null,
                 true,
@@ -57,7 +57,7 @@ class SystemEvaluationServiceTest {
     @Test
     void evaluation_with_complete_input_should_return_correct_decision_2() {
         SystemEvaluation evaluation = new SystemEvaluation(
-                false,
+                SystemEvaluationType.UNKNOWN,
                 true,
                 null,
                 false,
@@ -85,7 +85,7 @@ class SystemEvaluationServiceTest {
     @Test
     void evaluation_with_incomplete_input_should_return_first_missing_step() {
         SystemEvaluation evaluation = new SystemEvaluation(
-                false,
+                SystemEvaluationType.UNKNOWN,
                 null,
                 null,
                 false,
@@ -112,7 +112,7 @@ class SystemEvaluationServiceTest {
     @Test
     void empty_evaluation_should_return_first_missing_step_of_the_ruleset() {
         SystemEvaluation evaluation = new SystemEvaluation(
-                false,
+                SystemEvaluationType.UNKNOWN,
                 null,
                 null,
                 null,
