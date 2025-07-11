@@ -3,6 +3,7 @@ package zas.admin.zec.backend.agent.tools.ii;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import zas.admin.zec.backend.agent.tools.ii.model.SystemEvaluation;
+import zas.admin.zec.backend.agent.tools.ii.model.SystemEvaluationType;
 
 public class SystemEvaluationTool {
 
@@ -12,7 +13,7 @@ public class SystemEvaluationTool {
             returnDirect = true
     )
     public SystemEvaluation collectEvaluation(
-            @ToolParam(description = "True si le système de rente à utiliser est déjà mentionné dans la conversation (Rente linéaire ou Rente par pallier)") boolean systemAlreadyEvaluated,
+            @ToolParam(description = "Si le système de rente à utiliser est déjà mentionné dans la conversation (Rente linéaire ou Rente par pallier) alors respectivement LINEAR ou BY_STEP, sinon UNKNOWN") SystemEvaluationType systemType,
             @ToolParam(description = "True si le taux a augmenté depuis le 01.01.2024, false sinon, null si pas d'information") Boolean rateUpSince2024,
             @ToolParam(description = "True si changement de palier selon l'ancien système, false sinon, null si pas d'information") Boolean legacyTierChange,
             @ToolParam(description = "True si révision (sur demande ou d'office), false si nouvelle demande, null si pas d'information") Boolean revisionCase,
@@ -28,7 +29,7 @@ public class SystemEvaluationTool {
             @ToolParam(description = "True si augmentation du montant de la rente, false sinon, null si pas d'information") Boolean pensionIncrease) {
 
         return new SystemEvaluation(
-                systemAlreadyEvaluated,
+                systemType,
                 rateUpSince2024,
                 legacyTierChange,
                 revisionCase,
