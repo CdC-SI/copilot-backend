@@ -5,7 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 
 public record SystemEvaluation(
-        boolean systemAlreadyEvaluated,
+        SystemEvaluationType systemType,
         Boolean rateUpSince2024,
         Boolean legacyTierChange,
         Boolean revisionCase,

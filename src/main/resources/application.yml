@@ -42,10 +42,6 @@ spring:
       max-request-size: 20MB
       file-size-threshold: 2KB
   ai:
-    openai:
-      api-key: ${OPENAI_API_KEY}
-      chat:
-        enabled: false
     chat:
       public:
         api-key: ${OPENAI_API_KEY}
@@ -71,6 +67,8 @@ py-backend:
 server:
   tomcat:
     max-swallow-size: -1
+  servlet:
+    context-path: /copilot
 faq:
   search:
     min-result-before-semantic-search: ${FAQ_MIN_RESULT_BEFORE_SEMANTIC_SEARCH:5}

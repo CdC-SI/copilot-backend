@@ -31,11 +31,13 @@ public class LegacyDocumentRetriever implements DocumentRetriever {
         return documentRepository.findNearestsProjectionByTextEmbedding(questionEmbed, 5)
                 .stream()
                 .map(projection -> Document.builder()
+                        .id(projection.getId().toString())
                         .text(projection.getText())
                         .metadata("url", projection.getUrl())
+                        .metadata("source", "legacy")
                         .score(1 - projection.getDistance())
                         .build())
-                //.filter(document -> document.getScore() != null && document.getScore() > 0.5)
+                .filter(document -> document.getScore() != null && document.getScore() > 0.5)
                 .collect(Collectors.toList());
     }
 }

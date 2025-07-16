@@ -28,4 +28,12 @@ public class SettingController {
                 ? ResponseEntity.ok(settingService.getSettings(type, authentication.getName()))
                 : ResponseEntity.ok(settingService.getPublicSettings(type));
     }
+
+    @GetMapping("/tags")
+    public ResponseEntity<List<String>> getTagsFilteredBySources(@RequestParam String sources, Authentication authentication) {
+        List<String> sourceList = sources != null ? List.of(sources.split(",")) : List.of();
+        return userService.existsByUsername(authentication.getName())
+                ? ResponseEntity.ok(settingService.getTags(authentication.getName(), sourceList))
+                : ResponseEntity.ok(settingService.getPublicTags(sourceList));
+    }
 }

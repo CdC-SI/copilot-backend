@@ -13,10 +13,7 @@ import zas.admin.zec.backend.agent.tools.IIStep;
 import zas.admin.zec.backend.agent.tools.ii.IncomeCalculationTool;
 import zas.admin.zec.backend.agent.tools.ii.ModuleAndExplanationTool;
 import zas.admin.zec.backend.agent.tools.ii.SystemEvaluationTool;
-import zas.admin.zec.backend.agent.tools.ii.model.DecisionOutcome;
-import zas.admin.zec.backend.agent.tools.ii.model.FollowUpOutcome;
-import zas.admin.zec.backend.agent.tools.ii.model.NoDecisionMatchingOutcome;
-import zas.admin.zec.backend.agent.tools.ii.model.SystemEvaluation;
+import zas.admin.zec.backend.agent.tools.ii.model.*;
 import zas.admin.zec.backend.agent.tools.ii.service.IncomeCalculationService;
 import zas.admin.zec.backend.agent.tools.ii.service.SystemEvaluationService;
 import zas.admin.zec.backend.rag.token.SuggestionToken;
@@ -77,10 +74,10 @@ public class IIAgent implements Agent {
                     
                     Important : Si l’historique de la conversation contient déjà l’information du système de rente (Rente linéaire, ou Rente par pallier)
                     d’une décision antérieure, ou d’une précision de l’utilisateur qui souhaite procéder directement au calcul du salaire exigible,
-                    alors met la propriété systemAlreadyEvaluated à true sinon à false.
+                    alors met le type du système à la valeur correspondante (Rente linéaire = LINEAR, par pallier = BY_STEP), sinon met UNKNOWN.
                     
                     Les propriétés à renseigner sont :
-                    - systemAlreadyEvaluated: Réponse à la question : Le système de rente à utiliser (Rente linéaire ou Rente par pallier) est-il déjà mentionné dans la conversation ?
+                    - systemType: Réponse à la question : Quel est le système de rente à utiliser ? LINEAR ou BY_STEP s’il est déjà mentionné dans la conversation, UNKNOWN sinon.
                     - rateUpSince2024: Réponse à la question : Y a-t-il eu une augmentation du taux depuis le 01.01.2024 ?
                     - legacyTierChange: Réponse à la question :  Y a-t-il un changement de palier selon l'ancien système ?
                     - revisionCase: Réponse à la question : S'agit-il d'une révision (sur demande ou d'office) ?
@@ -101,8 +98,9 @@ public class IIAgent implements Agent {
                 .call()
                 .entity(SystemEvaluation.class);
 
-        if (evaluation != null && evaluation.systemAlreadyEvaluated()) {
+        if (evaluation != null && evaluation.systemType() != SystemEvaluationType.UNKNOWN) {
             holder.setStep(question.conversationId(), IIStep.CALCUL);
+            holder.setDecision(question.conversationId(), evaluation.systemType().type());
             return calculateIncome(question, conversationHistory);
         }
 

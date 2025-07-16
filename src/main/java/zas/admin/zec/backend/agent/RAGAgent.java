@@ -1,14 +1,11 @@
 package zas.admin.zec.backend.agent;
 
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.client.advisor.RetrievalAugmentationAdvisor;
 import org.springframework.ai.chat.client.advisor.api.Advisor;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.document.Document;
-import org.springframework.ai.rag.generation.augmentation.ContextualQueryAugmenter;
-import org.springframework.ai.rag.generation.augmentation.QueryAugmenter;
 import org.springframework.ai.rag.preretrieval.query.expansion.MultiQueryExpander;
 import org.springframework.ai.rag.preretrieval.query.expansion.QueryExpander;
 import org.springframework.ai.rag.preretrieval.query.transformation.CompressionQueryTransformer;
@@ -24,6 +21,8 @@ import reactor.core.publisher.Flux;
 import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.actions.converse.Message;
 import zas.admin.zec.backend.actions.converse.Question;
+import zas.admin.zec.backend.rag.RAGPrompts;
+import zas.admin.zec.backend.rag.advisor.RAGAdvisor;
 import zas.admin.zec.backend.rag.joiner.RankedDocumentJoiner;
 import zas.admin.zec.backend.rag.retriever.CopilotDocumentRetriever;
 import zas.admin.zec.backend.rag.token.SourceToken;
@@ -34,7 +33,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-import static org.springframework.ai.chat.client.advisor.RetrievalAugmentationAdvisor.DOCUMENT_CONTEXT;
+import static org.springframework.ai.rag.advisor.RetrievalAugmentationAdvisor.DOCUMENT_CONTEXT;
 
 @Service
 public class RAGAgent implements Agent {
@@ -83,6 +82,7 @@ public class RAGAgent implements Agent {
 
         return client
                 .prompt()
+                .system(RAGPrompts.getRagSystemPrompt(question.language()).formatted(question.responseFormat()))
                 .messages(conversationHistory.stream().map(this::convertToMessage).toList())
                 .advisors(rag)
                 .user(question.query())
@@ -98,10 +98,10 @@ public class RAGAgent implements Agent {
 
         var transformers = new ArrayList<QueryTransformer>();
         if (hasHistory) {
-            transformers.add(compresser(chatClient));
+            transformers.add(compresser(question.language(), chatClient));
         }
-        transformers.add(rewriter(chatClient));
-        var queryExpander = expander(chatClient);
+        transformers.add(rewriter(question.language(), chatClient));
+        var queryExpander = expander(question.language(), chatClient);
         var documentRetriever = CopilotDocumentRetriever.builder()
                 .documentStore(documentStore)
                 .legacyDocumentRetriever(legacyDocRetriever)
@@ -113,14 +113,11 @@ public class RAGAgent implements Agent {
                 ? new RankedDocumentJoiner(internalChatModel, 5)
                 : new RankedDocumentJoiner(publicChatModel, 5);
 
-        var queryAugmenter = augmenter();
-
-        return RetrievalAugmentationAdvisor.builder()
+        return RAGAdvisor.builder()
                 .queryTransformers(transformers)
                 .queryExpander(queryExpander)
                 .documentRetriever(documentRetriever)
                 .documentJoiner(documentJoiner)
-                .queryAugmenter(queryAugmenter)
                 .build();
     }
 
@@ -149,95 +146,31 @@ public class RAGAgent implements Agent {
         return combined.build();
     }
 
-    private QueryTransformer compresser(ChatClient client) {
+    private QueryTransformer compresser(String lang, ChatClient client) {
         return CompressionQueryTransformer.builder()
                 .chatClientBuilder(client.mutate())
-                .promptTemplate(new PromptTemplate("""
-                        Étant donné l'historique de conversation suivant et une question de suivi, votre tâche est de synthétiser
-                        une requête concise qui intègre le contexte de l'historique.
-                        Assurez-vous que la requête soit claire, spécifique et respecte l'intention de l'utilisateur.
-        
-                        Historique de conversation :
-                        {history}
-        
-                        Question de suivi :
-                        {query}
-        
-                        Requête :
-                        """))
+                .promptTemplate(new PromptTemplate(
+                        RAGPrompts.getQueryCompresserTemplate(lang)
+                ))
                 .build();
     }
 
-    private QueryTransformer rewriter(ChatClient client) {
+    private QueryTransformer rewriter(String lang, ChatClient client) {
         return RewriteQueryTransformer.builder()
                 .chatClientBuilder(client.mutate())
-                .promptTemplate(new PromptTemplate("""
-                        Étant donné une requête utilisateur, réécrivez-la pour obtenir de meilleurs résultats lors de la recherche dans un {target}.
-                        Supprimez toute information non pertinente et assurez-vous que la requête soit concise et spécifique.
-                        
-                        Requête originale :
-                        {query}
-                        
-                        Requête réécrite :
-                        """))
+                .promptTemplate(new PromptTemplate(
+                        RAGPrompts.getQueryRewriterTemplate(lang)
+                ))
                 .build();
     }
 
-    private QueryExpander expander(ChatClient client) {
+    private QueryExpander expander(String lang, ChatClient client) {
         return MultiQueryExpander.builder()
                 .chatClientBuilder(client.mutate())
-                .promptTemplate
-                        (new PromptTemplate("""
-                                Vous êtes un expert en recherche d'informations et en optimisation des recherches.
-                                Votre tâche consiste à générer {number} versions différentes de la requête donnée.
-                                
-                                Chaque variante doit couvrir différentes perspectives ou aspects du sujet,
-                                tout en conservant l'intention principale de la requête originale.
-                                Les variantes peuvent également couvrir des sous-questions ou des sujets connexes qui pourraient aider à
-                                retrouver des informations pertinentes.
-                                
-                                L'objectif est d'élargir l'espace de recherche et d'améliorer les chances de trouver des informations pertinentes.
-                                
-                                N'expliquez pas vos choix et n'ajoutez aucun autre texte.
-                                Fournissez les variantes de requêtes séparées par des sauts de ligne, sans numérotation ni puces.
-                                
-                                Requête originale : {query}
-                                
-                                Variantes de requêtes :
-                                """))
+                .promptTemplate(new PromptTemplate(
+                        RAGPrompts.getQueryExpanderTemplate(lang)
+                ))
                 .numberOfQueries(5)
-                .build();
-    }
-
-    private QueryAugmenter augmenter() {
-        return ContextualQueryAugmenter.builder()
-                .promptTemplate
-                        (new PromptTemplate("""
-                                <instructions>
-                                    <instruction>Vous êtes le ZAS/EAK-Copilot, un assistant consciencieux et engagé qui fournit des réponses détaillées et précises aux questions du public sur les assurances sociales en Suisse</instruction>
-                                    <instruction>Vos réponses se basent exclusivement sur les documents contextuels <doc> dans le <contexte></instruction>
-                                    <instruction>Répondez en suivant les consignes dans le <format_de_réponse></instruction>
-                                </instructions>
-                            
-                                <notes_importantes>
-                                    <1>Analyse complète : utilisez toutes les informations pertinentes des documents contextuels de manière complète. Procédez systématiquement et vérifiez chaque information afin de vous assurer que tous les aspects essentiels de la question sont entièrement couverts</1>
-                                    <2>Précision et exactitude : reproduisez les informations avec exactitude. Soyez particulièrement attentif à ne pas exagérer ou à ne pas utiliser de formulations imprécises. Chaque affirmation doit pouvoir être directement déduite des documents contextuels</2>
-                                    <3>Explication et justification : Si la réponse ne peut pas être entièrement déduite des documents contextuels, répondez : « Je suis désolé, je ne peux pas répondre à cette question sur la base des documents à disposition... »</3>
-                                    <4>Réponse structurée et claire : formatez votre réponse en Markdown afin d'en améliorer la lisibilité. Utilisez des paragraphes clairement structurés, des listes à puces, des tableaux et, le cas échéant, des liens afin de présenter les informations de manière logique et claire</4>
-                                    <5>Chain of Thought (CoT) : procédez étape par étape dans votre réponse. Expliquez le cheminement de votre pensée et comment vous êtes parvenu à votre conclusion en reliant les informations pertinentes du contexte dans un ordre logique</5>
-                                    <6>Répondez toujours en FRANCAIS !!!</6>
-                                </notes_importantes>
-                                
-                                <context>
-                                    {context}
-                                </context>
-                                
-                                <format_de_réponse>
-                                    Réponse détaillée
-                                </format_de_réponse>
-                                
-                                Question: {query}
-                                """))
                 .build();
     }
 

@@ -1,6 +1,7 @@
 package zas.admin.zec.backend.rag.retriever;
 
 import jakarta.annotation.Nullable;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.rag.Query;
 import org.springframework.ai.rag.retrieval.search.DocumentRetriever;
@@ -11,6 +12,7 @@ import org.springframework.ai.vectorstore.filter.Filter;
 import java.util.List;
 import java.util.function.Supplier;
 
+@Slf4j
 public final class CopilotDocumentRetriever implements DocumentRetriever {
 
     private final DocumentRetriever legacyDocumentRetriever;
@@ -30,6 +32,7 @@ public final class CopilotDocumentRetriever implements DocumentRetriever {
     @Override
     public List<Document> retrieve(Query query) {
         var legacyDocuments = legacyDocumentRetriever.retrieve(query);
+        log.info("Retrieved {} documents from legacy retriever", legacyDocuments.size());
         var retriever = VectorStoreDocumentRetriever.builder()
                 .filterExpression(filterExpression)
                 .vectorStore(documentStore)
@@ -37,6 +40,10 @@ public final class CopilotDocumentRetriever implements DocumentRetriever {
                 .build();
 
         legacyDocuments.addAll(retriever.retrieve(query));
+        log.info("Total documents retrieved: {}", legacyDocuments.size());
+        legacyDocuments.forEach(doc -> log.info("Retrieved document: {} - from: {} with score: {}",
+                doc.getId(), doc.getMetadata().get("source"), doc.getScore()));
+
         return legacyDocuments;
     }
 

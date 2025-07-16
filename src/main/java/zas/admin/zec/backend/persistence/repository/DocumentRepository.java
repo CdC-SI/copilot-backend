@@ -48,7 +48,7 @@ public interface DocumentRepository extends JpaRepository<PublicDocumentEntity, 
 
     @Query(
             value = """
-                    SELECT d.text, d.url, d.text_embedding <=> CAST(:textEmbedding AS vector(1536)) as distance
+                    SELECT d.id, d.text, d.url, d.text_embedding <=> CAST(:textEmbedding AS vector(1536)) as distance
                     FROM document d
                     ORDER BY distance
                     LIMIT :limit
