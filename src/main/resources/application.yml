@@ -1,3 +1,6 @@
+application:
+  name: @project.artifactId@
+  version: @project.version@
 decorator:
   datasource:
     flexy-pool:
@@ -12,6 +15,13 @@ spring:
     username: ${DS_USERNAME}
     password: ${DS_PASSWORD}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DS_MAX_POOL_SIZE:15}
+      minimum-idle: ${DS_MIN_IDLE:1}
+      idle-timeout: ${DS_IDLE_TIMEOUT:270000}
+      keepalive-time: ${DS_KEEPALIVE_TIME:45000}
+      max-lifetime: ${DS_MAX_LIFETIME:300000}
+      auto-commit: false
   jpa:
     hibernate:
       ddl-auto: update
@@ -19,7 +29,8 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: false
-        show_sql: false
+        show_sql: true
+    open-in-view: false
   h2:
     console:
       enabled: true
@@ -30,11 +41,65 @@ spring:
       max-file-size: 20MB
       max-request-size: 20MB
       file-size-threshold: 2KB
+  ai:
+    chat:
+      public:
+        api-key: ${OPENAI_API_KEY}
+        chat-model: ${PUBLIC_CHAT_MODEL}
+        embedding-model: ${PUBLIC_EMBEDDING_MODEL}
+      internal:
+        api-key: ${OPENAI_API_KEY}
+        chat-model: ${INTERNAL_CHAT_MODEL}
+        chat-base-url: ${INTERNAL_CHAT_BASE_URL}
+        embedding-model: ${INTERNAL_EMBEDDING_MODEL}
+        embedding-base-url: ${INTERNAL_EMBEDDING_BASE_URL}
+        embedding-dimensions: ${EMBEDDING_DIMENSIONS:1024}
+    vectorstore:
+      pgvector:
+        dimensions: ${PGVECTOR_DIMENSIONS:1024}
+        distance-type: cosine_distance
+        max-document-batch-size: 10000
+        index-type: hnsw
+        table-name: internal_documents
+        initialize-schema: true
 py-backend:
-  baseUrl: ${PY_BACKEND_URL}
-jwt:
-  secret-key: ${JWT_SECRET_KEY}
-  expiration-time: ${JWT_EXPIRATION_TIME:36000000}
+  baseUrl: http://copilot:8000
 server:
   tomcat:
     max-swallow-size: -1
+  servlet:
+    context-path: /copilot
+faq:
+  search:
+    min-result-before-semantic-search: ${FAQ_MIN_RESULT_BEFORE_SEMANTIC_SEARCH:5}
+    trigram-matching:
+      limit: ${FAQ_TRIGRAM_MATCHING_LIMIT:15}
+      threshold: ${FAQ_SEARCH_THRESHOLD:0.4}
+    semantic-matching:
+      limit: ${FAQ_SEMANTIC_MATCHING_LIMIT:10}
+      metric: ${FAQ_SEMANTIC_MATCHING_METRIC:cosine_similarity}
+rag:
+  reranking:
+    cohere-api-key: ${COHERE_API_KEY:cohere_api_key}
+logging:
+  level:
+    org:
+      springframework:
+        ai: DEBUG
+        security: DEBUG
+deepl:
+  auth-key: ${DEEPL_API_KEY:deepl_auth_key}
+  default-target-lang: 'fr'
+zas:
+  security:
+    blue-token:
+      public-key: ${GATEWAY_PUBLIC_KEY}
+      header-name: blue
+proxy:
+  host: ${PROXY_HOST:proxy-bvcol.admin.ch}
+  port: ${PROXY_PORT:8080}
+  non-proxy-hosts: ${NON_PROXY_HOSTS:localhost,.admin.ch}
+  enabled: true
+ai:
+  agent:
+    ii-data-folder: ${II_DATA_FOLDER}

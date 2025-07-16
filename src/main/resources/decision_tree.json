@@ -1,0 +1,1739 @@
+[
+  {
+    "id": "1",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Droit ouvert dans le système linéaire?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une augmentation du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Oui"
+      }
+    ],
+    "answer": {
+      "decision": "Rente linéaire",
+      "sources": [
+        "Lettre b points 1 et 2 des dispositions transitoires de la modification du 19 juin 2020 (Développement continu de l’AI)",
+        "Lettre 1 des dispositions transitoires relatives à la modification du 18 octobre 2023 (RAI)"
+      ]
+    }
+  },
+  {
+    "id": "2",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Droit ouvert dans le système linéaire?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une augmentation du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Non"
+      }
+    ],
+    "answer": {
+      "decision": "Rente linéaire",
+      "sources": [
+        "Art 17 al. 1 let. b LPGA",
+        "Lettre 1 des dispositions transitoires relatives à la modification du 18 octobre 2023 (RAI)"
+      ]
+    }
+  },
+  {
+    "id": "3",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Droit ouvert dans le système linéaire?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une augmentation du degré d'invalidité?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Oui"
+      }
+    ],
+    "answer": {
+      "decision": "Rente linéaire",
+      "sources": [
+        "Art 17 al. 1 let. b LPGA",
+        "Lettre 1 des dispositions transitoires relatives à la modification du 18 octobre 2023 (RAI)"
+      ]
+    }
+  },
+  {
+    "id": "4",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Droit ouvert dans le système linéaire?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une augmentation du degré d'invalidité?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Non"
+      }
+    ],
+    "answer": {
+      "decision": "Rente linéaire",
+      "sources": [
+        "Art 17 al. 1 let. b LPGA",
+        "Lettre 1 des dispositions transitoires relatives à la modification du 18 octobre 2023 (RAI)",
+        "Art. 88bis al. 2 RAI"
+      ]
+    }
+  },
+  {
+    "id": "5",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Droit ouvert dans le système linéaire?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Non"
+      }
+    ],
+    "answer": {
+      "decision": "Rente linéaire",
+      "sources": [
+        "Lettre b point 1 des dispositions transitoires de la modification du 19 juin 2020 (Développement continu de l’AI)",
+        "Lettre 1 des dispositions transitoires relatives à la modification du 18 octobre 2023 (RAI)"
+      ]
+    }
+  },
+  {
+    "id": "6",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Droit ouvert dans le système linéaire?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Oui"
+      }
+    ],
+    "answer": {
+      "decision": "Rente linéaire",
+      "sources": [
+        "Lettre 1 des dispositions transitoires relatives à la modification du 18 octobre 2023 (RAI)"
+      ]
+    }
+  },
+  {
+    "id": "7",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Droit ouvert dans le système linéaire?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Non"
+      }
+    ],
+    "answer": {
+      "decision": "Rente linéaire",
+      "sources": [
+        "Ch. 9102 CIRAI",
+        "Lettre 1 des dispositions transitoires relatives à la modification du 18 octobre 2023 (RAI)"
+      ]
+    }
+  },
+  {
+    "id": "8",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Droit ouvert dans le système linéaire?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Oui"
+      },
+      {
+        "question": "L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?",
+        "answer": "Oui"
+      }
+    ],
+    "answer": {
+      "decision": "Rente par pallier",
+      "sources": [
+        "Lettre c des dispositions transitoires de la modification du 19 juin 2020 (Développement continu de l’AI)"
+      ]
+    }
+  },
+  {
+    "id": "9",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Droit ouvert dans le système linéaire?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Oui"
+      },
+      {
+        "question": "L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une augmentation du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une diminution du montant de la rente?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Le taux d'invalidité est-il d'au-moins 70%?",
+        "answer": "Oui"
+      }
+    ],
+    "answer": {
+      "decision": "Rente linéaire",
+      "sources": [
+        "Art 17 al. 1 let. b LPGA",
+        "Lettre 1 des dispositions transitoires relatives à la modification du 18 octobre 2023 (RAI)"
+      ]
+    }
+  },
+  {
+    "id": "10",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Droit ouvert dans le système linéaire?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Oui"
+      },
+      {
+        "question": "L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une augmentation du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une diminution du montant de la rente?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Le taux d'invalidité est-il d'au-moins 70%?",
+        "answer": "Non"
+      }
+    ],
+    "answer": {
+      "decision": "Rente par pallier",
+      "sources": [
+        "Lettre b points 1 et 2 des dispositions transitoires de la modification du 19 juin 2020 (Développement continu de l’AI)",
+        "Lettre 1 des dispositions transitoires relatives à la modification du 18 octobre 2023 (RAI)"
+      ]
+    }
+  },
+  {
+    "id": "11",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Droit ouvert dans le système linéaire?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Oui"
+      },
+      {
+        "question": "L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une augmentation du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une diminution du montant de la rente?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Non"
+      }
+    ],
+    "answer": {
+      "decision": "Rente par pallier",
+      "sources": [
+        "Lettre b points 1 et 2 des dispositions transitoires de la modification du 19 juin 2020 (Développement continu de l’AI)",
+        "Lettre 1 des dispositions transitoires relatives à la modification du 18 octobre 2023 (RAI)"
+      ]
+    }
+  },
+  {
+    "id": "12",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Droit ouvert dans le système linéaire?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Oui"
+      },
+      {
+        "question": "L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une augmentation du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une diminution du montant de la rente?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Oui"
+      }
+    ],
+    "answer": {
+      "decision": "Rente linéaire",
+      "sources": [
+        "Lettre b points 1 et 2 des dispositions transitoires de la modification du 19 juin 2020 (Développement continu de l’AI)",
+        "Lettre 1 des dispositions transitoires relatives à la modification du 18 octobre 2023 (RAI)"
+      ]
+    }
+  },
+  {
+    "id": "13",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Droit ouvert dans le système linéaire?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Oui"
+      },
+      {
+        "question": "L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une augmentation du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une diminution du montant de la rente?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Non"
+      }
+    ],
+    "answer": {
+      "decision": "Rente linéaire",
+      "sources": [
+        "Art 17 al. 1 let. b LPGA",
+        "Lettre 1 des dispositions transitoires relatives à la modification du 18 octobre 2023 (RAI)"
+      ]
+    }
+  },
+  {
+    "id": "14",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Droit ouvert dans le système linéaire?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Oui"
+      },
+      {
+        "question": "L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une augmentation du degré d'invalidité?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il une augmentation du montant de la rente?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Le taux d'invalidité est-il d'au-moins 50%?",
+        "answer": "Oui"
+      }
+    ],
+    "answer": {
+      "decision": "Rente par pallier",
+      "sources": [
+        "Ch. 9212 CIRAI",
+        "Lettre b points 1 et 2 des dispositions transitoires de la modification du 19 juin 2020 (Développement continu de l’AI)",
+        "Lettre 1 des dispositions transitoires relatives à la modification du 18 octobre 2023 (RAI)"
+      ]
+    }
+  },
+  {
+    "id": "15",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Droit ouvert dans le système linéaire?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Oui"
+      },
+      {
+        "question": "L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une augmentation du degré d'invalidité?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il une augmentation du montant de la rente?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Le taux d'invalidité est-il d'au-moins 50%?",
+        "answer": "Non"
+      }
+    ],
+    "answer": {
+      "decision": "Rente par pallier",
+      "sources": [
+        "Lettre b points 1 et 2 des dispositions transitoires de la modification du 19 juin 2020 (Développement continu de l’AI)",
+        "Lettre 1 des dispositions transitoires relatives à la modification du 18 octobre 2023 (RAI)"
+      ]
+    }
+  },
+  {
+    "id": "16",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Droit ouvert dans le système linéaire?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Oui"
+      },
+      {
+        "question": "L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une augmentation du degré d'invalidité?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il une augmentation du montant de la rente?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Non"
+      }
+    ],
+    "answer": {
+      "decision": "Rente par pallier",
+      "sources": [
+        "Lettre b points 1 et 2 des dispositions transitoires de la modification du 19 juin 2020 (Développement continu de l’AI)",
+        "Lettre 1 des dispositions transitoires relatives à la modification du 18 octobre 2023 (RAI)"
+      ]
+    }
+  },
+  {
+    "id": "17",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Droit ouvert dans le système linéaire?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Oui"
+      },
+      {
+        "question": "L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une augmentation du degré d'invalidité?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il une augmentation du montant de la rente?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Oui"
+      }
+    ],
+    "answer": {
+      "decision": "Rente linéaire",
+      "sources": [
+        "Lettre b points 1 et 2 des dispositions transitoires de la modification du 19 juin 2020 (Développement continu de l’AI)",
+        "Lettre 1 des dispositions transitoires relatives à la modification du 18 octobre 2023 (RAI)"
+      ]
+    }
+  },
+  {
+    "id": "18",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Droit ouvert dans le système linéaire?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Oui"
+      },
+      {
+        "question": "L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une augmentation du degré d'invalidité?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il une augmentation du montant de la rente?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Non"
+      }
+    ],
+    "answer": {
+      "decision": "Rente linéaire",
+      "sources": [
+        "Art 17 al. 1 let. b LPGA",
+        "Lettre 1 des dispositions transitoires relatives à la modification du 18 octobre 2023 (RAI)"
+      ]
+    }
+  },
+  {
+    "id": "19",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Droit ouvert dans le système linéaire?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Oui"
+      },
+      {
+        "question": "L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Non"
+      }
+    ],
+    "answer": {
+      "decision": "Rente par pallier",
+      "sources": [
+        "Art 17 al. 1 let. b LPGA"
+      ]
+    }
+  },
+  {
+    "id": "20",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Droit ouvert dans le système linéaire?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Oui"
+      }
+    ],
+    "answer": {
+      "decision": "Rente linéaire",
+      "sources": [
+        "Lettre 1 des dispositions transitoires relatives à la modification du 18 octobre 2023 (RAI)",
+        "Ch. 9102 CIRAI"
+      ]
+    }
+  },
+  {
+    "id": "21",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Droit ouvert dans le système linéaire?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il un changement de palier selon l'ancien système?",
+        "answer": "Oui"
+      }
+    ],
+    "answer": {
+      "decision": "Rente par pallier",
+      "sources": [
+        "Lettre b points 1 et 2 des dispositions transitoires de la modification du 19 juin 2020 (Développement continu de l’AI)",
+        "Ch. 9212 CIRAI"
+      ]
+    }
+  },
+  {
+    "id": "22",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Droit ouvert dans le système linéaire?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il un changement de palier selon l'ancien système?",
+        "answer": "Non"
+      }
+    ],
+    "answer": {
+      "decision": "Rente par pallier",
+      "sources": [
+        "Lettre b point 1 des dispositions transitoires de la modification du 19 juin 2020 (Développement continu de l’AI)",
+        "Ch. 9211 CIRAI"
+      ]
+    }
+  },
+  {
+    "id": "23",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Droit ouvert dans le système linéaire?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Non"
+      }
+    ],
+    "answer": {
+      "decision": "Rente par pallier",
+      "sources": [
+        "Art 17 al. 1 let. b LPGA",
+        "Art. 87 RAI",
+        "Ch. 5101 CIRAI",
+        "Lettre 1 des dispositions transitoires relatives à la modification du 18 octobre 2023 (RAI)"
+      ]
+    }
+  },
+  {
+    "id": "24",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Non"
+      },
+      {
+        "question": "S'agit-il d'une 1ère demande RER ou demande subséquente déposée avant le 01.07.2021 et échéance délai de carence avant le 01.01.2022?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Oui"
+      },
+      {
+        "question": "L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?",
+        "answer": "Oui"
+      }
+    ],
+    "answer": {
+      "decision": "Rente par pallier",
+      "sources": [
+        "Lettre c des dispositions transitoires de la modification du 19 juin 2020 (Développement continu de l’AI)"
+      ]
+    }
+  },
+  {
+    "id": "25",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Non"
+      },
+      {
+        "question": "S'agit-il d'une 1ère demande RER ou demande subséquente déposée avant le 01.07.2021 et échéance délai de carence avant le 01.01.2022?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Oui"
+      },
+      {
+        "question": "L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une augmentation du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une diminution du montant de la rente?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Le taux d'invalidité est-il d'au-moins 70%?",
+        "answer": "Oui"
+      }
+    ],
+    "answer": {
+      "decision": "Rente linéaire",
+      "sources": [
+        "Art 17 al. 1 let. b LPGA",
+        "Lettre 1 des dispositions transitoires relatives à la modification du 18 octobre 2023 (RAI)"
+      ]
+    }
+  },
+  {
+    "id": "26",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Non"
+      },
+      {
+        "question": "S'agit-il d'une 1ère demande RER ou demande subséquente déposée avant le 01.07.2021 et échéance délai de carence avant le 01.01.2022?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Oui"
+      },
+      {
+        "question": "L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une augmentation du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une diminution du montant de la rente?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Le taux d'invalidité est-il d'au-moins 70%?",
+        "answer": "Non"
+      }
+    ],
+    "answer": {
+      "decision": "Rente par pallier",
+      "sources": [
+        "Lettre b points 1 et 2 des dispositions transitoires de la modification du 19 juin 2020 (Développement continu de l’AI)"
+      ]
+    }
+  },
+  {
+    "id": "27",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Non"
+      },
+      {
+        "question": "S'agit-il d'une 1ère demande RER ou demande subséquente déposée avant le 01.07.2021 et échéance délai de carence avant le 01.01.2022?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Oui"
+      },
+      {
+        "question": "L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une augmentation du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une diminution du montant de la rente?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Non"
+      }
+    ],
+    "answer": {
+      "decision": "Rente par pallier",
+      "sources": [
+        "Lettre b points 1 et 2 des dispositions transitoires de la modification du 19 juin 2020 (Développement continu de l’AI)"
+      ]
+    }
+  },
+  {
+    "id": "28",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Non"
+      },
+      {
+        "question": "S'agit-il d'une 1ère demande RER ou demande subséquente déposée avant le 01.07.2021 et échéance délai de carence avant le 01.01.2022?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Oui"
+      },
+      {
+        "question": "L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une augmentation du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une diminution du montant de la rente?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Oui"
+      }
+    ],
+    "answer": {
+      "decision": "Rente linéaire",
+      "sources": [
+        "Art 17 al. 1 let. b LPGA",
+        "Lettre 1 des dispositions transitoires relatives à la modification du 18 octobre 2023 (RAI)"
+      ]
+    }
+  },
+  {
+    "id": "29",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Non"
+      },
+      {
+        "question": "S'agit-il d'une 1ère demande RER ou demande subséquente déposée avant le 01.07.2021 et échéance délai de carence avant le 01.01.2022?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Oui"
+      },
+      {
+        "question": "L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une augmentation du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une diminution du montant de la rente?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Non"
+      }
+    ],
+    "answer": {
+      "decision": "Rente linéaire",
+      "sources": [
+        "Art 17 al. 1 let. b LPGA",
+        "Ch. 9211 CIRAI",
+        "Lettre 1 des dispositions transitoires relatives à la modification du 18 octobre 2023 (RAI)"
+      ]
+    }
+  },
+  {
+    "id": "30",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Non"
+      },
+      {
+        "question": "S'agit-il d'une 1ère demande RER ou demande subséquente déposée avant le 01.07.2021 et échéance délai de carence avant le 01.01.2022?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Oui"
+      },
+      {
+        "question": "L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une augmentation du degré d'invalidité?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il une augmentation du montant de la rente?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Le taux d'invalidité est-il d'au-moins 50%?",
+        "answer": "Oui"
+      }
+    ],
+    "answer": {
+      "decision": "Rente par pallier",
+      "sources": [
+        "Lettre b points 1 et 2 des dispositions transitoires de la modification du 19 juin 2020 (Développement continu de l’AI)",
+        "Ch. 9212 CIRAI"
+      ]
+    }
+  },
+  {
+    "id": "31",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Non"
+      },
+      {
+        "question": "S'agit-il d'une 1ère demande RER ou demande subséquente déposée avant le 01.07.2021 et échéance délai de carence avant le 01.01.2022?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Oui"
+      },
+      {
+        "question": "L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une augmentation du degré d'invalidité?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il une augmentation du montant de la rente?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Le taux d'invalidité est-il d'au-moins 50%?",
+        "answer": "Non"
+      }
+    ],
+    "answer": {
+      "decision": "Rente par pallier",
+      "sources": [
+        "Lettre b points 1 et 2 des dispositions transitoires de la modification du 19 juin 2020 (Développement continu de l’AI)"
+      ]
+    }
+  },
+  {
+    "id": "32",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Non"
+      },
+      {
+        "question": "S'agit-il d'une 1ère demande RER ou demande subséquente déposée avant le 01.07.2021 et échéance délai de carence avant le 01.01.2022?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Oui"
+      },
+      {
+        "question": "L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une augmentation du degré d'invalidité?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il une augmentation du montant de la rente?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Non"
+      }
+    ],
+    "answer": {
+      "decision": "Rente par pallier",
+      "sources": [
+        "Lettre b points 1 et 2 des dispositions transitoires de la modification du 19 juin 2020 (Développement continu de l’AI)",
+        "Lettre 1 des dispositions transitoires relatives à la modification du 18 octobre 2023 (RAI)"
+      ]
+    }
+  },
+  {
+    "id": "33",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Non"
+      },
+      {
+        "question": "S'agit-il d'une 1ère demande RER ou demande subséquente déposée avant le 01.07.2021 et échéance délai de carence avant le 01.01.2022?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Oui"
+      },
+      {
+        "question": "L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une augmentation du degré d'invalidité?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il une augmentation du montant de la rente?",
+        "answer": "Non"
+      }
+    ],
+    "answer": {
+      "decision": "Rente linéaire",
+      "sources": [
+        "Art 17 al. 1 let. b LPGA",
+        "Lettre 1 des dispositions transitoires relatives à la modification du 18 octobre 2023 (RAI)"
+      ]
+    }
+  },
+  {
+    "id": "34",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Non"
+      },
+      {
+        "question": "S'agit-il d'une 1ère demande RER ou demande subséquente déposée avant le 01.07.2021 et échéance délai de carence avant le 01.01.2022?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Oui"
+      },
+      {
+        "question": "L'âge de l’assuré, au 01.01.2022, est-il égal ou supérieur (=>) à 55 ans?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Non"
+      }
+    ],
+    "answer": {
+      "decision": "Rente par pallier",
+      "sources": [
+        "Art 17 al. 1 let. b LPGA"
+      ]
+    }
+  },
+  {
+    "id": "35",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Non"
+      },
+      {
+        "question": "S'agit-il d'une 1ère demande RER ou demande subséquente déposée avant le 01.07.2021 et échéance délai de carence avant le 01.01.2022?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Oui"
+      }
+    ],
+    "answer": {
+      "decision": "Rente linéaire",
+      "sources": [
+        "Art 17 al. 1 let. b LPGA",
+        "Lettre 1 des dispositions transitoires relatives à la modification du 18 octobre 2023 (RAI)"
+      ]
+    }
+  },
+  {
+    "id": "36",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Non"
+      },
+      {
+        "question": "S'agit-il d'une 1ère demande RER ou demande subséquente déposée avant le 01.07.2021 et échéance délai de carence avant le 01.01.2022?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il un changement de palier selon l'ancien système?",
+        "answer": "Oui"
+      }
+    ],
+    "answer": {
+      "decision": "Rente par pallier",
+      "sources": [
+        "Lettre b points 1 et 2 des dispositions transitoires de la modification du 19 juin 2020 (Développement continu de l’AI)",
+        "Ch. 9212 CIRAI"
+      ]
+    }
+  },
+  {
+    "id": "37",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Non"
+      },
+      {
+        "question": "S'agit-il d'une 1ère demande RER ou demande subséquente déposée avant le 01.07.2021 et échéance délai de carence avant le 01.01.2022?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il un changement de palier selon l'ancien système?",
+        "answer": "Non"
+      }
+    ],
+    "answer": {
+      "decision": "Rente par pallier",
+      "sources": [
+        "Lettre b point 1 des dispositions transitoires de la modification du 19 juin 2020 (Développement continu de l’AI)",
+        "Ch. 9211 CIRAI"
+      ]
+    }
+  },
+  {
+    "id": "38",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Non"
+      },
+      {
+        "question": "S'agit-il d'une 1ère demande RER ou demande subséquente déposée avant le 01.07.2021 et échéance délai de carence avant le 01.01.2022?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Non"
+      }
+    ],
+    "answer": {
+      "decision": "Rente par pallier",
+      "sources": [
+        "Art 17 al. 1 let. b LPGA",
+        "Art. 87 RAI",
+        "Ch. 5101 CIRAI"
+      ]
+    }
+  },
+  {
+    "id": "39",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Non"
+      },
+      {
+        "question": "S'agit-il d'une 1ère demande RER ou demande subséquente déposée avant le 01.07.2021 et échéance délai de carence avant le 01.01.2022?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une augmentation du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Oui"
+      }
+    ],
+    "answer": {
+      "decision": "Rente par pallier",
+      "sources": [
+        "Lettre b points 1 et 2 des dispositions transitoires de la modification du 19 juin 2020 (Développement continu de l’AI)",
+        "Lettre 1 des dispositions transitoires relatives à la modification du 18 octobre 2023 (RAI)"
+      ]
+    }
+  },
+  {
+    "id": "40",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Non"
+      },
+      {
+        "question": "S'agit-il d'une 1ère demande RER ou demande subséquente déposée avant le 01.07.2021 et échéance délai de carence avant le 01.01.2022?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une augmentation du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Non"
+      }
+    ],
+    "answer": {
+      "decision": "Rente linéaire",
+      "sources": [
+        "Art 17 al. 1 let. b LPGA",
+        "Lettre 1 des dispositions transitoires relatives à la modification du 18 octobre 2023 (RAI)"
+      ]
+    }
+  },
+  {
+    "id": "41",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Non"
+      },
+      {
+        "question": "S'agit-il d'une 1ère demande RER ou demande subséquente déposée avant le 01.07.2021 et échéance délai de carence avant le 01.01.2022?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une augmentation du degré d'invalidité?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Oui"
+      }
+    ],
+    "answer": {
+      "decision": "Rente linéaire",
+      "sources": [
+        "Art 17 al. 1 let. b LPGA",
+        "Lettre 1 des dispositions transitoires relatives à la modification du 18 octobre 2023 (RAI)"
+      ]
+    }
+  },
+  {
+    "id": "42",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Non"
+      },
+      {
+        "question": "S'agit-il d'une 1ère demande RER ou demande subséquente déposée avant le 01.07.2021 et échéance délai de carence avant le 01.01.2022?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il une augmentation du degré d'invalidité?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Non"
+      }
+    ],
+    "answer": {
+      "decision": "Rente linéaire",
+      "sources": [
+        "Art. 88bis al. 2 RAI",
+        "Art 17 al. 1 let. b LPGA",
+        "Lettre 1 des dispositions transitoires relatives à la modification du 18 octobre 2023 (RAI)"
+      ]
+    }
+  },
+  {
+    "id": "43",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Non"
+      },
+      {
+        "question": "S'agit-il d'une 1ère demande RER ou demande subséquente déposée avant le 01.07.2021 et échéance délai de carence avant le 01.01.2022?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Oui"
+      }
+    ],
+    "answer": {
+      "decision": "Rente linéaire",
+      "sources": [
+        "Lettre 1 des dispositions transitoires relatives à la modification du 18 octobre 2023 (RAI)"
+      ]
+    }
+  },
+  {
+    "id": "44",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Non"
+      },
+      {
+        "question": "S'agit-il d'une 1ère demande RER ou demande subséquente déposée avant le 01.07.2021 et échéance délai de carence avant le 01.01.2022?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Oui"
+      },
+      {
+        "question": "Y a-t-il eu une modification d'au moins 5% du degré d'invalidité?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Non"
+      }
+    ],
+    "answer": {
+      "decision": "Rente linéaire",
+      "sources": [
+        "Art 17 al. 1 let. b LPGA",
+        "Lettre 1 des dispositions transitoires relatives à la modification du 18 octobre 2023 (RAI)"
+      ]
+    }
+  },
+  {
+    "id": "45",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Non"
+      },
+      {
+        "question": "S'agit-il d'une 1ère demande RER ou demande subséquente déposée avant le 01.07.2021 et échéance délai de carence avant le 01.01.2022?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Oui"
+      }
+    ],
+    "answer": {
+      "decision": "Rente linéaire",
+      "sources": [
+        "Lettre 1 des dispositions transitoires relatives à la modification du 18 octobre 2023 (RAI)"
+      ]
+    }
+  },
+  {
+    "id": "46",
+    "path": [
+      {
+        "question": "S'agit-il d'une révision (sur demande ou d'office)?",
+        "answer": "Non"
+      },
+      {
+        "question": "S'agit-il d'une 1ère demande RER ou demande subséquente déposée avant le 01.07.2021 et échéance délai de carence avant le 01.01.2022?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une modification des faits entre le 01.01.2022 et le 31.12.2023?",
+        "answer": "Non"
+      },
+      {
+        "question": "Y a-t-il eu une augmentation du taux depuis le 01.01.2024?",
+        "answer": "Non"
+      }
+    ],
+    "answer": {
+      "decision": "Rente linéaire",
+      "sources": [
+        "Ch. 9102 CIRAI",
+        "Lettre 1 des dispositions transitoires relatives à la modification du 18 octobre 2023 (RAI)"
+      ]
+    }
+  }
+]

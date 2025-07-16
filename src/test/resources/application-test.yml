@@ -4,3 +4,9 @@ spring:
     username: sa
     password:
     driver-class-name: org.h2.Driver
+  ai:
+    vectorstore:
+      pgvector:
+        initialize-schema: false
+
+II_DATA_FOLDER: ''

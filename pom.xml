@@ -2,22 +2,35 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>3.3.0</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
+
     <groupId>zas.admin.zec</groupId>
     <artifactId>copilot-backend</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>copilot-backend</name>
     <description>copilot-backend</description>
+
     <properties>
         <java.version>21</java.version>
         <jjwt.version>0.12.6</jjwt.version>
+        <mapstruct.version>1.6.3</mapstruct.version>
+        <spring-ai.version>1.0.0</spring-ai.version>
+        <caffeine.version>3.2.0</caffeine.version>
+        <zas-common-security-starter.version>3.3.5</zas-common-security-starter.version>
     </properties>
+
     <dependencies>
+        <dependency>
+            <groupId>ch.admin.zas.commons</groupId>
+            <artifactId>zas-common-security-starter</artifactId>
+            <version>${zas-common-security-starter.version}</version>
+        </dependency>
         <!-- Spring -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -38,6 +51,22 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-openai</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-client-chat</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-rag</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-vector-store-pgvector</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -69,6 +98,11 @@
 
         <!-- Database -->
         <dependency>
+            <groupId>org.hibernate.orm</groupId>
+            <artifactId>hibernate-vector</artifactId>
+            <version>${hibernate.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
@@ -97,6 +131,11 @@
 
         <!-- Utilities -->
         <dependency>
+            <groupId>com.deepl.api</groupId>
+            <artifactId>deepl-java</artifactId>
+            <version>1.9.0</version>
+        </dependency>
+        <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
@@ -107,7 +146,44 @@
             <artifactId>tika-core</artifactId>
             <version>3.0.0</version>
         </dependency>
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+            <version>${mapstruct.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct-processor</artifactId>
+            <version>${mapstruct.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+            <version>${caffeine.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-csv</artifactId>
+            <version>1.10.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-text</artifactId>
+            <version>1.10.0</version>
+        </dependency>
     </dependencies>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>${spring-ai.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <build>
         <plugins>
@@ -125,5 +201,4 @@
             </plugin>
         </plugins>
     </build>
-
 </project>

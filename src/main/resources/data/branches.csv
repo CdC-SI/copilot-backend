@@ -1,0 +1,62 @@
+id,label
+01-96, TOTAL
+01-03, SECTEUR PRIMAIRE
+05-43, SECTEUR SECONDAIRE
+05-09, Industries extractives
+10-33, Industrie manufacturière
+10-12, Industries alimentaires et du tabac
+13-15, Industries du textile et de l’habillement
+16-18, Industries du bois et du papier ; imprimerie
+19-20, Cokéfaction, raffinage et industrie chimique
+21, Industrie pharmaceutique
+22-23, Industries du caoutchouc et du plastique
+24-25, Fabrication de produits métalliques
+26, Fabrication de produits électroniques; horlogerie
+27, Fabrication d’équipements électriques
+28, Fabrication de machines et équipements n.c.a
+29-30, Fabrication de matériels de transport
+31-33, Autres industries manufacturières; rép. et inst.
+35, Production et distribution d’énergie
+36-39, Production et distr. d’eau; gestion des déchets
+41-43, Construction
+41-42, Construction de bâtiments et génie civil
+43, Travaux de construction spécialisés
+45-96, SECTEUR TERTIAIRE
+45-47, Commerce; réparation d'automobiles et de motocycles
+45, Commerce et rép. d’automobiles et de motocycles
+46, Commerce de gros
+47, Commerce de détail
+49-53, Transport et entreposage
+49, Transports terrestres et transport par conduites
+50-51, Transports par eau, transports aériens
+52, Entreposage et services auxiliaires des transports
+53, Activités de poste et de courrier
+55-56, Hébergement et restauration
+55, Hébergement
+56, Restauration
+58-63, Information et communication
+58-60, Édition, audiovisuel et diffusion
+61, Télécommunications
+62-63, Activités informatiques et services d’information
+64-66, Activités financières et d'assurance
+64, Activités des services financiers
+65, Assurance
+66, Activités aux. de services financiers et d’assurance
+68, Activités immobilières
+69-75, Activités spécialisées, scientifiques et techniques
+69, Activités juridiques et comptables
+70, Activités des sièges sociaux ; conseil de gestion
+71, Activités d’architecture et d’ingénierie
+72, Recherche-développement scientifique
+73-75, Autres activités spécialisées, scient. et techn.
+77-82, Activités de services administratifs et de soutien
+77+79-82, Activités de services administratifs (sans 78)
+78, Activités liées à l'emploi
+84, Administration publique
+85, Enseignement
+86-88, Santé humaine et action sociale
+86, Activités pour la santé humaine
+87, Hébergement médico-social et social
+88, Action sociale sans hébergement
+90-93, Arts, spectacles et activités récréatives
+94-96, Autres activités de services
