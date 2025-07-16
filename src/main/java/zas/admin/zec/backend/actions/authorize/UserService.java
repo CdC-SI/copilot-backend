@@ -29,7 +29,8 @@ public class UserService {
                 entity.getFirstName(),
                 entity.getLastName(),
                 entity.getStatus(),
-                entity.getRoles()));
+                entity.getRoles(),
+                entity.isInternalUser()));
     }
 
     public String getUuid(String username) {
@@ -58,7 +59,8 @@ public class UserService {
                         entity.getLastName(),
                         entity.getStatus(),
                         entity.getRoles().stream().map(Role::from).toList(),
-                        entity.getOrganizations()))
+                        entity.getOrganizations(),
+                        entity.isInternalUser()))
                 .orElseThrow(() -> new IllegalArgumentException(USER_NOT_FOUND));
     }
 
@@ -75,6 +77,7 @@ public class UserService {
         user.setStatus(UserStatus.PENDING_ACTIVATION);
         user.setOrganizations(registration.organizations() == null ? List.of() : registration.organizations());
         user.setRoles(List.of(Role.USER.name()));
+        user.setInternalUser(registration.organizations() != null && registration.organizations().contains("ZAS"));
 
         UserEntity savedUser = userRepository.save(user);
         return savedUser.getUuid();
@@ -143,5 +146,32 @@ public class UserService {
         log.debug("Demoting {}", user.getUsername());
         user.getRoles().remove(Role.ADMIN.name());
         userRepository.save(user);
+    }
+
+    public void internalize(String username) {
+        UserEntity user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException(USER_NOT_FOUND));
+
+        user.setInternalUser(true);
+        if (!user.getOrganizations().contains("ZAS")) {
+            user.getOrganizations().add("ZAS");
+        }
+
+        log.debug("Internalizing {}", user.getUsername());
+        userRepository.save(user);
+    }
+
+    public void externalize(String username) {
+        UserEntity user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException(USER_NOT_FOUND));
+
+        user.setInternalUser(false);
+        user.getOrganizations().remove("ZAS");
+        log.debug("Externalizing {}", user.getUsername());
+        userRepository.save(user);
+    }
+
+    public boolean hasAccessToInternalDocuments(String userId) {
+        return userRepository.existsByUuidAndInternalUser(userId, true);
     }
 }

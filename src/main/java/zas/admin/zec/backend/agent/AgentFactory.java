@@ -3,8 +3,10 @@ package zas.admin.zec.backend.agent;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import zas.admin.zec.backend.actions.converse.Question;
+import zas.admin.zec.backend.tools.ConversationMetaDataHolder;
 
 import java.util.Set;
 
@@ -13,15 +15,30 @@ public class AgentFactory {
 
     private final Set<Agent> agents;
     private final ChatClient chatClient;
+    private final ConversationMetaDataHolder conversationMetaDataHolder;
 
     @Autowired
-    public AgentFactory(Set<Agent> agents, ChatModel chatModel) {
+    public AgentFactory(Set<Agent> agents, @Qualifier("publicChatModel") ChatModel chatModel, ConversationMetaDataHolder conversationMetaDataHolder) {
         this.agents = agents;
         this.chatClient = ChatClient.create(chatModel);
+        this.conversationMetaDataHolder = conversationMetaDataHolder;
     }
 
     record AgentSelection(String agent) {}
     public Agent selectAppropriateAgent(Question question) {
+        var agentType = selectAgentType(question);
+        return agents.stream()
+                .filter(agent -> agent.getType() == agentType)
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("No agent found for type: " + agentType));
+    }
+
+    private AgentType selectAgentType(Question question) {
+        return conversationMetaDataHolder.getCurrentAgentInUse(question.conversationId())
+                .orElseGet(() -> inferAgentType(question));
+    }
+
+    private AgentType inferAgentType(Question question) {
         var systemPrompt = AgentPrompts.getAgentSelectionPrompt(question.language())
                 .formatted(question.query(), "");
 
@@ -32,13 +49,8 @@ public class AgentFactory {
                 .call()
                 .entity(AgentSelection.class);
 
-        var agentType = inferredAgent != null
+        return inferredAgent != null
                 ? AgentType.fromString(inferredAgent.agent())
                 : AgentType.RAG_AGENT;
-
-        return agents.stream()
-                .filter(agent -> agent.getType() == agentType)
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("No agent found for type: " + agentType));
     }
 }

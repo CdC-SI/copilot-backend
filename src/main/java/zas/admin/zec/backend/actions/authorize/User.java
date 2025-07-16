@@ -8,5 +8,6 @@ public record User(
     String lastName,
     UserStatus status,
     List<Role> roles,
-    List<String> organizations
+    List<String> organizations,
+    boolean internalUser
 ) {}

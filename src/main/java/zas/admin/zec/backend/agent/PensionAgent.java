@@ -2,6 +2,7 @@ package zas.admin.zec.backend.agent;
 
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import zas.admin.zec.backend.actions.converse.Message;
@@ -19,7 +20,7 @@ public class PensionAgent implements Agent {
 
     private final ChatClient client;
 
-    public PensionAgent(ChatModel model) {
+    public PensionAgent(@Qualifier("publicChatModel") ChatModel model) {
         this.client = ChatClient.create(model);
     }
 
@@ -49,9 +50,9 @@ public class PensionAgent implements Agent {
 
     private Flux<SourceToken> getPensionCalculationSource(String language) {
         return switch (language) {
-            case "fr" -> Flux.just(new SourceToken("https://www.eak.admin.ch/eak/fr/home/dokumentation/pensionierung/reform-ahv21/kuerzungssaetze-bei-vorbezug.html"));
-            case "it" -> Flux.just(new SourceToken("https://www.eak.admin.ch/eak/it/home/dokumentation/pensionierung/reform-ahv21/kuerzungssaetze-bei-vorbezug.html"));
-            default -> Flux.just(new SourceToken("https://www.eak.admin.ch/eak/de/home/dokumentation/pensionierung/reform-ahv21/kuerzungssaetze-bei-vorbezug.html"));
+            case "fr" -> Flux.just(SourceToken.fromURL("https://www.eak.admin.ch/eak/fr/home/dokumentation/pensionierung/reform-ahv21/kuerzungssaetze-bei-vorbezug.html"));
+            case "it" -> Flux.just(SourceToken.fromURL("https://www.eak.admin.ch/eak/it/home/dokumentation/pensionierung/reform-ahv21/kuerzungssaetze-bei-vorbezug.html"));
+            default -> Flux.just(SourceToken.fromURL("https://www.eak.admin.ch/eak/de/home/dokumentation/pensionierung/reform-ahv21/kuerzungssaetze-bei-vorbezug.html"));
         };
     }
 }

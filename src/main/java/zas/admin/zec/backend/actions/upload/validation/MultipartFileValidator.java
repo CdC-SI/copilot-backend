@@ -1,4 +1,4 @@
-package zas.admin.zec.backend.actions.upload;
+package zas.admin.zec.backend.actions.upload.validation;
 
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
@@ -14,8 +14,16 @@ import java.util.List;
 public class MultipartFileValidator implements ConstraintValidator<ValidMultipartFile, MultipartFile> {
 
     private static final long LIMIT_SIZE_PER_FILE = 10 * 1024 * 1024L;
-    private static final List<String> ALLOWED_MIME_TYPES = List.of("application/pdf");
-    
+    private final List<String> allowedMimeTypes;
+
+    public MultipartFileValidator() {
+        allowedMimeTypes= List.of("application/pdf");
+    }
+
+    public MultipartFileValidator(List<String> allowedMimeTypes) {
+        this.allowedMimeTypes = allowedMimeTypes;
+    }
+
     @Override
     public boolean isValid(MultipartFile file, ConstraintValidatorContext context) {
         if (file == null) {
@@ -46,7 +54,7 @@ public class MultipartFileValidator implements ConstraintValidator<ValidMultipar
         return false;
     }
     private boolean isAllowedMimeType(String mimeType, ConstraintValidatorContext context) {
-        if (mimeType != null && ALLOWED_MIME_TYPES.contains(mimeType)) {
+        if (mimeType != null && allowedMimeTypes.contains(mimeType)) {
             return true;
         }
 
@@ -55,11 +63,15 @@ public class MultipartFileValidator implements ConstraintValidator<ValidMultipar
     }
 
     private boolean isMagicNumberMatchingExtension(MultipartFile file, String mimeType, ConstraintValidatorContext context) {
+        if (!mimeType.equals("application/pdf")) {
+            return true;
+        }
+
         var tika = new Tika();
         try {
             String mimeTypeFromMagicNumber = tika.detect(file.getInputStream());
             log.info("File type detected: {}", mimeTypeFromMagicNumber);
-            if (ALLOWED_MIME_TYPES.contains(mimeTypeFromMagicNumber) && mimeType.equals(mimeTypeFromMagicNumber)) {
+            if (allowedMimeTypes.contains(mimeTypeFromMagicNumber) && mimeType.equals(mimeTypeFromMagicNumber)) {
                 return true;
             }
         } catch (IOException e) {

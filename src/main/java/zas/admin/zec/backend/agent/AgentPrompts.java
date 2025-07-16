@@ -1,5 +1,7 @@
 package zas.admin.zec.backend.agent;
 
+import org.springframework.ai.chat.prompt.PromptTemplate;
+
 public class AgentPrompts {
     private static final String AGENT_SELECTION_PROMPT_FR = """
             <instructions>
@@ -23,6 +25,9 @@ public class AgentPrompts {
             
                 PENSION_AGENT: questions sur le calcul du taux de réduction lié au départ à la retraite
                 PENSION_AGENT: questions sur le calcul de supplément de rente lié au départ à la retraite
+
+                II_AGENT: questions sur le calcul de la rente AI
+                II_AGENT: questions sur l'atribution de rentes AI
             </agents>
             
             <exemples>
@@ -35,6 +40,8 @@ public class AgentPrompts {
                 Je suis née le 1962.31.12, je souhaite prendre ma retraite le 01.01.2025 et mon revenu annuel est d'environ 55'000 CHF. Quel est mon taux de réduction ? -> PENSION_AGENT
                 Quel sera mon taux de réduction si je suis née le 1965-11-07, je souhaite prendre ma retraite le 2026-04-15 et mon revenu annuel est de 76200 ? -> PENSION_AGENT
                 Voici mes informations: date de naissance le 03.01.1968 et je pars à la retraite en 2027. Je gagne environ 90000 CHF par an. Puis-je bénéficier d'un supplément ou taux de réduction ? -> PENSION_AGENT
+                J'ai besoin d'aide pour calculer la rente AI d'un bénéficiaire. -> II_AGENT
+                Je souhaite calculer mon salaire exigible, je bénéficie d’une rente invalidité. -> II_AGENT
             </exemples>
             
             <question>
@@ -136,6 +143,21 @@ public class AgentPrompts {
             <storia_conversazionale>
             """;
 
+    private static final PromptTemplate MODULE_EXPLANATION_FR = new PromptTemplate("""
+            Tu es un agent d’assistance expert pour l’AVS/AI.
+            L’objectif de cette conversation était de déterminer un système de rente à utiliser et de calculer le salaire exigible.
+            Pour rappel voici ce que tu as déjà fait :
+                Décision:
+                {decision}
+            
+                Calcul:
+                {calculation}
+            
+            Tu dois maintenant répondre aux intérrogations de l’utilisateur (qui est un gestionnaire AI) et lui fournir l’aide demandée.
+            Notamment sur l’aide à la formulation d’une réponse à l’assuré, tu peux utiliser la fonction module_explanation (si requis par l’utilisateur).
+            En t’inspirant des exemples tu peux proposer une réponse synthétique des informations obtenues précédemment.
+            """);
+
     private AgentPrompts() {}
 
     public static String getAgentSelectionPrompt(String language) {
@@ -144,5 +166,9 @@ public class AgentPrompts {
             case "it" -> AGENT_SELECTION_PROMPT_IT;
             default -> AGENT_SELECTION_PROMPT_DE;
         };
+    }
+
+    public static PromptTemplate getModuleExplanationPrompt() {
+        return MODULE_EXPLANATION_FR;
     }
 }

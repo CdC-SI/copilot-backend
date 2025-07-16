@@ -45,6 +45,10 @@ public class MessageEntity {
     @Column(name = "sources", columnDefinition = "text[]")
     private String[] sources;
 
+    @Type(StringArrayType.class)
+    @Column(name = "suggestions", columnDefinition = "text[]")
+    private String[] suggestions;
+
     @Column(name = "faq_id")
     private Long faqId;
 

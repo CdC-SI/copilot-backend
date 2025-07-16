@@ -3,9 +3,7 @@ package zas.admin.zec.backend.actions.parametrize;
 import org.springframework.stereotype.Service;
 import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.config.properties.ApplicationProperties;
-import zas.admin.zec.backend.persistence.entity.SourceEntity;
-import zas.admin.zec.backend.persistence.repository.DocumentRepository;
-import zas.admin.zec.backend.persistence.repository.SourceRepository;
+import zas.admin.zec.backend.persistence.repository.InternalDocumentRepository;
 
 import java.util.List;
 import java.util.stream.Stream;
@@ -15,22 +13,21 @@ public class SettingService {
 
     private final ApplicationProperties properties;
     private final UserService userService;
-    private final DocumentRepository documentRepository;
-    private final SourceRepository sourceRepository;
+    private final InternalDocumentRepository internalDocumentRepository;
 
-    public SettingService(ApplicationProperties properties, UserService userService,
-                          DocumentRepository documentRepository, SourceRepository sourceRepository) {
+    public SettingService(ApplicationProperties properties,
+                          UserService userService,
+                          InternalDocumentRepository internalDocumentRepository) {
 
         this.properties = properties;
         this.userService = userService;
-        this.documentRepository = documentRepository;
-        this.sourceRepository = sourceRepository;
+        this.internalDocumentRepository = internalDocumentRepository;
     }
 
     public List<String> getPublicSettings(SettingType type) {
         return switch (type) {
             case SOURCE -> getPublicSources();
-            case TAG -> getPublicTags();
+            case TAG -> getPublicTags(List.of());
             default -> getSettings(type, null);
         };
     }
@@ -38,7 +35,7 @@ public class SettingService {
     public List<String> getSettings(SettingType type, String currentUser) {
         return switch (type) {
             case SOURCE -> getSources(currentUser);
-            case TAG -> getTags(currentUser);
+            case TAG -> getTags(currentUser, List.of());
             case PROJECT_VERSION -> List.of(properties.version());
             case LLM_MODEL -> getSettings(LLMModel.class);
             case RETRIEVAL_METHOD -> getSettings(RetrievalMethod.class);
@@ -49,32 +46,31 @@ public class SettingService {
         };
     }
 
-    private List<String> getPublicTags() {
-        return documentRepository.findTags(null, null);
+    public List<String> getPublicTags(List<String> sources) {
+        return sources.isEmpty()
+            ? internalDocumentRepository.findPublicTags()
+            : internalDocumentRepository.findPublicTagsBySources(sources);
     }
 
-    private List<String> getTags(String currentUser) {
+    public List<String> getTags(String currentUser, List<String> sources) {
         var userId = userService.getUuid(currentUser);
-        var organizations = userService.getOrganizations(currentUser);
-        return documentRepository.findTags(userId, organizations.toArray(String[]::new));
+        if (!userService.hasAccessToInternalDocuments(userId)) {
+            return getPublicTags(sources);
+        }
+        return sources.isEmpty()
+                ? internalDocumentRepository.findAllTags()
+                : internalDocumentRepository.findTagsBySources(sources);
     }
 
     private List<String> getPublicSources() {
-        var sourceIds = documentRepository.findSourceIds(null, null);
-        return sourceRepository.findAllById(sourceIds)
-                .stream()
-                .map(SourceEntity::getUrl)
-                .toList();
+        return internalDocumentRepository.findPublicSources();
     }
 
     private List<String> getSources(String currentUser) {
         var userId = userService.getUuid(currentUser);
-        var organizations = userService.getOrganizations(currentUser);
-        var sourceIds = documentRepository.findSourceIds(userId, organizations.toArray(String[]::new));
-        return sourceRepository.findAllById(sourceIds)
-                .stream()
-                .map(SourceEntity::getUrl)
-                .toList();
+        return userService.hasAccessToInternalDocuments(userId)
+                ? internalDocumentRepository.findAllSources()
+                : getPublicSources();
     }
 
     private List<String> getSettings(Class<? extends Enum<?>> enumClass) {

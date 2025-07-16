@@ -34,11 +34,8 @@ public class UserEntity {
     private List<String> roles;
 
     @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(
-        name = "user_entity_organizations",
-        joinColumns = @JoinColumn(name = "user_uuid")
-    )
-    @Column(name = "organization")
     private List<String> organizations;
 
+    @Column(name = "internal_user")
+    private boolean internalUser;
 }

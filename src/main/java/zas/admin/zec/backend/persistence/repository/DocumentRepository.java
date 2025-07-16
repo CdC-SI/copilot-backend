@@ -3,11 +3,12 @@ package zas.admin.zec.backend.persistence.repository;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import zas.admin.zec.backend.persistence.entity.DocumentEntity;
+import zas.admin.zec.backend.persistence.entity.PublicDocumentEntity;
+import zas.admin.zec.backend.persistence.entity.PublicDocumentProjection;
 
 import java.util.List;
 
-public interface DocumentRepository extends JpaRepository<DocumentEntity, Integer> {
+public interface DocumentRepository extends JpaRepository<PublicDocumentEntity, Integer> {
 
     @Query(value = """
               SELECT DISTINCT d.tags
@@ -40,7 +41,21 @@ public interface DocumentRepository extends JpaRepository<DocumentEntity, Intege
                     """,
             nativeQuery = true
     )
-    List<DocumentEntity> findNearestsByTextEmbedding(
+    List<PublicDocumentEntity> findNearestsByTextEmbedding(
+            @Param("textEmbedding") String textEmbedding,
+            @Param("limit") int limit
+    );
+
+    @Query(
+            value = """
+                    SELECT d.id, d.text, d.url, d.text_embedding <=> CAST(:textEmbedding AS vector(1536)) as distance
+                    FROM document d
+                    ORDER BY distance
+                    LIMIT :limit
+                    """,
+            nativeQuery = true
+    )
+    List<PublicDocumentProjection> findNearestsProjectionByTextEmbedding(
             @Param("textEmbedding") String textEmbedding,
             @Param("limit") int limit
     );

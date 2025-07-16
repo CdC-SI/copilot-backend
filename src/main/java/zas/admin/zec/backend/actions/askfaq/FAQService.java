@@ -1,12 +1,15 @@
 package zas.admin.zec.backend.actions.askfaq;
 
 import org.springframework.ai.embedding.EmbeddingModel;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import zas.admin.zec.backend.config.properties.FAQSearchProperties;
-import zas.admin.zec.backend.persistence.entity.DocumentEntity;
 import zas.admin.zec.backend.persistence.entity.FAQItemEntity;
+import zas.admin.zec.backend.persistence.entity.PublicDocumentEntity;
 import zas.admin.zec.backend.persistence.entity.SourceEntity;
+import zas.admin.zec.backend.persistence.repository.DocumentRepository;
 import zas.admin.zec.backend.persistence.repository.FAQItemRepository;
+import zas.admin.zec.backend.persistence.repository.SourceRepository;
 import zas.admin.zec.backend.tools.EntityMapper;
 
 import java.util.Arrays;
@@ -18,15 +21,24 @@ import java.util.stream.Stream;
 public class FAQService {
 
     private final FAQItemRepository faqItemRepository;
+    private final SourceRepository sourceRepository;
+    private final DocumentRepository documentRepository;
     private final FAQSearchProperties faqSearchProperties;
     private final EntityMapper entityMapper;
     private final EmbeddingModel embeddingModel;
     private final FAQCache faqCache;
 
-    public FAQService(FAQItemRepository faqItemRepository, FAQSearchProperties faqSearchProperties,
-                      EntityMapper entityMapper, EmbeddingModel embeddingModel, FAQCache faqCache) {
+    public FAQService(FAQItemRepository faqItemRepository,
+                      SourceRepository sourceRepository,
+                      DocumentRepository documentRepository,
+                      FAQSearchProperties faqSearchProperties,
+                      EntityMapper entityMapper,
+                      @Qualifier("publicEmbeddingModel") EmbeddingModel embeddingModel,
+                      FAQCache faqCache) {
 
         this.faqItemRepository = faqItemRepository;
+        this.sourceRepository = sourceRepository;
+        this.documentRepository = documentRepository;
         this.faqSearchProperties = faqSearchProperties;
         this.entityMapper = entityMapper;
         this.embeddingModel = embeddingModel;
@@ -58,14 +70,22 @@ public class FAQService {
     }
 
     private FAQItem create(FAQItemLight faqItemLight) {
-        SourceEntity source = new SourceEntity();
-        source.setUrl(faqItemLight.url());
+        var sourceOpt = sourceRepository.findByUrl("faq");
+        SourceEntity source;
+        if (sourceOpt.isEmpty()) {
+            source = new SourceEntity();
+            source.setUrl("faq");
+            source = sourceRepository.save(source);
+        } else {
+            source = sourceOpt.get();
+        }
 
-        DocumentEntity answer = new DocumentEntity();
+        PublicDocumentEntity answer = new PublicDocumentEntity();
         answer.setSource(source);
         answer.setUrl(faqItemLight.url());
         answer.setLanguage(faqItemLight.language());
         answer.setText(faqItemLight.answer());
+        answer = documentRepository.save(answer);
 
         FAQItemEntity faqItemEntity = new FAQItemEntity();
         faqItemEntity.setSource(source);
@@ -87,7 +107,7 @@ public class FAQService {
         byId.getAnswer().setText(faqItemLight.answer());
         byId.getAnswer().setUrl(faqItemLight.url());
         byId.getAnswer().setLanguage(faqItemLight.language());
-        byId.getSource().setUrl(faqItemLight.url());
+        documentRepository.save(byId.getAnswer());
 
         return entityMapper.map(faqItemRepository.save(byId));
     }
