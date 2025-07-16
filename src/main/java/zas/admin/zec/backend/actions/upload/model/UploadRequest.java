@@ -7,4 +7,5 @@ import zas.admin.zec.backend.actions.upload.validation.ValidMultipartFile;
 public record UploadRequest(
         @NotNull @ValidMultipartFile MultipartFile multipartFile,
         String lang,
-        Boolean embed) {}
+        Boolean embed,
+        String conversationId) {}
