@@ -12,7 +12,7 @@
 
     <groupId>zas.admin.zec</groupId>
     <artifactId>copilot-backend</artifactId>
-    <version>1.0.0</version>
+    <version>1.1.0-SNAPSHOT</version>
     <name>copilot-backend</name>
     <description>copilot-backend</description>
 
