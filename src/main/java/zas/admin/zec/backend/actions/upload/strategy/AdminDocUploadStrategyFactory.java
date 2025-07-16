@@ -2,23 +2,23 @@ package zas.admin.zec.backend.actions.upload.strategy;
 
 import org.springframework.stereotype.Component;
 import zas.admin.zec.backend.actions.upload.model.DocumentToUpload;
-import zas.admin.zec.backend.persistence.repository.InternalDocumentRepository;
+import zas.admin.zec.backend.persistence.repository.DocumentRepository;
 import zas.admin.zec.backend.persistence.repository.TempSourceDocumentRepository;
 
 @Component
 public class AdminDocUploadStrategyFactory {
 
     private final TempSourceDocumentRepository sourceRepository;
-    private final InternalDocumentRepository internalDocumentRepository;
+    private final DocumentRepository documentRepository;
 
-    public AdminDocUploadStrategyFactory(TempSourceDocumentRepository sourceRepository, InternalDocumentRepository internalDocumentRepository) {
+    public AdminDocUploadStrategyFactory(TempSourceDocumentRepository sourceRepository, DocumentRepository documentRepository) {
         this.sourceRepository = sourceRepository;
-        this.internalDocumentRepository = internalDocumentRepository;
+        this.documentRepository = documentRepository;
     }
 
     public UploadStrategy getUploadStrategy(DocumentToUpload doc) {
         return "text/csv".equals(doc.contentType())
-                ? new EmbeddedDocUploadStrategy(internalDocumentRepository)
+                ? new EmbeddedDocUploadStrategy(documentRepository)
                 : new SourceDocUploadStrategy(sourceRepository);
     }
 }

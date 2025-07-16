@@ -8,8 +8,8 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
 import zas.admin.zec.backend.actions.upload.model.DocumentToUpload;
 import zas.admin.zec.backend.actions.upload.validation.UploadException;
-import zas.admin.zec.backend.persistence.entity.InternalDocumentEntity;
-import zas.admin.zec.backend.persistence.repository.InternalDocumentRepository;
+import zas.admin.zec.backend.persistence.entity.DocumentEntity;
+import zas.admin.zec.backend.persistence.repository.DocumentRepository;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -29,11 +29,11 @@ public final class EmbeddedDocUploadStrategy implements UploadStrategy {
             .setTrim(true)
             .build();
 
-    private final InternalDocumentRepository internalDocumentRepository;
+    private final DocumentRepository documentRepository;
     private final ObjectMapper mapper;
 
-    public EmbeddedDocUploadStrategy(InternalDocumentRepository internalDocumentRepository) {
-        this.internalDocumentRepository = internalDocumentRepository;
+    public EmbeddedDocUploadStrategy(DocumentRepository documentRepository) {
+        this.documentRepository = documentRepository;
         this.mapper = new ObjectMapper();
         this.mapper.configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true);
     }
@@ -41,7 +41,7 @@ public final class EmbeddedDocUploadStrategy implements UploadStrategy {
     @Override
     public void upload(DocumentToUpload doc) {
         try (Reader in = new InputStreamReader(new ByteArrayInputStream(doc.content()), StandardCharsets.UTF_8)) {
-            List<InternalDocumentEntity> buffer = new ArrayList<>(BATCH_SIZE);
+            List<DocumentEntity> buffer = new ArrayList<>(BATCH_SIZE);
             for (CSVRecord rec : CSV_FMT.parse(in)) {
                 buffer.add(toEntity(rec));
                 if (buffer.size() == BATCH_SIZE) {
@@ -56,8 +56,8 @@ public final class EmbeddedDocUploadStrategy implements UploadStrategy {
         }
     }
 
-    private InternalDocumentEntity toEntity(CSVRecord rec) throws JsonProcessingException {
-        InternalDocumentEntity entity = new InternalDocumentEntity();
+    private DocumentEntity toEntity(CSVRecord rec) throws JsonProcessingException {
+        DocumentEntity entity = new DocumentEntity();
         entity.setContent(rec.get("content"));
         entity.setMetadata(mapper.readValue(rec.get("metadata"), new TypeReference<>() {}));
         entity.setEmbedding(parseEmbedding(rec.get("embedding")));
@@ -65,9 +65,9 @@ public final class EmbeddedDocUploadStrategy implements UploadStrategy {
         return entity;
     }
 
-    private void flushBatch(List<InternalDocumentEntity> batch) {
-        internalDocumentRepository.saveAll(batch);
-        internalDocumentRepository.flush();
+    private void flushBatch(List<DocumentEntity> batch) {
+        documentRepository.saveAll(batch);
+        documentRepository.flush();
         batch.clear();
     }
 

@@ -6,7 +6,6 @@ import org.springframework.ai.rag.Query;
 import org.springframework.ai.rag.retrieval.search.DocumentRetriever;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
-import zas.admin.zec.backend.persistence.repository.DocumentRepository;
 
 import java.util.Arrays;
 import java.util.List;

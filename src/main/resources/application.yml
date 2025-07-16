@@ -60,7 +60,7 @@ spring:
         distance-type: cosine_distance
         max-document-batch-size: 10000
         index-type: hnsw
-        table-name: internal_documents
+        table-name: vector_store
         initialize-schema: true
 py-backend:
   baseUrl: http://copilot:8000

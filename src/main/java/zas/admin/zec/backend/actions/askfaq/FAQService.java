@@ -4,12 +4,8 @@ import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import zas.admin.zec.backend.config.properties.FAQSearchProperties;
-import zas.admin.zec.backend.persistence.entity.FAQItemEntity;
-import zas.admin.zec.backend.persistence.entity.PublicDocumentEntity;
-import zas.admin.zec.backend.persistence.entity.SourceEntity;
-import zas.admin.zec.backend.persistence.repository.DocumentRepository;
-import zas.admin.zec.backend.persistence.repository.FAQItemRepository;
-import zas.admin.zec.backend.persistence.repository.SourceRepository;
+import zas.admin.zec.backend.persistence.entity.QuestionEntity;
+import zas.admin.zec.backend.persistence.repository.QuestionRepository;
 import zas.admin.zec.backend.tools.EntityMapper;
 
 import java.util.Arrays;
@@ -20,7 +16,7 @@ import java.util.stream.Stream;
 @Service
 public class FAQService {
 
-    private final FAQItemRepository faqItemRepository;
+    private final QuestionRepository questionRepository;
     private final SourceRepository sourceRepository;
     private final DocumentRepository documentRepository;
     private final FAQSearchProperties faqSearchProperties;
@@ -28,7 +24,7 @@ public class FAQService {
     private final EmbeddingModel embeddingModel;
     private final FAQCache faqCache;
 
-    public FAQService(FAQItemRepository faqItemRepository,
+    public FAQService(QuestionRepository questionRepository,
                       SourceRepository sourceRepository,
                       DocumentRepository documentRepository,
                       FAQSearchProperties faqSearchProperties,
@@ -36,7 +32,7 @@ public class FAQService {
                       @Qualifier("publicEmbeddingModel") EmbeddingModel embeddingModel,
                       FAQCache faqCache) {
 
-        this.faqItemRepository = faqItemRepository;
+        this.questionRepository = questionRepository;
         this.sourceRepository = sourceRepository;
         this.documentRepository = documentRepository;
         this.faqSearchProperties = faqSearchProperties;
@@ -87,18 +83,18 @@ public class FAQService {
         answer.setText(faqItemLight.answer());
         answer = documentRepository.save(answer);
 
-        FAQItemEntity faqItemEntity = new FAQItemEntity();
+        QuestionEntity faqItemEntity = new QuestionEntity();
         faqItemEntity.setSource(source);
         faqItemEntity.setAnswer(answer);
         faqItemEntity.setUrl(faqItemLight.url());
         faqItemEntity.setLanguage(faqItemLight.language());
         faqItemEntity.setText(faqItemLight.text());
 
-        return entityMapper.map(faqItemRepository.save(faqItemEntity));
+        return entityMapper.map(questionRepository.save(faqItemEntity));
     }
 
     private FAQItem update(FAQItemLight faqItemLight) {
-        FAQItemEntity byId = faqItemRepository.findById(Objects.requireNonNull(faqItemLight.id()))
+        QuestionEntity byId = questionRepository.findById(Objects.requireNonNull(faqItemLight.id()))
                 .orElseThrow(() -> new IllegalArgumentException("No FAQItem found for id : " + faqItemLight.id()));
 
         byId.setText(faqItemLight.text());
@@ -109,12 +105,12 @@ public class FAQService {
         byId.getAnswer().setLanguage(faqItemLight.language());
         documentRepository.save(byId.getAnswer());
 
-        return entityMapper.map(faqItemRepository.save(byId));
+        return entityMapper.map(questionRepository.save(byId));
     }
 
     private List<FAQItem> getExistingFAQItemsByWordSimilarity(String question) {
         var properties = faqSearchProperties.trigramMatching();
-        var byWordSimilarity = faqItemRepository.findByWordSimilarity(
+        var byWordSimilarity = questionRepository.findByWordSimilarity(
                 question, properties.threshold(), properties.limit());
 
         return byWordSimilarity
@@ -126,7 +122,7 @@ public class FAQService {
     private List<FAQItem> getExistingFAQItemsBySemanticSimilarity(String question) {
         var properties = faqSearchProperties.semanticMatching();
         var questionEmbedding = getFAQItemTextEmbedding(question);
-        var nearestByTextEmbedding = faqItemRepository.findNearestsByTextEmbedding(
+        var nearestByTextEmbedding = questionRepository.findNearestByTextEmbedding(
                 questionEmbedding, properties.limit());
 
         return nearestByTextEmbedding

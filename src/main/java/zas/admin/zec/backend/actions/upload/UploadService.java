@@ -12,11 +12,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import zas.admin.zec.backend.actions.upload.model.DocumentChunk;
 import zas.admin.zec.backend.actions.upload.model.DocumentToUpload;
 import zas.admin.zec.backend.actions.upload.strategy.AdminDocUploadStrategyFactory;
-import zas.admin.zec.backend.persistence.entity.PublicDocumentEntity;
-import zas.admin.zec.backend.persistence.entity.SourceEntity;
 import zas.admin.zec.backend.persistence.entity.TempSourceDocumentEntity;
-import zas.admin.zec.backend.persistence.repository.DocumentRepository;
-import zas.admin.zec.backend.persistence.repository.SourceRepository;
 import zas.admin.zec.backend.persistence.repository.TempSourceDocumentRepository;
 
 import java.util.List;

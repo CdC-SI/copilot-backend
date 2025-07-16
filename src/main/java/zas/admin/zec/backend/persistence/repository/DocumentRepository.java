@@ -2,61 +2,51 @@ package zas.admin.zec.backend.persistence.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-import zas.admin.zec.backend.persistence.entity.PublicDocumentEntity;
-import zas.admin.zec.backend.persistence.entity.PublicDocumentProjection;
+import zas.admin.zec.backend.persistence.entity.DocumentEntity;
 
 import java.util.List;
+import java.util.UUID;
 
-public interface DocumentRepository extends JpaRepository<PublicDocumentEntity, Integer> {
-
-    @Query(value = """
-              SELECT DISTINCT d.tags
-              FROM document d
-              WHERE d.user_uuid = :userId
-                OR (d.user_uuid IS NULL AND d.organizations && :organizations)
-                OR (d.user_uuid IS NULL AND (d.organizations IS NULL OR cardinality(d.organizations) = 0))
-              """,
-            nativeQuery = true
-    )
-    List<String> findTags(@Param("userId") String userId, @Param("organizations") String[] organizations);
+public interface DocumentRepository extends JpaRepository<DocumentEntity, UUID> {
 
     @Query(value = """
-              SELECT DISTINCT d.source_id
-              FROM document d
-              WHERE d.user_uuid = :userId
-                OR (d.user_uuid IS NULL AND d.organizations && :organizations)
-                OR (d.user_uuid IS NULL AND (d.organizations IS NULL OR cardinality(d.organizations) = 0))
-              """,
-            nativeQuery = true
-    )
-    List<Integer> findSourceIds(@Param("userId") String userId, @Param("organizations") String[] organizations);
+        SELECT DISTINCT metadata ->> 'tags' AS tag
+        FROM vector_store
+        WHERE metadata ->> 'organizations' IS NULL OR metadata ->> 'organizations' = ''
+        """, nativeQuery = true)
+    List<String> findPublicTags();
 
-    @Query(
-            value = """
-                    SELECT *
-                    FROM document d
-                    ORDER BY d.text_embedding <=> CAST(:textEmbedding AS vector(1536))
-                    LIMIT :limit
-                    """,
-            nativeQuery = true
-    )
-    List<PublicDocumentEntity> findNearestsByTextEmbedding(
-            @Param("textEmbedding") String textEmbedding,
-            @Param("limit") int limit
-    );
+    @Query(value = """
+        SELECT DISTINCT metadata ->> 'tags' AS tag
+        FROM vector_store
+        WHERE metadata ->> 'source' IN :sources
+        AND (metadata ->> 'organizations' IS NULL OR metadata ->> 'organizations' = '')
+        """, nativeQuery = true)
+    List<String> findPublicTagsBySources(List<String> sources);
 
-    @Query(
-            value = """
-                    SELECT d.id, d.text, d.url, d.text_embedding <=> CAST(:textEmbedding AS vector(1536)) as distance
-                    FROM document d
-                    ORDER BY distance
-                    LIMIT :limit
-                    """,
-            nativeQuery = true
-    )
-    List<PublicDocumentProjection> findNearestsProjectionByTextEmbedding(
-            @Param("textEmbedding") String textEmbedding,
-            @Param("limit") int limit
-    );
+    @Query(value = """
+        SELECT DISTINCT metadata ->> 'tags' AS tag
+        FROM vector_store
+        """, nativeQuery = true)
+    List<String> findAllTags();
+
+    @Query(value = """
+        SELECT DISTINCT metadata ->> 'tags' AS tag
+        FROM vector_store
+        WHERE metadata ->> 'source' IN :sources
+        """, nativeQuery = true)
+    List<String> findTagsBySources(List<String> sources);
+
+    @Query(value = """
+        SELECT DISTINCT metadata ->> 'source' AS source
+        FROM vector_store
+        WHERE metadata ->> 'organizations' IS NULL OR metadata ->> 'organizations' = ''
+        """, nativeQuery = true)
+    List<String> findPublicSources();
+
+    @Query(value = """
+        SELECT DISTINCT metadata ->> 'source' AS source
+        FROM vector_store
+        """, nativeQuery = true)
+    List<String> findAllSources();
 }
