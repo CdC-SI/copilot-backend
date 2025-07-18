@@ -99,7 +99,7 @@ public final class RAGPrompts {
     	    </documents_de_contexte>
             
     	    <format_de_réponse>
-	    	<instruction>Si possible, citez les passages source utilisés des documents de contexte pour répondre à la question, sous la forme « (numéro/nom de la section contenant l'information) » immédiatement après une phrase ou paragraphe. Evitez de surcharger votre réponse avec trop de sources.</instruction>
+	    	<instruction>Si possible, citez les passages source utilisés des documents de contexte pour répondre à la question, sous la forme « (titre/chapitre/article/alinéa/chiffre/numéro/nom/etc. de la section contenant l'information) » immédiatement après une phrase ou paragraphe. Evitez de surcharger votre réponse avec trop de sources.</instruction>
 	    	<instruction>Évitez de rédiger des longues listes ou long tableaux, mais si vous devez le faire, concentrez sur les informations essentielles plutôt que d'essayer d'être exhaustif. Si vous pouvez répondre à la personne en 1 à 3 phrases ou en un court paragraphe, faites le. Efforcez-vous de rester concentré et de partager moins d'exemples ou d'idées, mais de meilleure qualité.</instruction>
 	    	<instruction>De plus, formattez votre réponse selon le souhait de l'utilisateur: %s</instruction>
     	    </format_de_réponse>
