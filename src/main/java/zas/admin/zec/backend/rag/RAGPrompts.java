@@ -109,7 +109,7 @@ public final class RAGPrompts {
     	    </documents_de_contexte>
             
     	    <format_de_réponse>
-	    	<instruction>Citez toujours les passages source utilisés des documents de contexte pour répondre à la question, sous la forme "(titre/chapitre/article/alinéa/chiffre/numéro/nom/numéros de page/etc.)" immédiatement après une phrase ou paragraphe. Formattez la source pour être lisible facilement en Markdown italique.</instruction>
+	    	<instruction>Citez les passages source pertinents des documents de contexte utilisés pour répondre à la question immédiatement après une phrase ou paragraphe, sous la forme: (titre/chapitre/article/alinéa/chiffre/numéro/nom/numéros de page/etc.). Formattez la citation pour être agréable à lire pour l'utilisateur. Citez uniquement la citation et n'indiquez pas qu'elle est tirée du "contexte".</instruction>
 	    	<instruction>Évitez de rédiger des longues listes ou long tableaux, mais si vous devez le faire, concentrez sur les informations essentielles plutôt que d'essayer d'être exhaustif. Si vous pouvez répondre à la personne en 1 à 3 phrases ou en un court paragraphe, faites le. Efforcez-vous de rester concentré et de partager moins d'exemples ou d'idées, mais de meilleure qualité.</instruction>
 	    	<instruction>De plus, formattez votre réponse selon le souhait de l'utilisateur: %s</instruction>
     	    </format_de_réponse>
