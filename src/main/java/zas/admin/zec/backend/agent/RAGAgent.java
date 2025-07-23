@@ -11,7 +11,7 @@ import org.springframework.ai.rag.preretrieval.query.expansion.QueryExpander;
 import org.springframework.ai.rag.preretrieval.query.transformation.CompressionQueryTransformer;
 import org.springframework.ai.rag.preretrieval.query.transformation.QueryTransformer;
 import org.springframework.ai.rag.preretrieval.query.transformation.RewriteQueryTransformer;
-import org.springframework.ai.rag.retrieval.search.DocumentRetriever;
+import org.springframework.ai.rag.retrieval.search.VectorStoreDocumentRetriever;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.ai.vectorstore.filter.Filter;
 import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
@@ -24,7 +24,6 @@ import zas.admin.zec.backend.actions.converse.Question;
 import zas.admin.zec.backend.rag.RAGPrompts;
 import zas.admin.zec.backend.rag.advisor.RAGAdvisor;
 import zas.admin.zec.backend.rag.joiner.RankedDocumentJoiner;
-import zas.admin.zec.backend.rag.retriever.CopilotDocumentRetriever;
 import zas.admin.zec.backend.rag.token.SourceToken;
 import zas.admin.zec.backend.rag.token.TextToken;
 import zas.admin.zec.backend.rag.token.Token;
@@ -43,14 +42,12 @@ public class RAGAgent implements Agent {
     private final ChatClient internalChatClient;
     private final ChatClient publicChatClient;
     private final VectorStore documentStore;
-    private final DocumentRetriever legacyDocRetriever;
     private final UserService userService;
 
     public RAGAgent(
             @Qualifier("internalChatModel") ChatModel internalChatModel,
             @Qualifier("publicChatModel") ChatModel publicChatModel,
             VectorStore documentStore,
-            DocumentRetriever legacyDocRetriever,
             UserService userService) {
 
         this.internalChatModel = internalChatModel;
@@ -58,7 +55,6 @@ public class RAGAgent implements Agent {
         this.internalChatClient = ChatClient.create(internalChatModel);
         this.publicChatClient = ChatClient.create(publicChatModel);
         this.documentStore = documentStore;
-        this.legacyDocRetriever = legacyDocRetriever;
         this.userService = userService;
     }
 
@@ -102,10 +98,9 @@ public class RAGAgent implements Agent {
         }
         transformers.add(rewriter(question.language(), chatClient));
         var queryExpander = expander(question.language(), chatClient);
-        var documentRetriever = CopilotDocumentRetriever.builder()
-                .documentStore(documentStore)
-                .legacyDocumentRetriever(legacyDocRetriever)
-                .filterExpression(buildExpression(question, userHasAccessToInternalDocuments))
+        var documentRetriever = VectorStoreDocumentRetriever.builder()
+                .vectorStore(documentStore)
+                .filterExpression(() -> buildExpression(question, userHasAccessToInternalDocuments))
                 .topK(5)
                 .build();
 

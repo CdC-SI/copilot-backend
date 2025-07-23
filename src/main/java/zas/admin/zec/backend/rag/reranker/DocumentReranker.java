@@ -47,7 +47,7 @@ public class DocumentReranker {
 
             return response.results().stream()
                     .map(result -> docsToRerank.get(result.index()))
-                    .limit(question.kRetrieve())
+                    .limit(5)
                     .toList();
         } catch (WebClientRequestException e) {
             log.error("Error during reranking request: {}", e.getMessage());

@@ -1,18 +1,27 @@
 package zas.admin.zec.backend.tools;
 
-import org.mapstruct.Mapper;
 import zas.admin.zec.backend.actions.askfaq.Answer;
 import zas.admin.zec.backend.actions.askfaq.FAQItem;
+import zas.admin.zec.backend.persistence.entity.DocumentEntity;
 import zas.admin.zec.backend.persistence.entity.QuestionEntity;
-import zas.admin.zec.backend.rag.PublicDocument;
 
-@Mapper(componentModel = "spring")
-public interface EntityMapper {
+public final class EntityMapper {
+    private EntityMapper() {}
+    public static FAQItem map(QuestionEntity question, DocumentEntity answer) {
+        return new FAQItem(
+                question.getId().toString(),
+                question.getMetadata().get("language"),
+                question.getContent(),
+                question.getMetadata().get("url"),
+                mapToAnswer(answer)
+        );
+    }
 
-    FAQItem map(QuestionEntity entity);
-
-    Answer mapToAnswer(PublicDocumentEntity entity);
-
-    PublicDocument map(PublicDocumentEntity entity);
-
+    public static Answer mapToAnswer(DocumentEntity answer) {
+        return new Answer(
+                answer.getContent(),
+                answer.getMetadata().get("url"),
+                answer.getMetadata().get("language")
+        );
+    }
 }

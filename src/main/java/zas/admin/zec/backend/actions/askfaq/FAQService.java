@@ -3,40 +3,35 @@ package zas.admin.zec.backend.actions.askfaq;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import zas.admin.zec.backend.config.properties.FAQSearchProperties;
+import zas.admin.zec.backend.persistence.entity.DocumentEntity;
 import zas.admin.zec.backend.persistence.entity.QuestionEntity;
+import zas.admin.zec.backend.persistence.repository.DocumentRepository;
 import zas.admin.zec.backend.persistence.repository.QuestionRepository;
 import zas.admin.zec.backend.tools.EntityMapper;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Stream;
 
 @Service
 public class FAQService {
 
-    private final QuestionRepository questionRepository;
-    private final SourceRepository sourceRepository;
     private final DocumentRepository documentRepository;
+    private final QuestionRepository questionRepository;
     private final FAQSearchProperties faqSearchProperties;
-    private final EntityMapper entityMapper;
     private final EmbeddingModel embeddingModel;
     private final FAQCache faqCache;
 
-    public FAQService(QuestionRepository questionRepository,
-                      SourceRepository sourceRepository,
-                      DocumentRepository documentRepository,
+    public FAQService(DocumentRepository documentRepository,
+                      QuestionRepository questionRepository,
                       FAQSearchProperties faqSearchProperties,
-                      EntityMapper entityMapper,
                       @Qualifier("publicEmbeddingModel") EmbeddingModel embeddingModel,
                       FAQCache faqCache) {
 
-        this.questionRepository = questionRepository;
-        this.sourceRepository = sourceRepository;
         this.documentRepository = documentRepository;
+        this.questionRepository = questionRepository;
         this.faqSearchProperties = faqSearchProperties;
-        this.entityMapper = entityMapper;
         this.embeddingModel = embeddingModel;
         this.faqCache = faqCache;
     }
@@ -59,6 +54,7 @@ public class FAQService {
         }
     }
 
+    @Transactional
     public FAQItem save(FAQItemLight faqItem) {
         return faqItem.id() != null
                 ? update(faqItem)
@@ -66,68 +62,97 @@ public class FAQService {
     }
 
     private FAQItem create(FAQItemLight faqItemLight) {
-        var sourceOpt = sourceRepository.findByUrl("faq");
-        SourceEntity source;
-        if (sourceOpt.isEmpty()) {
-            source = new SourceEntity();
-            source.setUrl("faq");
-            source = sourceRepository.save(source);
-        } else {
-            source = sourceOpt.get();
-        }
+        var answerId = UUID.randomUUID().toString();
+        var tags = faqItemLight.tags() != null
+                ? String.join(",", faqItemLight.tags())
+                : "";
 
-        PublicDocumentEntity answer = new PublicDocumentEntity();
-        answer.setSource(source);
-        answer.setUrl(faqItemLight.url());
-        answer.setLanguage(faqItemLight.language());
-        answer.setText(faqItemLight.answer());
-        answer = documentRepository.save(answer);
+        DocumentEntity answer = new DocumentEntity();
+        answer.setContent(faqItemLight.answer());
+        answer.setEmbedding(embeddingModel.embed(faqItemLight.answer()));
+        answer.setMetadata(Map.of(
+                "answer_id", answerId,
+                "source", "knowledge_base",
+                "url", faqItemLight.url(),
+                "language", faqItemLight.language(),
+                "tags", tags
+        ));
 
-        QuestionEntity faqItemEntity = new QuestionEntity();
-        faqItemEntity.setSource(source);
-        faqItemEntity.setAnswer(answer);
-        faqItemEntity.setUrl(faqItemLight.url());
-        faqItemEntity.setLanguage(faqItemLight.language());
-        faqItemEntity.setText(faqItemLight.text());
 
-        return entityMapper.map(questionRepository.save(faqItemEntity));
+        QuestionEntity question = new QuestionEntity();
+        question.setContent(faqItemLight.text());
+        question.setEmbedding(embeddingModel.embed(faqItemLight.text()));
+        question.setMetadata(Map.of(
+                "answer_id", answerId,
+                "source", "knowledge_base",
+                "url", faqItemLight.url(),
+                "language", faqItemLight.language(),
+                "tags", tags
+        ));
+
+        return EntityMapper.map(questionRepository.save(question), documentRepository.save(answer));
     }
 
     private FAQItem update(FAQItemLight faqItemLight) {
-        QuestionEntity byId = questionRepository.findById(Objects.requireNonNull(faqItemLight.id()))
+        var tags = faqItemLight.tags() != null
+                ? String.join(",", faqItemLight.tags())
+                : "";
+
+        QuestionEntity question = questionRepository.findById(Objects.requireNonNull(faqItemLight.id()))
                 .orElseThrow(() -> new IllegalArgumentException("No FAQItem found for id : " + faqItemLight.id()));
+        var answerId = question.getMetadata().get("answer_id");
+        question.setContent(faqItemLight.text());
+        question.setEmbedding(embeddingModel.embed(faqItemLight.text()));
+        question.setMetadata(Map.of(
+                "answer_id", answerId,
+                "source", "knowledge_base",
+                "url", faqItemLight.url(),
+                "language", faqItemLight.language(),
+                "tags", tags
+        ));
 
-        byId.setText(faqItemLight.text());
-        byId.setUrl(faqItemLight.url());
-        byId.setLanguage(faqItemLight.language());
-        byId.getAnswer().setText(faqItemLight.answer());
-        byId.getAnswer().setUrl(faqItemLight.url());
-        byId.getAnswer().setLanguage(faqItemLight.language());
-        documentRepository.save(byId.getAnswer());
+        DocumentEntity answer = documentRepository.findByAnswerId(answerId);
+        answer.setContent(faqItemLight.text());
+        answer.setEmbedding(embeddingModel.embed(faqItemLight.answer()));
+        answer.setMetadata(Map.of(
+                "answer_id", answerId,
+                "source", "knowledge_base",
+                "url", faqItemLight.url(),
+                "language", faqItemLight.language(),
+                "tags", tags
+        ));
 
-        return entityMapper.map(questionRepository.save(byId));
+        return EntityMapper.map(questionRepository.save(question), documentRepository.save(answer));
     }
 
-    private List<FAQItem> getExistingFAQItemsByWordSimilarity(String question) {
+    private List<FAQItem> getExistingFAQItemsByWordSimilarity(String query) {
         var properties = faqSearchProperties.trigramMatching();
         var byWordSimilarity = questionRepository.findByWordSimilarity(
-                question, properties.threshold(), properties.limit());
+                query, properties.threshold(), properties.limit());
 
-        return byWordSimilarity
-                .stream()
-                .map(entityMapper::map)
-                .toList();
+        return questionsToFAQItems(byWordSimilarity);
     }
 
-    private List<FAQItem> getExistingFAQItemsBySemanticSimilarity(String question) {
+    private List<FAQItem> getExistingFAQItemsBySemanticSimilarity(String query) {
         var properties = faqSearchProperties.semanticMatching();
-        var questionEmbedding = getFAQItemTextEmbedding(question);
+        var questionEmbedding = getFAQItemTextEmbedding(query);
         var nearestByTextEmbedding = questionRepository.findNearestByTextEmbedding(
                 questionEmbedding, properties.limit());
 
-        return nearestByTextEmbedding
-                .stream()
-                .map(entityMapper::map)
+        return questionsToFAQItems(nearestByTextEmbedding);
+    }
+
+    private List<FAQItem> questionsToFAQItems(List<QuestionEntity> questions) {
+        return questions.stream()
+                .map(question -> {
+                    var answerId = question.getMetadata().get("answer_id");
+                    var answer = documentRepository.findByAnswerId(answerId);
+                    if (answer == null) {
+                        return null;
+                    }
+                    return EntityMapper.map(question, answer);
+                })
+                .filter(Objects::nonNull)
                 .toList();
     }
 

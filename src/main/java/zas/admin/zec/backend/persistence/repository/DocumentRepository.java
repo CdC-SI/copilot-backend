@@ -49,4 +49,12 @@ public interface DocumentRepository extends JpaRepository<DocumentEntity, UUID> 
         FROM vector_store
         """, nativeQuery = true)
     List<String> findAllSources();
+
+    @Query(value = """
+        SELECT *
+        FROM vector_store
+        WHERE metadata ->> 'answer_id' = :answerId
+        LIMIT 1
+        """, nativeQuery = true)
+    DocumentEntity findByAnswerId(String answerId);
 }
