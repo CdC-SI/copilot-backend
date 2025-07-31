@@ -40,7 +40,7 @@ public final class EmbeddedDocUploadStrategy implements UploadStrategy {
 
     @Override
     public void upload(DocumentToUpload doc) {
-        try (Reader in = new InputStreamReader(new ByteArrayInputStream(doc.content()), StandardCharsets.UTF_8)) {
+        try (Reader in = new InputStreamReader(new ByteArrayInputStream(doc.file().getBytes()), StandardCharsets.UTF_8)) {
             List<InternalDocumentEntity> buffer = new ArrayList<>(BATCH_SIZE);
             for (CSVRecord rec : CSV_FMT.parse(in)) {
                 buffer.add(toEntity(rec));
@@ -52,7 +52,7 @@ public final class EmbeddedDocUploadStrategy implements UploadStrategy {
                 flushBatch(buffer);
             }
         } catch (IOException e) {
-            throw new UploadException("Error while uploading CSV " + doc.name(), e);
+            throw new UploadException(doc.file().getOriginalFilename(), "Error while uploading CSV", e);
         }
     }
 

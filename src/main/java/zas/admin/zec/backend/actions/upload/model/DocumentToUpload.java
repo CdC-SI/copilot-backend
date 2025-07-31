@@ -2,30 +2,22 @@ package zas.admin.zec.backend.actions.upload.model;
 
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-
 public record DocumentToUpload(
-        byte[] content,
-        String contentType,
-        String name,
+        MultipartFile file,
         String lang,
         boolean embed) {
 
-    public DocumentToUpload(UploadRequest request) throws IOException {
+    public DocumentToUpload(UploadRequest request) {
         this(
-                request.multipartFile().getBytes(),
-                request.multipartFile().getContentType(),
-                request.multipartFile().getOriginalFilename(),
+                request.multipartFile(),
                 request.lang(),
                 request.embed()
         );
     }
 
-    public DocumentToUpload(MultipartFile file) throws IOException {
+    public DocumentToUpload(MultipartFile file) {
         this(
-                file.getBytes(),
-                file.getContentType(),
-                file.getOriginalFilename(),
+                file,
                 "fr",
                 false
         );
