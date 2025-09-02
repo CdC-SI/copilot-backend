@@ -75,7 +75,7 @@ public class RAGAgent implements Agent {
     @Override
     public Flux<Token> processQuestion(Question question, String userId, List<Message> conversationHistory) {
         boolean hasAccessToInternalDocuments = userService.hasAccessToInternalDocuments(userId);
-        Advisor rag = getRagAdvisor(question, hasAccessToInternalDocuments, !conversationHistory.isEmpty());
+        Advisor rag = getRagAdvisor(question, hasAccessToInternalDocuments, !conversationHistory.isEmpty(), userId);
         ChatClient client = hasAccessToInternalDocuments
                 ? internalChatClient
                 : publicChatClient;
@@ -91,7 +91,7 @@ public class RAGAgent implements Agent {
                 .flatMap(this::toToken);
     }
 
-    private Advisor getRagAdvisor(Question question, boolean userHasAccessToInternalDocuments, boolean hasHistory) {
+    private Advisor getRagAdvisor(Question question, boolean userHasAccessToInternalDocuments, boolean hasHistory, String userId) {
         var chatClient = userHasAccessToInternalDocuments
                 ? internalChatClient
                 : publicChatClient;
@@ -105,7 +105,7 @@ public class RAGAgent implements Agent {
         var documentRetriever = CopilotDocumentRetriever.builder()
                 .documentStore(documentStore)
                 .legacyDocumentRetriever(legacyDocRetriever)
-                .filterExpression(buildExpression(question, userHasAccessToInternalDocuments))
+                .filterExpression(buildExpression(question, userHasAccessToInternalDocuments, userId))
                 .topK(5)
                 .build();
 
@@ -121,7 +121,7 @@ public class RAGAgent implements Agent {
                 .build();
     }
 
-    private Filter.Expression buildExpression(Question question, boolean userHasAccessToInternalDocuments) {
+    private Filter.Expression buildExpression(Question question, boolean userHasAccessToInternalDocuments, String userId) {
         FilterExpressionBuilder builder = new FilterExpressionBuilder();
         List<FilterExpressionBuilder.Op> ops = new ArrayList<>();
         if (question.tags() != null && !question.tags().isEmpty()) {
@@ -134,9 +134,7 @@ public class RAGAgent implements Agent {
            ops.add(builder.ne("organizations", "ZAS"));
         }
 
-        if (ops.isEmpty()) {
-            return null;
-        }
+        ops.add(builder.or(builder.eq("user_uuid", userId), builder.eq("user_uuid", "")));
 
         FilterExpressionBuilder.Op combined = ops.getFirst();
         for (int i = 1; i < ops.size(); i++) {

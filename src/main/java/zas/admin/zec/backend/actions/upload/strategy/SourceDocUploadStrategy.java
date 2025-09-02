@@ -2,8 +2,11 @@ package zas.admin.zec.backend.actions.upload.strategy;
 
 import lombok.extern.slf4j.Slf4j;
 import zas.admin.zec.backend.actions.upload.model.DocumentToUpload;
+import zas.admin.zec.backend.actions.upload.validation.UploadException;
 import zas.admin.zec.backend.persistence.entity.TempSourceDocumentEntity;
 import zas.admin.zec.backend.persistence.repository.TempSourceDocumentRepository;
+
+import java.io.IOException;
 
 @Slf4j
 public final class SourceDocUploadStrategy implements UploadStrategy {
@@ -16,10 +19,14 @@ public final class SourceDocUploadStrategy implements UploadStrategy {
 
     @Override
     public void upload(DocumentToUpload document) {
-        var doc = new TempSourceDocumentEntity();
-        doc.setFileName(document.name());
-        doc.setContent(document.content());
+        try {
+            var doc = new TempSourceDocumentEntity();
+            doc.setFileName(document.file().getOriginalFilename());
+            doc.setContent(document.file().getBytes());
 
-        sourceRepository.save(doc);
+            sourceRepository.save(doc);
+        } catch (IOException e) {
+            throw new UploadException(document.file().getOriginalFilename(), "Error while uploading CSV", e);
+        }
     }
 }
