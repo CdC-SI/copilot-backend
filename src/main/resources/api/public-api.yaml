@@ -139,10 +139,11 @@ components:
         ```
 
     ApiKeyAuthAuthorization:
-      type: http
-      scheme: apiKey
+      type: apiKey
+      in: header
+      name: Authorization
       description: |
-        API Key transmise via l’entête `Authorization` avec le schéma **ApiKey** :
+        API Key transmise via le header `Authorization` avec le schéma **ApiKey** :
         ```
         Authorization: ApiKey ak_<keyId>.<secret>
         ```
