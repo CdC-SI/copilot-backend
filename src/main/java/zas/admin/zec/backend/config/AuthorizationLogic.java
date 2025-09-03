@@ -1,6 +1,7 @@
 package zas.admin.zec.backend.config;
 
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 import zas.admin.zec.backend.actions.authorize.Role;
 import zas.admin.zec.backend.actions.authorize.UserService;
@@ -25,6 +26,10 @@ public class AuthorizationLogic {
 
     public boolean isAdmin(Authentication authentication) {
         return hasRole(authentication.getName(), Role.ADMIN);
+    }
+
+    public boolean isExternalClient(Authentication authentication) {
+        return authentication.getAuthorities().contains(new SimpleGrantedAuthority("EXTERNAL_CLIENT"));
     }
 
     private boolean hasRole(String username, Role role) {

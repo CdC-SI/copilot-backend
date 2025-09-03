@@ -1,0 +1,175 @@
+openapi: 3.1.0
+info:
+  title: RAG Chat API
+  version: 1.0.0
+  description: |
+    API publique pour converser avec un assistant RAG. Le point d'entrée accepte
+    un texte en entrée et renvoie une réponse **en streaming** via Server-Sent Events (SSE).
+    
+    ## Authentification (API Key)
+    Deux façons d'envoyer la clé :
+    1. Header dédié :
+       ```
+       X-API-Key: ak_<keyId>.<secret>
+       ```
+    2. Via `Authorization` avec le schéma **ApiKey** :
+       ```
+       Authorization: ApiKey ak_<keyId>.<secret>
+       ```
+    
+    ## Streaming (SSE)
+    - Content-Type: `text/event-stream`
+    - Chaque message est formatté en lignes `event:` et `data:` se terminant par une ligne vide.
+    - Les événements suivent une convention *OpenAI-like* :
+      - `response.created` — début de la réponse.
+      - `response.output_text.delta` — morceau de texte (delta).
+      - `response.completed` — fin logique de la réponse.
+      - `response.error` — erreur pendant le stream.
+    - Exemple:
+      ```
+      event: response.output_text.delta
+      data: {"delta":"Bonjour "}
+
+      event: response.output_text.delta
+      data: {"delta":"le monde"}
+
+      event: response.completed
+      data: {}
+      ```
+
+servers:
+  - url: https://copilot-d.zas.admin.ch/copilot
+    description: Development
+
+paths:
+  /api/public/v1/chat:
+    post:
+      summary: Conversation (stream SSE)
+      description: |
+        Lance une génération de réponse en streaming SSE à partir d'un `input` texte.
+        Ce endpoint **retourne immédiatement** un flux `text/event-stream`.
+      operationId: createChatStream
+      security:
+        - ApiKeyAuthHeader: []
+        - ApiKeyAuthAuthorization: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+            examples:
+              simple:
+                summary: Requête minimale
+                value:
+                  input: "Explique-moi le pattern RAG en 2 phrases."
+      responses:
+        '200':
+          description: Flux SSE de la réponse du chatbot.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: Flux SSE (lignes `event:` + `data:` + ligne vide).
+              examples:
+                stream:
+                  summary: Flux complet d’exemple
+                  value: |
+                    event: response.created
+                    data: {"id":"rsp_123","model":"zas-internal-model"}
+
+                    event: response.output_text.delta
+                    data: {"delta":"Bonjour "}
+
+                    event: response.output_text.delta
+                    data: {"delta":"Matthieu, "}
+
+                    event: response.output_text.delta
+                    data: {"delta":"voici une réponse RAG."}
+
+                    event: response.completed
+                    data: {}
+        '400':
+          description: Mauvaise requête
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                badRequest:
+                  value:
+                    error:
+                      code: "bad_request"
+                      message: "Champ 'input' manquant."
+        '401':
+          description: Non authentifié
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Accès refusé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Limite de débit atteinte
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Erreur serveur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  securitySchemes:
+    ApiKeyAuthHeader:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: |
+        API Key transmise directement dans le header :
+        ```
+        X-API-Key: ak_<keyId>.<secret>
+        ```
+
+    ApiKeyAuthAuthorization:
+      type: http
+      scheme: apiKey
+      description: |
+        API Key transmise via l’entête `Authorization` avec le schéma **ApiKey** :
+        ```
+        Authorization: ApiKey ak_<keyId>.<secret>
+        ```
+
+  schemas:
+    ChatRequest:
+      type: object
+      required: [input]
+      additionalProperties: false
+      properties:
+        input:
+          type: string
+          description: Texte d'entrée utilisateur.
+          minLength: 1
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+              additionalProperties: true
