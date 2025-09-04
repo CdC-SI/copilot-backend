@@ -54,6 +54,9 @@ spring:
         embedding-model: ${INTERNAL_EMBEDDING_MODEL}
         embedding-base-url: ${INTERNAL_EMBEDDING_BASE_URL}
         embedding-dimensions: ${EMBEDDING_DIMENSIONS:1024}
+        vision-model: ${VISION_MODEL}
+        vision-base-url: ${VISION_BASE_URL}
+
     vectorstore:
       pgvector:
         dimensions: ${PGVECTOR_DIMENSIONS:1024}
