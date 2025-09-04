@@ -18,6 +18,9 @@ import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import zas.admin.zec.backend.actions.api.StreamEvent;
+import zas.admin.zec.backend.actions.api.StreamEventType;
 import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.actions.converse.Message;
 import zas.admin.zec.backend.actions.converse.Question;
@@ -29,10 +32,10 @@ import zas.admin.zec.backend.rag.token.SourceToken;
 import zas.admin.zec.backend.rag.token.TextToken;
 import zas.admin.zec.backend.rag.token.Token;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import java.time.Instant;
+import java.util.*;
 
+import static java.util.function.Predicate.not;
 import static org.springframework.ai.rag.advisor.RetrievalAugmentationAdvisor.DOCUMENT_CONTEXT;
 
 @Service
@@ -89,6 +92,37 @@ public class RAGAgent implements Agent {
                 .stream()
                 .chatResponse()
                 .flatMap(this::toToken);
+    }
+
+    public Flux<StreamEvent> processPublicQuestion(String input) {
+        var question = new Question(input).withDefaults();
+        Advisor rag = getRagAdvisor(question, false, false, "");
+
+        StreamEvent created = new StreamEvent(
+                StreamEventType.CREATED,
+                Map.of(
+                        "id", "rsp_" + UUID.randomUUID(),
+                        "model", "zas-internal-model",
+                        "created_at", Instant.now().toString()
+                )
+        );
+
+        Flux<StreamEvent> deltas = internalChatClient
+                .prompt()
+                .system(RAGPrompts.getRagSystemPrompt(question.language()).formatted(question.responseFormat()))
+                .advisors(rag)
+                .user(question.query())
+                .stream()
+                .chatResponse()
+                .flatMap(this::toTextToken)
+                .filter(not(token -> token.content().isBlank()))
+                .map(token -> new StreamEvent(StreamEventType.DELTA, Map.of("delta", token.content())));
+
+        return Flux.concat(
+                Mono.just(created),
+                deltas,
+                Mono.just(new StreamEvent(StreamEventType.DELTA, Map.of("delta", "")))
+        );
     }
 
     private Advisor getRagAdvisor(Question question, boolean userHasAccessToInternalDocuments, boolean hasHistory, String userId) {
