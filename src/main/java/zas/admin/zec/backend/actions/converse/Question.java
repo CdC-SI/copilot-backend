@@ -31,6 +31,13 @@ public record Question(
     Boolean isFollowUpQ,
     String conversationId
 ) {
+
+    public Question(String query) {
+        this(query, null, null, null, null, null, null, null,
+            null, null, null, null, null, null, null,
+            null, null, null, null, null, null, null);
+    }
+
     public Question withDefaults() {
         return new Question(
             this.query(),

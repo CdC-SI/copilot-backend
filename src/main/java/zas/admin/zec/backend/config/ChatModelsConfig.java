@@ -49,6 +49,25 @@ public class ChatModelsConfig {
                 .build();
     }
 
+    @Bean
+    public ChatModel visionModel() {
+        var api = OpenAiApi.builder()
+                .apiKey(internalChatModelProperties.apiKey())
+                .baseUrl(internalChatModelProperties.visionBaseUrl())
+                .build();
+
+        var options = OpenAiChatOptions.builder()
+                .model(internalChatModelProperties.visionModel())
+                .temperature(0.0)
+                .maxTokens(16384)
+                .build();
+
+        return OpenAiChatModel.builder()
+                .openAiApi(api)
+                .defaultOptions(options)
+                .build();
+    }
+
     @Bean(name = "publicChatModel")
     public ChatModel publicChatModel(ObjectProvider<RestClient.Builder> restClientBuilderProvider,
                                      ObjectProvider<WebClient.Builder> webClientBuilderProvider) {
