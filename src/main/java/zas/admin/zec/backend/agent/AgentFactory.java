@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import zas.admin.zec.backend.actions.converse.Question;
 import zas.admin.zec.backend.tools.ConversationMetaDataHolder;
 
+import java.util.Optional;
 import java.util.Set;
 
 @Component
@@ -35,7 +36,14 @@ public class AgentFactory {
 
     private AgentType selectAgentType(Question question) {
         return conversationMetaDataHolder.getCurrentAgentInUse(question.conversationId())
+                .or(() -> attachmentsArePresent(question))
                 .orElseGet(() -> inferAgentType(question));
+    }
+
+    private Optional<AgentType> attachmentsArePresent(Question question) {
+        return question.attachments() != null && !question.attachments().isEmpty()
+                ? Optional.of(AgentType.II_AUX_PRICING_AGENT)
+                : Optional.empty();
     }
 
     private AgentType inferAgentType(Question question) {

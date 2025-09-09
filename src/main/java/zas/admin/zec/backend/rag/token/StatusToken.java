@@ -1,6 +1,6 @@
 package zas.admin.zec.backend.rag.token;
 
-import zas.admin.zec.backend.rag.RAGStatus;
+import zas.admin.zec.backend.rag.ChatStatus;
 
 import java.util.Map;
 
@@ -8,7 +8,7 @@ public final class StatusToken implements Token {
     private final String content;
     private final String tag;
 
-    public StatusToken(RAGStatus status, String lang, Object... args) {
+    public StatusToken(ChatStatus status, String lang, Object... args) {
         this.content = status.text(lang).formatted(args);
         this.tag = status.tag();
     }

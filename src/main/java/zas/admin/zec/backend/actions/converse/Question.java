@@ -1,12 +1,14 @@
 package zas.admin.zec.backend.actions.converse;
 
 import jakarta.validation.constraints.NotNull;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
 
 public record Question(
     @NotNull String query,
+    List<MultipartFile> attachments,
     String language,
     List<String> tags,
     List<String> sources,
@@ -32,6 +34,7 @@ public record Question(
     public Question withDefaults() {
         return new Question(
             this.query(),
+            this.attachments() != null ? this.attachments() : List.of(),
             this.language() != null ? this.language() : "fr",
             this.tags() != null ? this.tags() : List.of(),
             this.sources() != null ? this.sources() : List.of(),

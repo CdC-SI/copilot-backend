@@ -17,7 +17,7 @@ import zas.admin.zec.backend.persistence.entity.ConversationTitleEntity;
 import zas.admin.zec.backend.persistence.entity.MessageEntity;
 import zas.admin.zec.backend.persistence.repository.ConversationRepository;
 import zas.admin.zec.backend.persistence.repository.ConversationTitleRepository;
-import zas.admin.zec.backend.rag.RAGStatus;
+import zas.admin.zec.backend.rag.ChatStatus;
 import zas.admin.zec.backend.rag.token.*;
 import zas.admin.zec.backend.tools.ConversationMetaDataHolder;
 
@@ -137,7 +137,7 @@ public class ConversationService {
     }
 
     private Flux<Token> getTokenStream(Question question, String userId) {
-        Token routingStatus = new StatusToken(RAGStatus.ROUTING, question.language());
+        Token routingStatus = new StatusToken(ChatStatus.ROUTING, question.language());
         return Flux.just(routingStatus)
                 .concatWith(getAgentAndHistoryStream(question, userId));
     }
@@ -145,7 +145,7 @@ public class ConversationService {
     private Flux<Token> getAgentAndHistoryStream(Question question, String userId) {
         var agentFuture = fetchAgentAsync(question);
         var historyFuture = fetchConversationHistoryAsync(question, userId);
-        Mono<Token> handoffFuture = Mono.fromFuture(agentFuture).map(agent -> new StatusToken(RAGStatus.AGENT_HANDOFF, question.language(), agent.getName()));
+        Mono<Token> handoffFuture = Mono.fromFuture(agentFuture).map(agent -> new StatusToken(ChatStatus.AGENT_HANDOFF, question.language(), agent.getName()));
         var combined = agentFuture.thenCombine(historyFuture,
                 (agent, history) -> agent.processQuestion(question, userId, history));
 
