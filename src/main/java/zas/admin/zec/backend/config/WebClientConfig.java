@@ -1,6 +1,7 @@
 package zas.admin.zec.backend.config;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.web.client.RestClientSsl;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -20,14 +21,18 @@ import zas.admin.zec.backend.config.properties.*;
 @EnableAsync
 @EnableJpaAuditing
 @EnableConfigurationProperties({ApplicationProperties.class, PyBackendProperties.class,
-        FAQSearchProperties.class, RerankingProperties.class, DeepLProperties.class, ProxyProperties.class})
+        FAQSearchProperties.class, RerankingProperties.class, DeepLProperties.class,
+        ProxyProperties.class, IdentityCheckProperties.class})
 public class WebClientConfig {
     private final PyBackendProperties pyBackendProperties;
     private final ProxyProperties proxyProperties;
+    private final IdentityCheckProperties identityCheckProperties;
 
-    public WebClientConfig(PyBackendProperties pyBackendProperties, ProxyProperties proxyProperties) {
+    public WebClientConfig(PyBackendProperties pyBackendProperties, ProxyProperties proxyProperties,
+                           IdentityCheckProperties identityCheckProperties) {
         this.pyBackendProperties = pyBackendProperties;
         this.proxyProperties = proxyProperties;
+        this.identityCheckProperties = identityCheckProperties;
     }
 
     @Bean("pyBackendWebClient")
@@ -72,5 +77,13 @@ public class WebClientConfig {
         executor.setThreadNamePrefix("AsyncExecutor-");
         executor.initialize();
         return executor;
+    }
+
+    @Bean
+    public RestClient identityCheckRestClient(RestClient.Builder builder, RestClientSsl ssl) {
+        return builder
+                .baseUrl(identityCheckProperties.baseUrl())
+                .apply(ssl.fromBundle("identity-check-client"))
+                .build();
     }
 }
