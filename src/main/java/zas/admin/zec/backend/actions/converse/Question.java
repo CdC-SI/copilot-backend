@@ -1,11 +1,13 @@
 package zas.admin.zec.backend.actions.converse;
 
 import jakarta.validation.constraints.NotNull;
+import lombok.Builder;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
 
+@Builder
 public record Question(
     @NotNull String query,
     List<MultipartFile> attachments,
@@ -31,13 +33,6 @@ public record Question(
     Boolean isFollowUpQ,
     String conversationId
 ) {
-
-    public Question(String query) {
-        this(query, null, null, null, null, null, null, null,
-            null, null, null, null, null, null, null,
-            null, null, null, null, null, null, null);
-    }
-
     public Question withDefaults() {
         return new Question(
             this.query(),

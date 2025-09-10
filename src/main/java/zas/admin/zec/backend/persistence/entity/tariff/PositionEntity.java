@@ -14,7 +14,7 @@ import java.time.OffsetDateTime;
 @Getter
 @Entity
 @Table(name = "positions")
-public class Position {
+public class PositionEntity {
 
     @Id
     @Column(name = "id", nullable = false)
@@ -44,7 +44,7 @@ public class Position {
     @Column(name = "summary")
     private String summary;
 
-    @Column(name = "fulltext")
+    @Column(name = "fulltext", columnDefinition = "text")
     private String fulltext;
 
     @NotNull

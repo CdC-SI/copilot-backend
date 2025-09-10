@@ -36,13 +36,21 @@ public class AgentFactory {
 
     private AgentType selectAgentType(Question question) {
         return conversationMetaDataHolder.getCurrentAgentInUse(question.conversationId())
-                .or(() -> attachmentsArePresent(question))
+                .or(() -> detectDevisAttachment(question))
                 .orElseGet(() -> inferAgentType(question));
     }
 
-    private Optional<AgentType> attachmentsArePresent(Question question) {
-        return question.attachments() != null && !question.attachments().isEmpty()
-                ? Optional.of(AgentType.II_AUX_PRICING_AGENT)
+    private Optional<AgentType> detectDevisAttachment(Question question) {
+        var attachments = question.attachments();
+        if (attachments == null || attachments.isEmpty()) return Optional.empty();
+
+        boolean allFilesAreDevis = attachments
+                .stream()
+                .allMatch(file ->
+                        file.getOriginalFilename() != null && file.getOriginalFilename().contains("devis"));
+
+        return allFilesAreDevis
+                ? Optional.of(AgentType.II_TARIFF_AGENT)
                 : Optional.empty();
     }
 

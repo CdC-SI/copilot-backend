@@ -44,7 +44,7 @@ public class ChapterEntity {
     @Column(name = "summary")
     private String summary;
 
-    @Column(name = "fulltext")
+    @Column(name = "fulltext", columnDefinition = "text")
     private String fulltext;
 
     @NotNull
