@@ -41,6 +41,14 @@ spring:
       max-file-size: 20MB
       max-request-size: 20MB
       file-size-threshold: 2KB
+  ssl:
+    bundle:
+      jks:
+        identity-check-client:
+          keystore:
+            location: ${IDENTITY_CHECK_KEYSTORE_LOC}
+            password: ${IDENTITY_CHECK_KEYSTORE_PASS}
+            type: PKCS12
   ai:
     chat:
       public:
@@ -67,6 +75,9 @@ spring:
         initialize-schema: true
 py-backend:
   baseUrl: http://copilot:8000
+identity-check:
+  baseUrl: ${IDENTITY_CHECK_BASE_URL:https://api.int.adnovum-vips.ch}
+  call-back-url: ${IDENTITY_CHECK_CALL_BACK_URL:http://localhost:4200/tools}
 server:
   tomcat:
     max-swallow-size: -1
