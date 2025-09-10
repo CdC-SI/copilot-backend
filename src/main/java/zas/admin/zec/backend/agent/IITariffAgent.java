@@ -199,11 +199,17 @@ public class IITariffAgent implements Agent {
                     - ✖️ Non couvert: Aucune position du <devis> n'est couverte par l'AI.
                 
                     Dans une seconde section <h4>Détail des positions<h4> :
-                        - Liste des positions couvertes par l’AI "{titre} - {code}: **Couverte**"
-                        - Liste des positions non couvertes par l’AI "{titre} - {code}: **Pas couverte** : {Explication}"
-                            - Explication doit contenir les informations pertinentes issues des données SSO.
-                        - Liste des positions indisponibles "{code} : **Indisponible** dans les données SSO"
-                    La liste des entrées (positions) doit être dans le format: "{titre} - {code}:"
+                        - Liste des positions couvertes par l’AI :
+                            "{titre court} - {code}"
+                            "Statut : **Couverte**""
+                        - Liste des positions non couvertes par l’AI :
+                            "{titre court} - {code}"
+                            "Statut : **Pas couverte**"
+                            "Explication : {Explication}"
+                          Explication est un petit paragraphe justifiant la non couverture et citant les informations pertinentes issues des données SSO.
+                        - Liste des positions indisponibles :
+                            "{code}"
+                            "Statut : **Indisponible**"
                 </format_de_réponse>
                 """;
 
