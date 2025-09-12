@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import zas.admin.zec.backend.actions.converse.Question;
 import zas.admin.zec.backend.tools.ConversationMetaDataHolder;
 
+import java.util.Optional;
 import java.util.Set;
 
 @Component
@@ -35,7 +36,22 @@ public class AgentFactory {
 
     private AgentType selectAgentType(Question question) {
         return conversationMetaDataHolder.getCurrentAgentInUse(question.conversationId())
+                .or(() -> detectDevisAttachment(question))
                 .orElseGet(() -> inferAgentType(question));
+    }
+
+    private Optional<AgentType> detectDevisAttachment(Question question) {
+        var attachments = question.attachments();
+        if (attachments == null || attachments.isEmpty()) return Optional.empty();
+
+        boolean allFilesAreDevis = attachments
+                .stream()
+                .allMatch(file ->
+                        file.getOriginalFilename() != null && file.getOriginalFilename().contains("devis"));
+
+        return allFilesAreDevis
+                ? Optional.of(AgentType.II_TARIFF_AGENT)
+                : Optional.empty();
     }
 
     private AgentType inferAgentType(Question question) {
