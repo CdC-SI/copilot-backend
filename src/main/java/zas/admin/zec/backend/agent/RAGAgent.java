@@ -95,7 +95,7 @@ public class RAGAgent implements Agent {
     }
 
     public Flux<StreamEvent> processPublicQuestion(String input) {
-        var question = new Question(input).withDefaults();
+        var question = Question.builder().query(input).build().withDefaults();
         Advisor rag = getRagAdvisor(question, false, false, "");
 
         StreamEvent created = new StreamEvent(
