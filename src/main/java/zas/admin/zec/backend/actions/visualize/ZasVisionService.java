@@ -16,12 +16,17 @@ import java.util.List;
 
 @Service
 public class ZasVisionService implements VisionService {
-    private final ChatClient chatClient;
+    private final ChatClient visionChatClient;
+    private final ChatClient llmChatClient;
     private final VisionMessageService visionMessageService;
 
 
-    public ZasVisionService(@Qualifier("visionModel") ChatModel visionModel, VisionMessageService visionMessageService) {
-        this.chatClient = ChatClient.create(visionModel);
+    public ZasVisionService(@Qualifier("visionModel") ChatModel visionModel,
+                            @Qualifier("internalChatModel") ChatModel llmModel,
+                            VisionMessageService visionMessageService) {
+
+        this.visionChatClient = ChatClient.create(visionModel);
+        this.llmChatClient = ChatClient.create(llmModel);
         this.visionMessageService = visionMessageService;
     }
 
@@ -34,10 +39,9 @@ public class ZasVisionService implements VisionService {
 
         var prompt = new Prompt(
                 visionMessageService.structureDataFromImageMessage(jsonSchema),
-                visionMessageService.dataInstructionsMessage(),
                 visionMessageService.fileMessage(file));
 
-        return chatClient.prompt(prompt).options(options).call().entity(JsonNode.class);
+        return visionChatClient.prompt(prompt).options(options).call().entity(JsonNode.class);
     }
 
 
@@ -52,9 +56,8 @@ public class ZasVisionService implements VisionService {
                 visionMessageService.extractTariffPositionMessage(jsonSchema),
                 visionMessageService.fileMessage(file));
 
-        return chatClient.prompt(prompt).options(options).call().entity(MedicalServices.class);
+        return visionChatClient.prompt(prompt).options(options).call().entity(MedicalServices.class);
     }
-
 
 
     @Override
@@ -66,13 +69,16 @@ public class ZasVisionService implements VisionService {
 
         var prompt = new Prompt(visionMessageService.classifyMessage(), visionMessageService.fileMessage(file));
 
-        return chatClient.prompt(prompt).options(options).call().entity(ZasDocumentType.class);
+        return visionChatClient.prompt(prompt).options(options).call().entity(ZasDocumentType.class);
     }
 
     @Override
     public TextTranslation translateFile(MultipartFile file, String language) {
-        var prompt = new Prompt(visionMessageService.translateMessage(language), visionMessageService.fileMessage(file));
-        var response = chatClient.prompt(prompt).call().content();
+        var ocrPrompt = new Prompt(visionMessageService.extractTextMessage(), visionMessageService.fileMessage(file));
+        var extractedText = visionChatClient.prompt(ocrPrompt).call().content();
+
+        var translatePrompt = new Prompt(visionMessageService.translateMessage(language, extractedText));
+        var response = llmChatClient.prompt(translatePrompt).call().content();
 
         return new TextTranslation(response);
     }

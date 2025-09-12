@@ -1,6 +1,8 @@
 package zas.admin.zec.backend.config;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.web.client.RestClientSsl;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,15 +17,20 @@ import reactor.netty.http.client.HttpClient;
 import reactor.netty.transport.ProxyProvider;
 import zas.admin.zec.backend.config.properties.*;
 
+@Slf4j
 @Configuration
 @EnableJpaAuditing
 @EnableConfigurationProperties({ApplicationProperties.class, FAQSearchProperties.class,
-        RerankingProperties.class, DeepLProperties.class, ProxyProperties.class})
+        RerankingProperties.class, DeepLProperties.class, ProxyProperties.class,
+        IdentityCheckProperties.class})
 public class WebClientConfig {
     private final ProxyProperties proxyProperties;
+    private final IdentityCheckProperties identityCheckProperties;
 
-    public WebClientConfig(ProxyProperties proxyProperties) {
+
+    public WebClientConfig(ProxyProperties proxyProperties, IdentityCheckProperties identityCheckProperties) {
         this.proxyProperties = proxyProperties;
+        this.identityCheckProperties = identityCheckProperties;
     }
 
     @Bean
@@ -61,5 +68,17 @@ public class WebClientConfig {
         executor.setThreadNamePrefix("AsyncExecutor-");
         executor.initialize();
         return executor;
+    }
+
+    @Bean
+    public RestClient identityCheckRestClient(RestClient.Builder builder, RestClientSsl ssl) {
+        RestClient.Builder clientBuilder = builder.baseUrl(identityCheckProperties.baseUrl());
+        try {
+            clientBuilder.apply(ssl.fromBundle("identity-check-client"));
+        } catch (Exception ex) {
+            log.error(ex.getMessage(), ex);
+        }
+
+        return clientBuilder.build();
     }
 }

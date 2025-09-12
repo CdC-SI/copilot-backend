@@ -15,7 +15,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Component
-public class ZasVisionVisionMessageService implements VisionMessageService {
+public class ZasMessageService implements VisionMessageService {
 
     @Override
     public SystemMessage dataInstructionsMessage() {
@@ -29,30 +29,71 @@ public class ZasVisionVisionMessageService implements VisionMessageService {
     }
 
     @Override
-    public UserMessage translateMessage(String language) {
-        String template = """
-           You are an expert translator. Your task is to translate a document into the target language: {language}.
+    public UserMessage extractTextMessage() {
+        String message = """
+           You are a fabulous ocr. Your task is to extract text from the given document.
+           The next task will be to translate the extracted text.
 
-           # Translation Instructions:
-           Translate the document to {language}.
+           # Extraction instruction:
+           Please try to keep the original format.
            
            ## Response Format
-           Respond only with the translated text with no extra text !
+           Respond only with the extracted text with no extra information !
            """;
+
+        return new UserMessage(message);
+    }
+
+    @Override
+    public UserMessage translateMessage(String language, String textToTranslate) {
+        String template = """
+            <INSTRUCTIONS>
+                Translate the given text to the given language.
+                DO not include any extra information, only the translated text.
+            </INSTRUCTIONS>
+            <LANGUAGE>
+                {language}
+            </LANGUAGE>
+            <TEXT>
+                {text}
+            </TEXT>
+        """;
 
         var promptTemplate = PromptTemplate.builder()
                 .template(template)
-                .variables(Map.of("language", language))
+                .variables(Map.of("language", language, "text", textToTranslate))
                 .build();
 
-        return (UserMessage) promptTemplate.createMessage();
+        return UserMessage.builder()
+                .text(promptTemplate.render())
+                .build();
     }
 
     @Override
     public UserMessage structureDataFromImageMessage(String jsonSchema) {
         String template = """
-            Please extract structured data from the following scanned image document.
-            Use the following output format : {format}
+            <CONTEXTE>
+                Vous êtes un modèle d’OCR et d’extraction d’informations. L’entrée est une image.
+                Certaines peuvent contenir du bruit visuel tel que des tampons, des logos.
+            </CONTEXTE>
+
+            <OBJECTIF>
+                Extraire des données structurées de l’image selon le format spécifié.
+            </OBJECTIF>
+
+            <INSTRUCTIONS>
+                Lire attentivement le texte de l’image de la facture.
+                Faire correspondre ce qui a été extrait avec le format spécifié en considérant le nom des champs de la structure demandée.
+                Donne les Date au format `YYYY-MM-DD`.
+                Donne les numero NAVS Number au format du numero des assurance sociales suisse `756.XXXX.XXXX.XX`.
+                Les types de documents d'identitée sont : ID, PASSPORT, SWISS_RESIDENCE_PERMIT.
+                Les nationalités et pays seront données sur deux lettres selon la norme ISO 3166-1 alpha-2 (ex. CH, DE, FR, IT, etc.).
+                Si tu ne trouves pas un champs ou si tu n'es pas sur, renvoie une string vide `""`.
+            </INSTRUCTIONS>
+
+            <FORMAT_SORTIE>
+                {format}
+            </FORMAT_SORTIE>
         """;
 
         var promptTemplate = PromptTemplate.builder()
