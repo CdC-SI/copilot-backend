@@ -29,23 +29,44 @@ public class ZasVisionVisionMessageService implements VisionMessageService {
     }
 
     @Override
-    public UserMessage translateMessage(String language) {
-        String template = """
-           You are an expert translator. Your task is to translate a document into the target language: {language}.
+    public UserMessage extractTextMessage() {
+        String message = """
+           You are a fabulous ocr. Your task is to extract text from the given document.
+           The next task will be to translate the extracted text.
 
-           # Translation Instructions:
-           Translate the document to {language}.
+           # Extraction instruction:
+           Please try to keep the original format.
            
            ## Response Format
-           Respond only with the translated text with no extra text !
+           Respond only with the extracted text with no extra information !
            """;
+
+        return new UserMessage(message);
+    }
+
+    @Override
+    public UserMessage translateMessage(String language, String textToTranslate) {
+        String template = """
+            <INSTRUCTIONS>
+                Translate the given text to the given language.
+                DO not include any extra information, only the translated text.
+            </INSTRUCTIONS>
+            <LANGUAGE>
+                {language}
+            </LANGUAGE>
+            <TEXT>
+                {text}
+            </TEXT>
+        """;
 
         var promptTemplate = PromptTemplate.builder()
                 .template(template)
-                .variables(Map.of("language", language))
+                .variables(Map.of("language", language, "text", textToTranslate))
                 .build();
 
-        return (UserMessage) promptTemplate.createMessage();
+        return UserMessage.builder()
+                .text(promptTemplate.render())
+                .build();
     }
 
     @Override

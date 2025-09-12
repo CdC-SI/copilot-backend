@@ -13,7 +13,9 @@ public interface VisionMessageService {
 
      UserMessage fileMessage(MultipartFile file);
 
-     UserMessage translateMessage(String language);
+     UserMessage extractTextMessage();
+
+     UserMessage translateMessage(String language, String textToTranslate);
 
      SystemMessage extractTariffPositionMessage(String jsonSchema);
 }
