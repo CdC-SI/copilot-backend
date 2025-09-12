@@ -97,6 +97,7 @@ rag:
     cohere-api-key: ${COHERE_API_KEY:cohere_api_key}
 logging:
   level:
+    zas.admin.zec: DEBUG
     org:
       springframework:
         ai: DEBUG
