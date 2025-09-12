@@ -1,5 +1,6 @@
 package zas.admin.zec.backend.config;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.web.client.RestClientSsl;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -16,6 +17,7 @@ import reactor.netty.http.client.HttpClient;
 import reactor.netty.transport.ProxyProvider;
 import zas.admin.zec.backend.config.properties.*;
 
+@Slf4j
 @Configuration
 @EnableJpaAuditing
 @EnableConfigurationProperties({ApplicationProperties.class, FAQSearchProperties.class,
@@ -70,9 +72,13 @@ public class WebClientConfig {
 
     @Bean
     public RestClient identityCheckRestClient(RestClient.Builder builder, RestClientSsl ssl) {
-        return builder
-                .baseUrl(identityCheckProperties.baseUrl())
-                .apply(ssl.fromBundle("identity-check-client"))
-                .build();
+        RestClient.Builder clientBuilder = builder.baseUrl(identityCheckProperties.baseUrl());
+        try {
+            clientBuilder.apply(ssl.fromBundle("identity-check-client"));
+        } catch (Exception ex) {
+            log.error(ex.getMessage(), ex);
+        }
+
+        return clientBuilder.build();
     }
 }
