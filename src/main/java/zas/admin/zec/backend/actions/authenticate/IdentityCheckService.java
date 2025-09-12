@@ -55,15 +55,10 @@ public class IdentityCheckService {
         return usersIdentityCheck.get(username);
     }
 
-    public IdentityCheckRequest createRequestForUser(User user) {
-        var personData = new IdentityPersonData(user.username(), user.firstName(),
-                user.lastName(), "fr",
-                "1980-05-15", "X-MANUALTEST-HAPPYPATH", "68",
-                "74200", "Thonon-les-Bains", "FR", "mail@mail.com",
-                "+41791234567", "FR", "241C07739", "PASSPORT", "m");
+    public IdentityCheckRequest createRequestForUser(IdentityPersonData identityPersonData) {
 
         return new IdentityCheckRequest(
-                personData,
+                identityPersonData,
                 "auto_id",
                 identityCheckProperties.callBackUrl(),
                 true,

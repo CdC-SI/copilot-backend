@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.*;
 import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.config.RequireAdmin;
 
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -22,9 +23,15 @@ public class IdentityCheckController {
 
     @RequireAdmin
     @PostMapping("/start")
-    public ResponseEntity<IdentityCheckResponse> startIDCheck(Authentication auth) {
+    public ResponseEntity<IdentityCheckResponse> startIDCheck(Authentication auth, @RequestBody Map<String, String> additionalUserData) {
         var user = userService.getByUsername(auth.getName());
-        var idCheckRequest = identityCheckService.createRequestForUser(user);
+        var idCheckPersonData = new IdentityPersonData(auth.getName(), user.firstName(), user.lastName(),
+                "fr", additionalUserData.get("dateOfBirth"), additionalUserData.get("street"),
+                additionalUserData.get("streetNr"), additionalUserData.get("zip"), additionalUserData.get("city"),
+                additionalUserData.get("country"), additionalUserData.get("email"), additionalUserData.get("mobilePhone"),
+                additionalUserData.get("nationality"), additionalUserData.get("idNumber"), additionalUserData.get("idType"),
+                additionalUserData.get("gender"));
+        var idCheckRequest = identityCheckService.createRequestForUser(idCheckPersonData);
         var transactionResponse =  identityCheckService.startIdentityCheck(idCheckRequest);
         identityCheckService.saveUserIdentityCheck(auth.getName(), transactionResponse.vipsTransactionId());
         return ResponseEntity.ok(transactionResponse);

@@ -39,7 +39,6 @@ public class ZasVisionService implements VisionService {
 
         var prompt = new Prompt(
                 visionMessageService.structureDataFromImageMessage(jsonSchema),
-                visionMessageService.dataInstructionsMessage(),
                 visionMessageService.fileMessage(file));
 
         return visionChatClient.prompt(prompt).options(options).call().entity(JsonNode.class);
