@@ -19,7 +19,7 @@ public class AgentFactory {
     private final ConversationMetaDataHolder conversationMetaDataHolder;
 
     @Autowired
-    public AgentFactory(Set<Agent> agents, @Qualifier("publicChatModel") ChatModel chatModel, ConversationMetaDataHolder conversationMetaDataHolder) {
+    public AgentFactory(Set<Agent> agents, @Qualifier("internalChatModel") ChatModel chatModel, ConversationMetaDataHolder conversationMetaDataHolder) {
         this.agents = agents;
         this.chatClient = ChatClient.create(chatModel);
         this.conversationMetaDataHolder = conversationMetaDataHolder;

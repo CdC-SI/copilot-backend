@@ -168,7 +168,7 @@ public class RAGAgent implements Agent {
            ops.add(builder.ne("organizations", "ZAS"));
         }
 
-        ops.add(builder.or(builder.eq("user_uuid", userId), builder.eq("user_uuid", "")));
+        ops.add(builder.group(builder.or(builder.eq("user_uuid", userId), builder.eq("user_uuid", ""))));
 
         FilterExpressionBuilder.Op combined = ops.getFirst();
         for (int i = 1; i < ops.size(); i++) {
