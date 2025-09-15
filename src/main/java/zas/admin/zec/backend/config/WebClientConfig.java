@@ -1,6 +1,8 @@
 package zas.admin.zec.backend.config;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.web.client.RestClientSsl;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -8,7 +10,6 @@ import org.springframework.core.task.TaskExecutor;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.http.client.ReactorNettyClientRequestFactory;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
-import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -16,25 +17,20 @@ import reactor.netty.http.client.HttpClient;
 import reactor.netty.transport.ProxyProvider;
 import zas.admin.zec.backend.config.properties.*;
 
+@Slf4j
 @Configuration
-@EnableAsync
 @EnableJpaAuditing
-@EnableConfigurationProperties({ApplicationProperties.class, PyBackendProperties.class,
-        FAQSearchProperties.class, RerankingProperties.class, DeepLProperties.class, ProxyProperties.class})
+@EnableConfigurationProperties({ApplicationProperties.class, FAQSearchProperties.class,
+        RerankingProperties.class, DeepLProperties.class, ProxyProperties.class,
+        IdentityCheckProperties.class})
 public class WebClientConfig {
-    private final PyBackendProperties pyBackendProperties;
     private final ProxyProperties proxyProperties;
+    private final IdentityCheckProperties identityCheckProperties;
 
-    public WebClientConfig(PyBackendProperties pyBackendProperties, ProxyProperties proxyProperties) {
-        this.pyBackendProperties = pyBackendProperties;
+
+    public WebClientConfig(ProxyProperties proxyProperties, IdentityCheckProperties identityCheckProperties) {
         this.proxyProperties = proxyProperties;
-    }
-
-    @Bean("pyBackendWebClient")
-    public WebClient webClient(WebClient.Builder builder) {
-        return builder
-                .baseUrl(pyBackendProperties.getBaseUrl())
-                .build();
+        this.identityCheckProperties = identityCheckProperties;
     }
 
     @Bean
@@ -72,5 +68,17 @@ public class WebClientConfig {
         executor.setThreadNamePrefix("AsyncExecutor-");
         executor.initialize();
         return executor;
+    }
+
+    @Bean
+    public RestClient identityCheckRestClient(RestClient.Builder builder, RestClientSsl ssl) {
+        RestClient.Builder clientBuilder = builder.baseUrl(identityCheckProperties.baseUrl());
+        try {
+            clientBuilder.apply(ssl.fromBundle("identity-check-client"));
+        } catch (Exception ex) {
+            log.error(ex.getMessage(), ex);
+        }
+
+        return clientBuilder.build();
     }
 }

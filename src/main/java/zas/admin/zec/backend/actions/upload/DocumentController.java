@@ -17,10 +17,7 @@ import zas.admin.zec.backend.config.RequireAdmin;
 import zas.admin.zec.backend.config.RequireInternalUser;
 import zas.admin.zec.backend.config.RequireUser;
 
-import java.io.IOException;
 import java.util.List;
-import java.util.Objects;
-import java.util.function.Predicate;
 
 @Slf4j
 @RestController
@@ -37,7 +34,7 @@ public class DocumentController {
 
     @RequireInternalUser
     @GetMapping
-    public ResponseEntity<Resource> getDocuments(@RequestParam String filename) {
+    public ResponseEntity<Resource> getDocument(@RequestParam String filename) {
         var download = uploadService.download(filename);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=%s".formatted(download.filename()))
@@ -49,11 +46,7 @@ public class DocumentController {
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Void> uploadDocument(@Valid UploadRequest request, Authentication authentication) {
         var userUuid = userService.getUuid(authentication.getName());
-        try {
-            uploadService.uploadPersonalDocument(new DocumentToUpload(request), userUuid);
-        } catch (IOException e) {
-            return ResponseEntity.internalServerError().build();
-        }
+        uploadService.uploadPersonalDocument(new DocumentToUpload(request), userUuid);
         return ResponseEntity.ok().build();
     }
 
@@ -61,15 +54,7 @@ public class DocumentController {
     @PostMapping(value = "/upload-admin", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Void> uploadDocumentAdmin(@Valid @ValidMultipartFileList List<MultipartFile> documents, Authentication authentication) {
         var toUploadList = documents.stream()
-                .map(file -> {
-                    try {
-                        return new DocumentToUpload(file);
-                    } catch (IOException e) {
-                        log.error("Error processing file {}: {}", file.getOriginalFilename(), e.getMessage());
-                        return null;
-                    }
-                })
-                .filter(Predicate.not(Objects::isNull))
+                .map(DocumentToUpload::new)
                 .toList();
 
         uploadService.uploadAdminDocuments(toUploadList);

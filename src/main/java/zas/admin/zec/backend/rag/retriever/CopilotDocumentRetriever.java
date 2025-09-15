@@ -39,6 +39,7 @@ public final class CopilotDocumentRetriever implements DocumentRetriever {
                 .topK(topK)
                 .build();
 
+        log.debug(filterExpression.get().toString());
         legacyDocuments.addAll(retriever.retrieve(query));
         log.info("Total documents retrieved: {}", legacyDocuments.size());
         legacyDocuments.forEach(doc -> log.info("Retrieved document: {} - from: {} with score: {}",

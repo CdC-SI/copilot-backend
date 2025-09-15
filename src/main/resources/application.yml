@@ -41,6 +41,14 @@ spring:
       max-file-size: 20MB
       max-request-size: 20MB
       file-size-threshold: 2KB
+  ssl:
+    bundle:
+      jks:
+        identity-check-client:
+          keystore:
+            location: ${IDENTITY_CHECK_KEYSTORE_LOC}
+            password: ${IDENTITY_CHECK_KEYSTORE_PASS}
+            type: PKCS12
   ai:
     chat:
       public:
@@ -54,6 +62,9 @@ spring:
         embedding-model: ${INTERNAL_EMBEDDING_MODEL}
         embedding-base-url: ${INTERNAL_EMBEDDING_BASE_URL}
         embedding-dimensions: ${EMBEDDING_DIMENSIONS:1024}
+        vision-model: ${VISION_MODEL}
+        vision-base-url: ${VISION_BASE_URL}
+
     vectorstore:
       pgvector:
         dimensions: ${PGVECTOR_DIMENSIONS:1024}
@@ -64,6 +75,9 @@ spring:
         initialize-schema: true
 py-backend:
   baseUrl: http://copilot:8000
+identity-check:
+  baseUrl: ${IDENTITY_CHECK_BASE_URL:https://api.int.adnovum-vips.ch}
+  call-back-url: ${IDENTITY_CHECK_CALL_BACK_URL:http://localhost:4200/tools}
 server:
   tomcat:
     max-swallow-size: -1
@@ -83,6 +97,7 @@ rag:
     cohere-api-key: ${COHERE_API_KEY:cohere_api_key}
 logging:
   level:
+    zas.admin.zec: DEBUG
     org:
       springframework:
         ai: DEBUG

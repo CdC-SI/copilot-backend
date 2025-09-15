@@ -72,8 +72,8 @@ public class ConversationController {
         return ResponseEntity.ok().build();
     }
 
-    @PostMapping(produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<String> askQuestion(@RequestBody Question question, Authentication authentication) {
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<String> askQuestion(@ModelAttribute Question question, Authentication authentication) {
         var userUuid = userService.getUuid(authentication.getName());
         return conversationService.streamAnswer(question.withDefaults(), userUuid);
     }
