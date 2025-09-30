@@ -2,11 +2,10 @@ package zas.admin.zec.backend.actions.rate;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import zas.admin.zec.backend.actions.authorize.UserService;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/conversations/feedbacks")
@@ -20,8 +19,26 @@ public class FeedbackController {
         this.feedbackService = feedbackService;
     }
 
-    @PostMapping
+    @PostMapping(params = "type=answer")
     public ResponseEntity<Void> sendFeedback(@RequestBody Feedback feedback, Authentication authentication) {
+        var userUuid = userService.getUuid(authentication.getName());
+        feedbackService.sendFeedback(userUuid, feedback);
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping(params = {"type=source", "conversationId", "messageId"})
+    public ResponseEntity<List<SourceFeedback>> getFeedbacks(
+            @RequestParam String conversationId,
+            @RequestParam String messageId,
+            Authentication authentication) {
+
+        var userUuid = userService.getUuid(authentication.getName());
+        var feedbacks = feedbackService.getFeedbacks(userUuid, conversationId, messageId);
+        return ResponseEntity.ok(feedbacks);
+    }
+
+    @PostMapping(params = "type=source")
+    public ResponseEntity<Void> sendFeedback(@RequestBody SourceFeedback feedback, Authentication authentication) {
         var userUuid = userService.getUuid(authentication.getName());
         feedbackService.sendFeedback(userUuid, feedback);
         return ResponseEntity.ok().build();

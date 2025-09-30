@@ -230,6 +230,7 @@ public class RAGAgent implements Agent {
                     var meta = doc.getMetadata();
                     if (meta.containsKey("url") && meta.get("url") != "") {
                         return SourceToken.fromURLWithDetails(
+                                doc.getId(),
                                 (String) meta.get("url"),
                                 (String) meta.get("page_num"),
                                 (String) meta.get("subsection"),
@@ -237,6 +238,7 @@ public class RAGAgent implements Agent {
                         );
                     }
                     return SourceToken.fromFileWithDetails(
+                            doc.getId(),
                             (String) meta.get("title"),
                             (String) meta.get("page_num"),
                             (String) meta.get("subsection"),
