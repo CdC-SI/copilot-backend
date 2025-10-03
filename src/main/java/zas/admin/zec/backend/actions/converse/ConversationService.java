@@ -265,8 +265,9 @@ public class ConversationService {
                     : src.link();
         }
 
-        // New extended format: TYPE|link|page|subsection|version   (URL-encoded parts)
+        // New extended format: documentId|TYPE|link|page|subsection|version   (URL-encoded parts)
         return String.join(DELIM,
+                src.documentId() == null ? "" : src.documentId(),
                 src.type().name(),
                 src.link(),
                 src.pageNumber(),
@@ -287,15 +288,20 @@ public class ConversationService {
 
         /* -------- new strings (pipe-separated) -------- */
         String[] parts = raw.split("\\|", -1);      // keep empty tail segments
-        //           0        1       2          3           4
-        //        TYPE | link | page | subsection | version
+        //       0       1      2         3          4          5
+        //      TYPE | link | page | subsection | version | documentId
         SourceType type       = SourceType.valueOf(parts[0]);
         String link           = parts[1];
         String pageNumber     = parts.length > 2 ? parts[2] : null;
         String subsection     = parts.length > 3 ? parts[3] : null;
         String version        = parts.length > 4 ? parts[4] : null;
+        String documentId     = parts.length > 5 ? parts[5] : generateLegacyDocId(parts);
 
-        return new Source(type, link, pageNumber, subsection, version);
+        return new Source(documentId, type, link, pageNumber, subsection, version);
+    }
+
+    private String generateLegacyDocId(String[] sourceParts) {
+        return String.join("#", Arrays.stream(sourceParts).filter(part -> part != null && !part.isEmpty()).toList());
     }
 
     private void generateConversationTitle(String initialQuery, String initialResponse, String userId, String conversationId, String language) {

@@ -12,6 +12,7 @@ public final class SourceToken implements Token {
     public static final String KEY_SUBSECTION = "subsection";
     public static final String KEY_VERSION = "version";
 
+    private final String documentId;
     private final SourceType type;
     private final String url;
     private final String filename;
@@ -19,9 +20,10 @@ public final class SourceToken implements Token {
     private final String subsection;
     private final String version;
 
-    private SourceToken(SourceType type, String url, String filename,
+    private SourceToken(String documentId, SourceType type, String url, String filename,
                         String pageNumber, String subsection, String version) {
 
+        this.documentId = documentId;
         this.type = type;
         this.url = url != null ? url : "";
         this.filename = filename != null ? filename : "";
@@ -31,19 +33,19 @@ public final class SourceToken implements Token {
     }
 
     public static SourceToken fromURL(String url) {
-        return new SourceToken(SourceType.URL, url, null, null, null, null);
+        return new SourceToken(null, SourceType.URL, url, null, null, null, null);
     }
 
-    public static SourceToken fromURLWithDetails(String url, String pageNumber, String subsection, String version) {
-        return new SourceToken(SourceType.URL, url, null, pageNumber, subsection, version);
+    public static SourceToken fromURLWithDetails(String documentId, String url, String pageNumber, String subsection, String version) {
+        return new SourceToken(documentId, SourceType.URL, url, null, pageNumber, subsection, version);
     }
 
     public static SourceToken fromFile(String filename) {
-        return new SourceToken(SourceType.FILE, null, filename, null, null, null);
+        return new SourceToken(null, SourceType.FILE, null, filename, null, null, null);
     }
 
-    public static SourceToken fromFileWithDetails(String filename, String pageNumber, String subsection, String version) {
-        return new SourceToken(SourceType.FILE, null, filename, pageNumber, subsection, version);
+    public static SourceToken fromFileWithDetails(String documentId, String filename, String pageNumber, String subsection, String version) {
+        return new SourceToken(documentId, SourceType.FILE, null, filename, pageNumber, subsection, version);
     }
 
     @Override
@@ -65,6 +67,10 @@ public final class SourceToken implements Token {
 
     public SourceType type() {
         return type;
+    }
+
+    public String documentId() {
+        return documentId;
     }
 
     private String toRange(String pageNumber) {
