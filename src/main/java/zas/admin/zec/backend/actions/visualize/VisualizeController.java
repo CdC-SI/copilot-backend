@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import zas.admin.zec.backend.config.RequireAdmin;
+import zas.admin.zec.backend.config.security.RequireAdmin;
 
 @RestController
 @RequestMapping("/api/visualize")

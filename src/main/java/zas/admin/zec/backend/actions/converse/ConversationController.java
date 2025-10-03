@@ -8,7 +8,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import zas.admin.zec.backend.actions.authorize.UserService;
-import zas.admin.zec.backend.config.RequireUser;
+import zas.admin.zec.backend.config.security.RequireUser;
 
 import java.util.List;
 import java.util.UUID;

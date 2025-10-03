@@ -2,7 +2,7 @@ package zas.admin.zec.backend.actions.askfaq;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import zas.admin.zec.backend.config.RequireAdmin;
+import zas.admin.zec.backend.config.security.RequireExpert;
 
 import java.util.List;
 
@@ -21,7 +21,7 @@ public class FAQItemsController {
     }
 
     @PostMapping
-    @RequireAdmin
+    @RequireExpert
     public ResponseEntity<FAQItem> saveFAQItem(@RequestBody FAQItemLight faqItem) {
         return ResponseEntity.ok(faqService.save(faqItem));
     }
