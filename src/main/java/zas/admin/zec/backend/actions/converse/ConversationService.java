@@ -265,15 +265,15 @@ public class ConversationService {
                     : src.link();
         }
 
-        // New extended format: documentId|TYPE|link|page|subsection|version   (URL-encoded parts)
+        // New extended format: TYPE|link|page|subsection|version|documentId   (URL-encoded parts)
         return String.join(DELIM,
-                src.documentId() == null ? "" : src.documentId(),
                 src.type().name(),
                 src.link(),
                 src.pageNumber(),
                 src.subsection(),
-                src.version()
-        );
+                src.version(),
+                src.documentId() == null ? "" : src.documentId()
+                );
     }
 
     private Source fromSourceString(String raw) {
