@@ -32,4 +32,10 @@ public class MessageFeedbackEntity {
 
     @Column(name = "timestamp")
     private LocalDateTime timestamp;
+
+    @Column(name = "question", columnDefinition = "text")
+    private String question;
+
+    @Column(name = "answer", columnDefinition = "text")
+    private String answer;
 }

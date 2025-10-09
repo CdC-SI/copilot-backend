@@ -7,5 +7,7 @@ public record SourceFeedback(
         String messageId,
         String documentId,
         boolean isPositive,
-        @Nullable String comment
+        @Nullable String comment,
+        @Nullable String question,
+        @Nullable String answer
 ) {}
