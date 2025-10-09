@@ -54,6 +54,16 @@ public class ConversationService {
         this.taskExecutor = taskExecutor;
     }
 
+    public List<Source> getSourcesByMessageUuid(String conversationUuid, String messageUuid) {
+        return conversationRepository.findByConversationIdAndMessageId(conversationUuid, messageUuid)
+                .map(MessageEntity::getSources)
+                .map(source -> Arrays.stream(source)
+                        .map(this::fromSourceString)
+                        .toList()
+                )
+                .orElse(List.of());
+    }
+
     public List<ConversationTitle> getTitlesByUserId(String userId) {
         return conversationTitleRepository.findByUserIdOrderByTimestamp(userId)
                 .stream()

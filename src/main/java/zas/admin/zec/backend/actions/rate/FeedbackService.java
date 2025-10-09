@@ -62,6 +62,8 @@ public class FeedbackService {
         messageFeedback.setScore(feedback.isPositive() ? 1 : -1);
         messageFeedback.setComment(feedback.comment());
         messageFeedback.setTimestamp(LocalDateTime.now());
+        messageFeedback.setQuestion(feedback.question());
+        messageFeedback.setAnswer(feedback.answer());
 
         messageFeedbackRepository.save(messageFeedback);
     }
@@ -75,6 +77,8 @@ public class FeedbackService {
         sourceFeedback.setFeedbackType(feedback.isPositive() ? POSITIVE : NEGATIVE);
         sourceFeedback.setComment(feedback.comment());
         sourceFeedback.setTimestamp(LocalDateTime.now());
+        sourceFeedback.setQuestion(feedback.question());
+        sourceFeedback.setAnswer(feedback.answer());
 
         sourceFeedbackRepository.save(sourceFeedback);
     }
@@ -87,7 +91,9 @@ public class FeedbackService {
                         entity.getMessageId(),
                         entity.getDocumentId(),
                         entity.getFeedbackType() == POSITIVE,
-                        entity.getComment()))
+                        entity.getComment(),
+                        entity.getQuestion(),
+                        entity.getAnswer()))
                 .toList();
     }
 }

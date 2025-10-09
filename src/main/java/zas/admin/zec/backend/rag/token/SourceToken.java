@@ -50,8 +50,8 @@ public final class SourceToken implements Token {
 
     @Override
     public String content() {
-        return "<source><url>%s</url><file>%s</file><pn>%s</pn><sub>%s</sub><v>%s</v></source>"
-                .formatted(url, filename, pageNumber, subsection, version);
+        return "<source><id>%s</id><url>%s</url><file>%s</file><pn>%s</pn><sub>%s</sub><v>%s</v></source>"
+                .formatted(documentId, url, filename, pageNumber, subsection, version);
     }
 
     @Override
