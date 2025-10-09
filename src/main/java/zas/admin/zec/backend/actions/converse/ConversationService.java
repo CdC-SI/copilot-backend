@@ -54,6 +54,16 @@ public class ConversationService {
         this.taskExecutor = taskExecutor;
     }
 
+    public List<Source> getSourcesByMessageUuid(String conversationUuid, String messageUuid) {
+        return conversationRepository.findByConversationIdAndMessageId(conversationUuid, messageUuid)
+                .map(MessageEntity::getSources)
+                .map(source -> Arrays.stream(source)
+                        .map(this::fromSourceString)
+                        .toList()
+                )
+                .orElse(List.of());
+    }
+
     public List<ConversationTitle> getTitlesByUserId(String userId) {
         return conversationTitleRepository.findByUserIdOrderByTimestamp(userId)
                 .stream()
@@ -265,15 +275,15 @@ public class ConversationService {
                     : src.link();
         }
 
-        // New extended format: documentId|TYPE|link|page|subsection|version   (URL-encoded parts)
+        // New extended format: TYPE|link|page|subsection|version|documentId   (URL-encoded parts)
         return String.join(DELIM,
-                src.documentId() == null ? "" : src.documentId(),
                 src.type().name(),
                 src.link(),
                 src.pageNumber(),
                 src.subsection(),
-                src.version()
-        );
+                src.version(),
+                src.documentId() == null ? "" : src.documentId()
+                );
     }
 
     private Source fromSourceString(String raw) {

@@ -4,7 +4,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import zas.admin.zec.backend.config.RequireAdmin;
+import zas.admin.zec.backend.config.security.RequireAdmin;
 import zas.admin.zec.backend.tools.api.ApiKeyService;
 
 import java.time.LocalDate;

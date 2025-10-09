@@ -8,9 +8,8 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import zas.admin.zec.backend.persistence.repository.DocumentRepository;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Component
 public class LegacyDocumentRetriever implements DocumentRetriever {
@@ -27,17 +26,7 @@ public class LegacyDocumentRetriever implements DocumentRetriever {
 
     @Override
     public List<Document> retrieve(Query query) {
-        String questionEmbed = Arrays.toString(embeddingModel.embed(query.text()));
-        return documentRepository.findNearestsProjectionByTextEmbedding(questionEmbed, 5)
-                .stream()
-                .map(projection -> Document.builder()
-                        .id(projection.getId().toString())
-                        .text(projection.getText())
-                        .metadata("url", projection.getUrl())
-                        .metadata("source", "legacy")
-                        .score(1 - projection.getDistance())
-                        .build())
-                .filter(document -> document.getScore() != null && document.getScore() > 0.5)
-                .collect(Collectors.toList());
+        return new ArrayList<>();
+
     }
 }

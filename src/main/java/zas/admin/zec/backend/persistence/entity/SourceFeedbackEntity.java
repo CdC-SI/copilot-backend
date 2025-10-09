@@ -38,6 +38,12 @@ public class SourceFeedbackEntity {
     @Column(name = "timestamp")
     private LocalDateTime timestamp;
 
+    @Column(name = "question", columnDefinition = "text")
+    private String question;
+
+    @Column(name = "answer", columnDefinition = "text")
+    private String answer;
+
     public enum FeedbackType {
         POSITIVE,
         NEGATIVE

@@ -13,9 +13,9 @@ import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.actions.upload.model.DocumentToUpload;
 import zas.admin.zec.backend.actions.upload.model.UploadRequest;
 import zas.admin.zec.backend.actions.upload.validation.ValidMultipartFileList;
-import zas.admin.zec.backend.config.RequireAdmin;
-import zas.admin.zec.backend.config.RequireInternalUser;
-import zas.admin.zec.backend.config.RequireUser;
+import zas.admin.zec.backend.config.security.RequireAdmin;
+import zas.admin.zec.backend.config.security.RequireInternalUser;
+import zas.admin.zec.backend.config.security.RequireUser;
 
 import java.util.List;
 
