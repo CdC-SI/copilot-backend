@@ -14,7 +14,6 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class FeedbackQueryService {
@@ -55,10 +54,6 @@ public class FeedbackQueryService {
                 .toList();
     }
 
-    public Optional<MessageFeedback> getMessage(Integer id, boolean includeDetails) {
-        return msgRepo.findById(id).map(m -> toMessageDTO(m, includeDetails));
-    }
-
     public List<FeedbackDTO.SourceFeedback> listSources(String range) {
         TimeWindow w = window(range);
         return srcRepo.findByTimestampBetween(w.start(), w.end()).stream()
@@ -68,7 +63,7 @@ public class FeedbackQueryService {
 
     public Stats stats(String range) {
         TimeWindow w = window(range);
-        long total = msgRepo.findByTimestampBetween(w.start(), w.end()).size();
+        long total = msgRepo.countByTimestampBetween(w.start(), w.end());
         long positive = msgRepo.countByTimestampBetweenAndScore(w.start(), w.end(), 1);
         long negative = msgRepo.countByTimestampBetweenAndScore(w.start(), w.end(), -1);
         double rate = total == 0 ? 0d : (double) positive / (double) total;

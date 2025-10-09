@@ -1,12 +1,14 @@
 package zas.admin.zec.backend.actions.analyze;
 
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import zas.admin.zec.backend.actions.analyze.FeedbackDTO.MessageFeedback;
 import zas.admin.zec.backend.actions.analyze.FeedbackDTO.SourceFeedback;
 import zas.admin.zec.backend.actions.analyze.FeedbackDTO.Stats;
 
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/feedback")
@@ -26,15 +28,6 @@ public class FeedbackKPIController {
 
         return svc.listMessages(range, includeDetails);
     }
-
-
-    @GetMapping("/messages/{id}")
-    public Optional<MessageFeedback> getMessage(@PathVariable Integer id,
-                                                @RequestParam(value = "includeDetails", defaultValue = "true") boolean includeDetails) {
-
-        return svc.getMessage(id, includeDetails);
-    }
-
 
     @GetMapping("/sources")
     public List<SourceFeedback> listSources(@RequestParam(value = "range", required = false) String range) {

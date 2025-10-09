@@ -14,6 +14,8 @@ public interface MessageFeedbackRepository extends JpaRepository<MessageFeedback
 
     List<MessageFeedbackEntity> findByTimestampBetween(LocalDateTime start, LocalDateTime end);
 
+    long countByTimestampBetween(LocalDateTime start, LocalDateTime end);
+
     long countByTimestampBetweenAndScore(LocalDateTime start, LocalDateTime end, Integer score);
 
     @Query(value = """
