@@ -1,6 +1,7 @@
-package zas.admin.zec.backend.config;
+package zas.admin.zec.backend.config.security;
 
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 import zas.admin.zec.backend.actions.authorize.Role;
 import zas.admin.zec.backend.actions.authorize.UserService;
@@ -27,11 +28,36 @@ public class AuthorizationLogic {
         return hasRole(authentication.getName(), Role.ADMIN);
     }
 
+    public boolean isExpert(Authentication authentication) {
+        return hasAnyRole(authentication.getName(), Role.EXPERT, Role.ADMIN);
+    }
+
+    public boolean isExternalClient(Authentication authentication) {
+        return authentication.getAuthorities().contains(new SimpleGrantedAuthority("EXTERNAL_CLIENT"));
+    }
+
     private boolean hasRole(String username, Role role) {
         try {
             var copilotUser = userService.getByUsername(username);
             return UserStatus.ACTIVE.equals(copilotUser.status()) &&
                     copilotUser.roles().contains(role);
+        } catch (IllegalArgumentException userNotFound) {
+            return false;
+        }
+    }
+
+    private boolean hasAnyRole(String username, Role... roles) {
+        try {
+            var copilotUser = userService.getByUsername(username);
+            if (!UserStatus.ACTIVE.equals(copilotUser.status())) {
+                return false;
+            }
+            for (var role : roles) {
+                if (copilotUser.roles().contains(role)) {
+                    return true;
+                }
+            }
+            return false;
         } catch (IllegalArgumentException userNotFound) {
             return false;
         }

@@ -17,7 +17,7 @@ public class AdminDocUploadStrategyFactory {
     }
 
     public UploadStrategy getUploadStrategy(DocumentToUpload doc) {
-        return "text/csv".equals(doc.contentType())
+        return "text/csv".equals(doc.file().getContentType())
                 ? new EmbeddedDocUploadStrategy(documentRepository)
                 : new SourceDocUploadStrategy(sourceRepository);
     }

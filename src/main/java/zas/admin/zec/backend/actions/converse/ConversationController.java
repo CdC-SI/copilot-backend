@@ -8,7 +8,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import zas.admin.zec.backend.actions.authorize.UserService;
-import zas.admin.zec.backend.config.RequireUser;
+import zas.admin.zec.backend.config.security.RequireUser;
 
 import java.util.List;
 import java.util.UUID;
@@ -72,8 +72,8 @@ public class ConversationController {
         return ResponseEntity.ok().build();
     }
 
-    @PostMapping(produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<String> askQuestion(@RequestBody Question question, Authentication authentication) {
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<String> askQuestion(@ModelAttribute Question question, Authentication authentication) {
         var userUuid = userService.getUuid(authentication.getName());
         return conversationService.streamAnswer(question.withDefaults(), userUuid);
     }

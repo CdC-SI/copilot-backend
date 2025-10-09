@@ -18,6 +18,9 @@ import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import zas.admin.zec.backend.actions.api.StreamEvent;
+import zas.admin.zec.backend.actions.api.StreamEventType;
 import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.actions.converse.Message;
 import zas.admin.zec.backend.actions.converse.Question;
@@ -28,10 +31,10 @@ import zas.admin.zec.backend.rag.token.SourceToken;
 import zas.admin.zec.backend.rag.token.TextToken;
 import zas.admin.zec.backend.rag.token.Token;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import java.time.Instant;
+import java.util.*;
 
+import static java.util.function.Predicate.not;
 import static org.springframework.ai.rag.advisor.RetrievalAugmentationAdvisor.DOCUMENT_CONTEXT;
 
 @Service
@@ -71,7 +74,7 @@ public class RAGAgent implements Agent {
     @Override
     public Flux<Token> processQuestion(Question question, String userId, List<Message> conversationHistory) {
         boolean hasAccessToInternalDocuments = userService.hasAccessToInternalDocuments(userId);
-        Advisor rag = getRagAdvisor(question, hasAccessToInternalDocuments, !conversationHistory.isEmpty());
+        Advisor rag = getRagAdvisor(question, hasAccessToInternalDocuments, !conversationHistory.isEmpty(), userId);
         ChatClient client = hasAccessToInternalDocuments
                 ? internalChatClient
                 : publicChatClient;
@@ -87,7 +90,38 @@ public class RAGAgent implements Agent {
                 .flatMap(this::toToken);
     }
 
-    private Advisor getRagAdvisor(Question question, boolean userHasAccessToInternalDocuments, boolean hasHistory) {
+    public Flux<StreamEvent> processPublicQuestion(String input) {
+        var question = Question.builder().query(input).build().withDefaults();
+        Advisor rag = getRagAdvisor(question, false, false, "");
+
+        StreamEvent created = new StreamEvent(
+                StreamEventType.CREATED,
+                Map.of(
+                        "id", "rsp_" + UUID.randomUUID(),
+                        "model", "zas-internal-model",
+                        "created_at", Instant.now().toString()
+                )
+        );
+
+        Flux<StreamEvent> deltas = internalChatClient
+                .prompt()
+                .system(RAGPrompts.getRagSystemPrompt(question.language()).formatted(question.responseFormat()))
+                .advisors(rag)
+                .user(question.query())
+                .stream()
+                .chatResponse()
+                .flatMap(this::toTextToken)
+                .filter(not(token -> token.content().isBlank()))
+                .map(token -> new StreamEvent(StreamEventType.DELTA, Map.of("delta", token.content())));
+
+        return Flux.concat(
+                Mono.just(created),
+                deltas,
+                Mono.just(new StreamEvent(StreamEventType.DELTA, Map.of("delta", "")))
+        );
+    }
+
+    private Advisor getRagAdvisor(Question question, boolean userHasAccessToInternalDocuments, boolean hasHistory, String userId) {
         var chatClient = userHasAccessToInternalDocuments
                 ? internalChatClient
                 : publicChatClient;
@@ -116,7 +150,7 @@ public class RAGAgent implements Agent {
                 .build();
     }
 
-    private Filter.Expression buildExpression(Question question, boolean userHasAccessToInternalDocuments) {
+    private Filter.Expression buildExpression(Question question, boolean userHasAccessToInternalDocuments, String userId) {
         FilterExpressionBuilder builder = new FilterExpressionBuilder();
         List<FilterExpressionBuilder.Op> ops = new ArrayList<>();
         if (question.tags() != null && !question.tags().isEmpty()) {
@@ -129,9 +163,7 @@ public class RAGAgent implements Agent {
            ops.add(builder.ne("organizations", "ZAS"));
         }
 
-        if (ops.isEmpty()) {
-            return null;
-        }
+        ops.add(builder.group(builder.or(builder.eq("user_uuid", userId), builder.eq("user_uuid", ""))));
 
         FilterExpressionBuilder.Op combined = ops.getFirst();
         for (int i = 1; i < ops.size(); i++) {
@@ -193,6 +225,7 @@ public class RAGAgent implements Agent {
                     var meta = doc.getMetadata();
                     if (meta.containsKey("url") && meta.get("url") != "") {
                         return SourceToken.fromURLWithDetails(
+                                doc.getId(),
                                 (String) meta.get("url"),
                                 (String) meta.get("page_num"),
                                 (String) meta.get("subsection"),
@@ -200,6 +233,7 @@ public class RAGAgent implements Agent {
                         );
                     }
                     return SourceToken.fromFileWithDetails(
+                            doc.getId(),
                             (String) meta.get("title"),
                             (String) meta.get("page_num"),
                             (String) meta.get("subsection"),

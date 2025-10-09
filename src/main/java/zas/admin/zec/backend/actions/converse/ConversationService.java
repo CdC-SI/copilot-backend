@@ -17,7 +17,7 @@ import zas.admin.zec.backend.persistence.entity.ConversationTitleEntity;
 import zas.admin.zec.backend.persistence.entity.MessageEntity;
 import zas.admin.zec.backend.persistence.repository.ConversationRepository;
 import zas.admin.zec.backend.persistence.repository.ConversationTitleRepository;
-import zas.admin.zec.backend.rag.RAGStatus;
+import zas.admin.zec.backend.rag.ChatStatus;
 import zas.admin.zec.backend.rag.token.*;
 import zas.admin.zec.backend.tools.ConversationMetaDataHolder;
 
@@ -52,6 +52,16 @@ public class ConversationService {
         this.chatClient = ChatClient.create(chatModel);
         this.agentFactory = agentFactory;
         this.taskExecutor = taskExecutor;
+    }
+
+    public List<Source> getSourcesByMessageUuid(String conversationUuid, String messageUuid) {
+        return conversationRepository.findByConversationIdAndMessageId(conversationUuid, messageUuid)
+                .map(MessageEntity::getSources)
+                .map(source -> Arrays.stream(source)
+                        .map(this::fromSourceString)
+                        .toList()
+                )
+                .orElse(List.of());
     }
 
     public List<ConversationTitle> getTitlesByUserId(String userId) {
@@ -137,7 +147,7 @@ public class ConversationService {
     }
 
     private Flux<Token> getTokenStream(Question question, String userId) {
-        Token routingStatus = new StatusToken(RAGStatus.ROUTING, question.language());
+        Token routingStatus = new StatusToken(ChatStatus.ROUTING, question.language());
         return Flux.just(routingStatus)
                 .concatWith(getAgentAndHistoryStream(question, userId));
     }
@@ -145,7 +155,7 @@ public class ConversationService {
     private Flux<Token> getAgentAndHistoryStream(Question question, String userId) {
         var agentFuture = fetchAgentAsync(question);
         var historyFuture = fetchConversationHistoryAsync(question, userId);
-        Mono<Token> handoffFuture = Mono.fromFuture(agentFuture).map(agent -> new StatusToken(RAGStatus.AGENT_HANDOFF, question.language(), agent.getName()));
+        Mono<Token> handoffFuture = Mono.fromFuture(agentFuture).map(agent -> new StatusToken(ChatStatus.AGENT_HANDOFF, question.language(), agent.getName()));
         var combined = agentFuture.thenCombine(historyFuture,
                 (agent, history) -> agent.processQuestion(question, userId, history));
 
@@ -265,14 +275,15 @@ public class ConversationService {
                     : src.link();
         }
 
-        // New extended format: TYPE|link|page|subsection|version   (URL-encoded parts)
+        // New extended format: TYPE|link|page|subsection|version|documentId   (URL-encoded parts)
         return String.join(DELIM,
                 src.type().name(),
                 src.link(),
                 src.pageNumber(),
                 src.subsection(),
-                src.version()
-        );
+                src.version(),
+                src.documentId() == null ? "" : src.documentId()
+                );
     }
 
     private Source fromSourceString(String raw) {
@@ -287,15 +298,20 @@ public class ConversationService {
 
         /* -------- new strings (pipe-separated) -------- */
         String[] parts = raw.split("\\|", -1);      // keep empty tail segments
-        //           0        1       2          3           4
-        //        TYPE | link | page | subsection | version
+        //       0       1      2         3          4          5
+        //      TYPE | link | page | subsection | version | documentId
         SourceType type       = SourceType.valueOf(parts[0]);
         String link           = parts[1];
         String pageNumber     = parts.length > 2 ? parts[2] : null;
         String subsection     = parts.length > 3 ? parts[3] : null;
         String version        = parts.length > 4 ? parts[4] : null;
+        String documentId     = parts.length > 5 ? parts[5] : generateLegacyDocId(parts);
 
-        return new Source(type, link, pageNumber, subsection, version);
+        return new Source(documentId, type, link, pageNumber, subsection, version);
+    }
+
+    private String generateLegacyDocId(String[] sourceParts) {
+        return String.join("#", Arrays.stream(sourceParts).filter(part -> part != null && !part.isEmpty()).toList());
     }
 
     private void generateConversationTitle(String initialQuery, String initialResponse, String userId, String conversationId, String language) {

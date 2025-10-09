@@ -20,4 +20,7 @@ public class TempSourceDocumentEntity {
     @Column(name = "content")
     private byte[] content;
 
+    @Column(name = "user_uuid")
+    private String userUuid;
+
 }

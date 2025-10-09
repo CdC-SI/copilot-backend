@@ -9,7 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
-import zas.admin.zec.backend.config.RequireAdmin;
+import zas.admin.zec.backend.config.security.RequireAdmin;
 
 import java.util.List;
 

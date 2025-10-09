@@ -23,7 +23,7 @@ public class ConversationTitleEntity {
     @Column(name = "conversation_uuid", nullable = false)
     private String conversationId;
 
-    @Column(name = "chat_title", nullable = false)
+    @Column(name = "chat_title", nullable = false, columnDefinition = "text")
     private String title;
 
     @Column(name = "timestamp", nullable = false)
