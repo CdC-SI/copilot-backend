@@ -6,10 +6,13 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
+import org.springframework.data.jpa.repository.JpaRepository;
 import zas.admin.zec.backend.actions.upload.model.DocumentToUpload;
 import zas.admin.zec.backend.actions.upload.validation.UploadException;
 import zas.admin.zec.backend.persistence.entity.DocumentEntity;
+import zas.admin.zec.backend.persistence.entity.QuestionEntity;
 import zas.admin.zec.backend.persistence.repository.DocumentRepository;
+import zas.admin.zec.backend.persistence.repository.QuestionRepository;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -30,10 +33,12 @@ public final class EmbeddedDocUploadStrategy implements UploadStrategy {
             .build();
 
     private final DocumentRepository documentRepository;
+    private final QuestionRepository questionRepository;
     private final ObjectMapper mapper;
 
-    public EmbeddedDocUploadStrategy(DocumentRepository documentRepository) {
+    public EmbeddedDocUploadStrategy(DocumentRepository documentRepository, QuestionRepository questionRepository) {
         this.documentRepository = documentRepository;
+        this.questionRepository = questionRepository;
         this.mapper = new ObjectMapper();
         this.mapper.configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true);
     }
@@ -41,33 +46,66 @@ public final class EmbeddedDocUploadStrategy implements UploadStrategy {
     @Override
     public void upload(DocumentToUpload doc) {
         try (Reader in = new InputStreamReader(new ByteArrayInputStream(doc.file().getBytes()), StandardCharsets.UTF_8)) {
-            List<DocumentEntity> buffer = new ArrayList<>(BATCH_SIZE);
-            for (CSVRecord rec : CSV_FMT.parse(in)) {
-                buffer.add(toEntity(rec));
-                if (buffer.size() == BATCH_SIZE) {
-                    flushBatch(buffer);
-                }
-            }
-            if (!buffer.isEmpty()) {
-                flushBatch(buffer);
-            }
+            if (doc.faqStore()) processQuestionCSV(in);
+            else processDocumentCSV(in);
         } catch (IOException e) {
             throw new UploadException(doc.file().getOriginalFilename(), "Error while uploading CSV", e);
         }
     }
 
-    private DocumentEntity toEntity(CSVRecord rec) throws JsonProcessingException {
-        DocumentEntity entity = new DocumentEntity();
-        entity.setContent(rec.get("content"));
-        entity.setMetadata(mapper.readValue(rec.get("metadata"), new TypeReference<>() {}));
-        entity.setEmbedding(parseEmbedding(rec.get("embedding")));
+    private void processQuestionCSV(Reader in) throws IOException {
+        List<QuestionEntity> buffer = new ArrayList<>(BATCH_SIZE);
+        for (CSVRecord rec : CSV_FMT.parse(in)) {
+            buffer.add(toQuestionEntity(rec));
+            if (buffer.size() == BATCH_SIZE) {
+                flushBatch(buffer, questionRepository);
+            }
+        }
+        if (!buffer.isEmpty()) {
+            flushBatch(buffer, questionRepository);
+        }
+    }
 
+    private void processDocumentCSV(Reader in) throws IOException {
+        List<DocumentEntity> buffer = new ArrayList<>(BATCH_SIZE);
+        for (CSVRecord rec : CSV_FMT.parse(in)) {
+            buffer.add(toDocumentEntity(rec));
+            if (buffer.size() == BATCH_SIZE) {
+                flushBatch(buffer, documentRepository);
+            }
+        }
+        if (!buffer.isEmpty()) {
+            flushBatch(buffer, documentRepository);
+        }
+    }
+
+    private DocumentEntity toDocumentEntity(CSVRecord rec) throws JsonProcessingException {
+        DocumentEntity entity = new DocumentEntity();
+        setCommonFields(entity, rec);
         return entity;
     }
 
-    private void flushBatch(List<DocumentEntity> batch) {
-        documentRepository.saveAll(batch);
-        documentRepository.flush();
+    private QuestionEntity toQuestionEntity(CSVRecord rec) throws JsonProcessingException {
+        QuestionEntity entity = new QuestionEntity();
+        setCommonFields(entity, rec);
+        return entity;
+    }
+
+    private void setCommonFields(Object entity, CSVRecord rec) throws JsonProcessingException {
+        if (entity instanceof DocumentEntity doc) {
+            doc.setContent(rec.get("content"));
+            doc.setMetadata(mapper.readValue(rec.get("metadata"), new TypeReference<>() {}));
+            doc.setEmbedding(parseEmbedding(rec.get("embedding")));
+        } else if (entity instanceof QuestionEntity question) {
+            question.setContent(rec.get("content"));
+            question.setMetadata(mapper.readValue(rec.get("metadata"), new TypeReference<>() {}));
+            question.setEmbedding(parseEmbedding(rec.get("embedding")));
+        }
+    }
+
+    private <T> void flushBatch(List<T> batch, JpaRepository<T, ?> repository) {
+        repository.saveAll(batch);
+        repository.flush();
         batch.clear();
     }
 

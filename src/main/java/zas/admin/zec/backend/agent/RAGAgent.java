@@ -41,22 +41,17 @@ import static org.springframework.ai.rag.advisor.RetrievalAugmentationAdvisor.DO
 public class RAGAgent implements Agent {
 
     private final ChatModel internalChatModel;
-    private final ChatModel publicChatModel;
     private final ChatClient internalChatClient;
-    private final ChatClient publicChatClient;
     private final VectorStore documentStore;
     private final UserService userService;
 
     public RAGAgent(
             @Qualifier("internalChatModel") ChatModel internalChatModel,
-            @Qualifier("publicChatModel") ChatModel publicChatModel,
             VectorStore documentStore,
             UserService userService) {
 
         this.internalChatModel = internalChatModel;
-        this.publicChatModel = publicChatModel;
         this.internalChatClient = ChatClient.create(internalChatModel);
-        this.publicChatClient = ChatClient.create(publicChatModel);
         this.documentStore = documentStore;
         this.userService = userService;
     }
@@ -75,11 +70,8 @@ public class RAGAgent implements Agent {
     public Flux<Token> processQuestion(Question question, String userId, List<Message> conversationHistory) {
         boolean hasAccessToInternalDocuments = userService.hasAccessToInternalDocuments(userId);
         Advisor rag = getRagAdvisor(question, hasAccessToInternalDocuments, !conversationHistory.isEmpty(), userId);
-        ChatClient client = hasAccessToInternalDocuments
-                ? internalChatClient
-                : publicChatClient;
 
-        return client
+        return internalChatClient
                 .prompt()
                 .system(RAGPrompts.getRagSystemPrompt(question.language()).formatted(question.responseFormat()))
                 .messages(conversationHistory.stream().map(this::convertToMessage).toList())
@@ -122,25 +114,19 @@ public class RAGAgent implements Agent {
     }
 
     private Advisor getRagAdvisor(Question question, boolean userHasAccessToInternalDocuments, boolean hasHistory, String userId) {
-        var chatClient = userHasAccessToInternalDocuments
-                ? internalChatClient
-                : publicChatClient;
-
         var transformers = new ArrayList<QueryTransformer>();
         if (hasHistory) {
-            transformers.add(compresser(question.language(), chatClient));
+            transformers.add(compresser(question.language(), internalChatClient));
         }
-        transformers.add(rewriter(question.language(), chatClient));
-        var queryExpander = expander(question.language(), chatClient);
+        transformers.add(rewriter(question.language(), internalChatClient));
+        var queryExpander = expander(question.language(), internalChatClient);
         var documentRetriever = VectorStoreDocumentRetriever.builder()
                 .vectorStore(documentStore)
-                .filterExpression(() -> buildExpression(question, userHasAccessToInternalDocuments))
+                .filterExpression(() -> buildExpression(question, userHasAccessToInternalDocuments, userId))
                 .topK(5)
                 .build();
 
-        var documentJoiner = userHasAccessToInternalDocuments
-                ? new RankedDocumentJoiner(internalChatModel, 5)
-                : new RankedDocumentJoiner(publicChatModel, 5);
+        var documentJoiner = new RankedDocumentJoiner(internalChatModel, 5);
 
         return RAGAdvisor.builder()
                 .queryTransformers(transformers)

@@ -2,6 +2,9 @@ package zas.admin.zec.backend.agent;
 
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.openai.api.ResponseFormat;
+import org.springframework.ai.util.json.schema.JsonSchemaGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
@@ -19,7 +22,7 @@ public class AgentFactory {
     private final ConversationMetaDataHolder conversationMetaDataHolder;
 
     @Autowired
-    public AgentFactory(Set<Agent> agents, @Qualifier("publicChatModel") ChatModel chatModel, ConversationMetaDataHolder conversationMetaDataHolder) {
+    public AgentFactory(Set<Agent> agents, @Qualifier("internalChatModel") ChatModel chatModel, ConversationMetaDataHolder conversationMetaDataHolder) {
         this.agents = agents;
         this.chatClient = ChatClient.create(chatModel);
         this.conversationMetaDataHolder = conversationMetaDataHolder;
@@ -58,10 +61,17 @@ public class AgentFactory {
         var systemPrompt = AgentPrompts.getAgentSelectionPrompt(question.language())
                 .formatted(question.query(), "");
 
+        String jsonSchema = JsonSchemaGenerator.generateForType(AgentSelection.class);
+
+        var options = OpenAiChatOptions.builder()
+                .responseFormat(new ResponseFormat(ResponseFormat.Type.JSON_SCHEMA, jsonSchema))
+                .build();
+
         var inferredAgent = chatClient
                 .prompt()
                 .system(systemPrompt)
                 .user(question.query())
+                .options(options)
                 .call()
                 .entity(AgentSelection.class);
 

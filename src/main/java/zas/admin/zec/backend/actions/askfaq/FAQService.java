@@ -26,7 +26,7 @@ public class FAQService {
     public FAQService(DocumentRepository documentRepository,
                       QuestionRepository questionRepository,
                       FAQSearchProperties faqSearchProperties,
-                      @Qualifier("publicEmbeddingModel") EmbeddingModel embeddingModel,
+                      @Qualifier("internalEmbeddingModel") EmbeddingModel embeddingModel,
                       FAQCache faqCache) {
 
         this.documentRepository = documentRepository;
