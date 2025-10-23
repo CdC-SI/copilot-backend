@@ -27,6 +27,7 @@ import zas.admin.zec.backend.actions.converse.Question;
 import zas.admin.zec.backend.rag.RAGPrompts;
 import zas.admin.zec.backend.rag.advisor.RAGAdvisor;
 import zas.admin.zec.backend.rag.joiner.RankedDocumentJoiner;
+import zas.admin.zec.backend.rag.reranker.DocumentReranker;
 import zas.admin.zec.backend.rag.token.SourceToken;
 import zas.admin.zec.backend.rag.token.TextToken;
 import zas.admin.zec.backend.rag.token.Token;
@@ -40,20 +41,21 @@ import static org.springframework.ai.rag.advisor.RetrievalAugmentationAdvisor.DO
 @Service
 public class RAGAgent implements Agent {
 
-    private final ChatModel internalChatModel;
     private final ChatClient internalChatClient;
     private final VectorStore documentStore;
     private final UserService userService;
+    private final DocumentReranker reranker;
 
     public RAGAgent(
             @Qualifier("internalChatModel") ChatModel internalChatModel,
             VectorStore documentStore,
-            UserService userService) {
+            UserService userService,
+            DocumentReranker reranker) {
 
-        this.internalChatModel = internalChatModel;
         this.internalChatClient = ChatClient.create(internalChatModel);
         this.documentStore = documentStore;
         this.userService = userService;
+        this.reranker = reranker;
     }
 
     @Override
@@ -126,7 +128,7 @@ public class RAGAgent implements Agent {
                 .topK(5)
                 .build();
 
-        var documentJoiner = new RankedDocumentJoiner(internalChatModel, 5);
+        var documentJoiner = new RankedDocumentJoiner(reranker, 5);
 
         return RAGAdvisor.builder()
                 .queryTransformers(transformers)

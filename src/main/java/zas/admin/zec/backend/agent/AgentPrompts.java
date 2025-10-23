@@ -8,12 +8,6 @@ public class AgentPrompts {
                 <instruction>sélectionnez l'agent approprié pour répondre à la question de l'utilisateur en fonction des métadonnées ci-dessous et des <agents> à disposition</instruction>
             </instructions>
             
-            <format_de_réponse>
-            AgentHandoff(
-                agent: String # le nom de l'agent approprié pour répondre à la question.
-            )
-            </format_de_réponse>
-            
             <agents>
                 CHAT_AGENT: résumer une conversation
                 CHAT_AGENT: traduire une conversation
@@ -31,7 +25,7 @@ public class AgentPrompts {
             </agents>
             
             <exemples>
-                Résume moi la converation -> CHAT_AGENT
+                Résume moi la conversation -> CHAT_AGENT
                 Résume moi le dernier message de notre discussion -> CHAT_AGENT
                 Traduis cette conversation en allemand -> CHAT_AGENT
                 Traduis ce message en italien -> CHAT_AGENT
@@ -57,12 +51,6 @@ public class AgentPrompts {
             <anweisungen>
                 <anweisung>wähle den geeigneten Agenten aus, um die Frage des Nutzers auf der Grundlage der unten stehenden Metadaten und der zur Verfügung stehenden <agents> zu beantworten</anweisung>
             </anweisungen>
-            
-            <format_der_antwort>
-            AgentHandoff(
-                agent: String # der Name des entsprechenden Agenten, der die Frage beantwortet.
-            )
-            </format_der_antwort>
             
             <agents>
                 CHAT_AGENT: eine Unterhaltung zusammenfassen
@@ -102,12 +90,6 @@ public class AgentPrompts {
             <istruzioni>
                 <istruzione>selezionare l'agente appropriato per rispondere alla domanda dell'utente in base ai metadati sottostanti e agli <agenti> disponibili</istruzione>
             </istruzioni>
-            
-            <risposta_formato>
-            AgentHandoff(
-                agent: String # il nome dell'agente appropriato per rispondere alla domanda
-            )
-            </risposta_formato>
             
             <agenti>
                 CHAT_AGENT: riassume una conversazione

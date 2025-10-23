@@ -6,6 +6,7 @@ import org.springframework.boot.autoconfigure.web.client.RestClientSsl;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.http.client.ReactorNettyClientRequestFactory;
@@ -34,22 +35,29 @@ public class WebClientConfig {
     }
 
     @Bean
+    @Primary
     @ConditionalOnProperty(name = "proxy.enabled", havingValue = "true")
-    public RestClient.Builder restClientBuilder(final HttpClient httpClient) {
+    public RestClient.Builder proxyRestClientBuilder(final HttpClient httpClient) {
         return RestClient.builder()
                 .requestFactory(new ReactorNettyClientRequestFactory(httpClient));
     }
 
     @Bean
+    @Primary
     @ConditionalOnProperty(name = "proxy.enabled", havingValue = "true")
-    public WebClient.Builder webClientBuilder(final HttpClient httpClient) {
+    public WebClient.Builder proxyWebClientBuilder(final HttpClient httpClient) {
         return WebClient.builder()
                 .clientConnector(new ReactorClientHttpConnector(httpClient));
     }
 
+    @Bean(name = "clientBuilderForInternalCalls")
+    public WebClient.Builder noProxyWebClientBuilder() {
+        return WebClient.builder();
+    }
+
     @Bean
     @ConditionalOnProperty(name = "proxy.enabled", havingValue = "true")
-    public HttpClient httpClient() {
+    public HttpClient proxyHttpClient() {
         return HttpClient.create()
                 .proxy(proxy -> proxy
                         .type(ProxyProvider.Proxy.HTTP)
@@ -70,7 +78,7 @@ public class WebClientConfig {
         return executor;
     }
 
-    @Bean
+    @Bean(name = "identityCheckRestClient")
     public RestClient identityCheckRestClient(RestClient.Builder builder, RestClientSsl ssl) {
         RestClient.Builder clientBuilder = builder.baseUrl(identityCheckProperties.baseUrl());
         try {

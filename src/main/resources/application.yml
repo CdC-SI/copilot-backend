@@ -64,6 +64,8 @@ spring:
         embedding-dimensions: ${EMBEDDING_DIMENSIONS:1024}
         vision-model: ${VISION_MODEL}
         vision-base-url: ${VISION_BASE_URL}
+        reranker-model: ${RERANKER_MODEL}
+        reranker-base-url: ${RERANKER_BASE_URL}
 
     vectorstore:
       pgvector:

@@ -1,5 +1,7 @@
 package zas.admin.zec.backend.agent;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
@@ -14,9 +16,13 @@ import zas.admin.zec.backend.tools.ConversationMetaDataHolder;
 import java.util.Optional;
 import java.util.Set;
 
+import static zas.admin.zec.backend.agent.AgentType.RAG_AGENT;
+
+@Slf4j
 @Component
 public class AgentFactory {
 
+    private final ObjectMapper objectMapper;
     private final Set<Agent> agents;
     private final ChatClient chatClient;
     private final ConversationMetaDataHolder conversationMetaDataHolder;
@@ -26,9 +32,10 @@ public class AgentFactory {
         this.agents = agents;
         this.chatClient = ChatClient.create(chatModel);
         this.conversationMetaDataHolder = conversationMetaDataHolder;
+        objectMapper = new ObjectMapper();
     }
 
-    record AgentSelection(String agent) {}
+    public record AgentHandoff(String agent) {}
     public Agent selectAppropriateAgent(Question question) {
         var agentType = selectAgentType(question);
         return agents.stream()
@@ -61,7 +68,7 @@ public class AgentFactory {
         var systemPrompt = AgentPrompts.getAgentSelectionPrompt(question.language())
                 .formatted(question.query(), "");
 
-        String jsonSchema = JsonSchemaGenerator.generateForType(AgentSelection.class);
+        String jsonSchema = JsonSchemaGenerator.generateForType(AgentHandoff.class);
 
         var options = OpenAiChatOptions.builder()
                 .responseFormat(new ResponseFormat(ResponseFormat.Type.JSON_SCHEMA, jsonSchema))
@@ -73,10 +80,20 @@ public class AgentFactory {
                 .user(question.query())
                 .options(options)
                 .call()
-                .entity(AgentSelection.class);
+                .content();
 
-        return inferredAgent != null
-                ? AgentType.fromString(inferredAgent.agent())
-                : AgentType.RAG_AGENT;
+        return convertJsonToAgentType(inferredAgent);
+    }
+
+    private AgentType convertJsonToAgentType(String inferredAgent) {
+        AgentHandoff agentHandoff;
+        try {
+            agentHandoff = objectMapper.readValue(inferredAgent, AgentHandoff.class);
+            return AgentType.fromString(agentHandoff.agent());
+        } catch (Exception e) {
+            log.error("Failed to parse agent inference response: {}", inferredAgent, e);
+        }
+
+        return RAG_AGENT;
     }
 }
