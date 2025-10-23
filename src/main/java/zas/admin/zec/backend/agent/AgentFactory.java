@@ -28,11 +28,13 @@ public class AgentFactory {
     private final ConversationMetaDataHolder conversationMetaDataHolder;
 
     @Autowired
-    public AgentFactory(Set<Agent> agents, @Qualifier("internalChatModel") ChatModel chatModel, ConversationMetaDataHolder conversationMetaDataHolder) {
+    public AgentFactory(ObjectMapper objectMapper, Set<Agent> agents, @Qualifier("internalChatModel") ChatModel chatModel,
+                        ConversationMetaDataHolder conversationMetaDataHolder) {
+
+        this.objectMapper = objectMapper;
         this.agents = agents;
         this.chatClient = ChatClient.create(chatModel);
         this.conversationMetaDataHolder = conversationMetaDataHolder;
-        objectMapper = new ObjectMapper();
     }
 
     public record AgentHandoff(String agent) {}

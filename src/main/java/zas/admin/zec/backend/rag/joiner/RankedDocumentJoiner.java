@@ -15,10 +15,12 @@ public class RankedDocumentJoiner implements DocumentJoiner {
 
     private final DocumentReranker reranker;
     private final int topK;
+    private final float scoreThreshold;
 
-    public RankedDocumentJoiner(DocumentReranker reranker, int topK) {
+    public RankedDocumentJoiner(DocumentReranker reranker, int topK, float scoreThreshold) {
         this.reranker = reranker;
         this.topK = topK;
+        this.scoreThreshold = scoreThreshold;
     }
 
     @Override
@@ -28,7 +30,7 @@ public class RankedDocumentJoiner implements DocumentJoiner {
                         .stream()
                         .flatMap(docs -> reranker.rerank(entry.getKey().text(), docs).stream())
                 )
-                .filter(doc -> doc.getScore() > 0.5)
+                .filter(doc -> doc.getScore() > this.scoreThreshold)
                 .collect(Collectors.toMap(Document::getId, Function.identity(), (existing, duplicate) -> existing))
                 .values().stream()
                 .sorted(Comparator.comparingDouble(Document::getScore).reversed())

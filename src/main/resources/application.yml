@@ -97,6 +97,7 @@ faq:
 rag:
   reranking:
     cohere-api-key: ${COHERE_API_KEY:cohere_api_key}
+    score-threshold: ${RERANKING_SCORE_THRESHOLD:0.5}
 logging:
   level:
     zas.admin.zec: DEBUG

@@ -9,7 +9,6 @@ import zas.admin.zec.backend.config.properties.InternalChatModelProperties;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 import static java.util.Collections.singletonList;
 
@@ -109,8 +108,9 @@ public class DocumentReranker {
 
     private List<String> formatDocuments(List<Document> documents) {
         return documents.stream()
+                .filter(doc -> doc.getText() != null && !doc.getText().isBlank())
                 .map(doc -> DOCUMENT_TEMPLATE
-                        .replace("{document}", Objects.requireNonNull(doc.getText()))
+                        .replace("{document}", doc.getText())
                         .replace("{suffix}", SUFFIX))
                 .toList();
     }
