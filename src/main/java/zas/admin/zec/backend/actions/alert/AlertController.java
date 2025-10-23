@@ -39,7 +39,7 @@ public class AlertController {
     @DeleteMapping(path = "/{id}")
     public ResponseEntity<Void> deleteAlert(@PathVariable long id) {
         alertService.delete(id);
-        return new ResponseEntity<>(HttpStatus.OK);
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
 }
