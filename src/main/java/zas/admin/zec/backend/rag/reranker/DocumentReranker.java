@@ -33,7 +33,7 @@ public class DocumentReranker {
                 """;
 
     private static final String QUERY_TEMPLATE = """
-                {prexif}<Instruct>: {instruction}
+                {prefix}<Instruct>: {instruction}
                 <Query>: {query}
                 """;
 
