@@ -112,7 +112,7 @@ public class FAQService {
         ));
 
         DocumentEntity answer = documentRepository.findByAnswerId(answerId);
-        answer.setContent(faqItemLight.text());
+        answer.setContent(faqItemLight.answer());
         answer.setEmbedding(embeddingModel.embed(faqItemLight.answer()));
         answer.setMetadata(Map.of(
                 "answer_id", answerId,
