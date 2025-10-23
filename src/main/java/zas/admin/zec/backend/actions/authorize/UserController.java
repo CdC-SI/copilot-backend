@@ -17,6 +17,8 @@ import java.util.List;
 @RequestMapping("/api/users")
 public class UserController {
 
+    private static final String EPORTAL_GUEST_USERNAME = "00000000-0000-0000-0000-000000000000";
+
     public record UserResponse(String userId) {}
     private final UserService userService;
 
@@ -90,7 +92,9 @@ public class UserController {
 
     @GetMapping("/authenticated")
     public ResponseEntity<UserProfile> getUser(Authentication authentication) {
-        if (authentication.getPrincipal() instanceof ZasUser zasUser) {
+        if (authentication.getName().equals(EPORTAL_GUEST_USERNAME)) {
+            return ResponseEntity.ok(getCopilotGuestProfile());
+        } else if (authentication.getPrincipal() instanceof ZasUser zasUser) {
             return ResponseEntity.ok(getCopilotProfileFromZasUser(zasUser));
         } else {
             return ResponseEntity.ok(getCopilotProfileFromExternalUser(authentication.getName()));
@@ -105,6 +109,17 @@ public class UserController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         }
+    }
+
+    private UserProfile getCopilotGuestProfile() {
+        return new UserProfile(
+                EPORTAL_GUEST_USERNAME,
+                "John",
+                "Doe",
+                UserStatus.JOHN_DOE,
+                List.of(),
+                false
+        );
     }
 
     private UserProfile getCopilotProfileFromZasUser(ZasUser zasUser) {

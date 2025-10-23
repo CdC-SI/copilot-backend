@@ -15,8 +15,8 @@ import java.util.UUID;
 @Getter
 @Setter
 @Entity
-@Table(name = "internal_documents")
-public class InternalDocumentEntity {
+@Table(name = "vector_store")
+public class DocumentEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

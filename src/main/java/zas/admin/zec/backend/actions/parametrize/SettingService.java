@@ -3,7 +3,7 @@ package zas.admin.zec.backend.actions.parametrize;
 import org.springframework.stereotype.Service;
 import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.config.properties.ApplicationProperties;
-import zas.admin.zec.backend.persistence.repository.InternalDocumentRepository;
+import zas.admin.zec.backend.persistence.repository.DocumentRepository;
 
 import java.util.List;
 import java.util.stream.Stream;
@@ -13,15 +13,15 @@ public class SettingService {
 
     private final ApplicationProperties properties;
     private final UserService userService;
-    private final InternalDocumentRepository internalDocumentRepository;
+    private final DocumentRepository documentRepository;
 
     public SettingService(ApplicationProperties properties,
                           UserService userService,
-                          InternalDocumentRepository internalDocumentRepository) {
+                          DocumentRepository documentRepository) {
 
         this.properties = properties;
         this.userService = userService;
-        this.internalDocumentRepository = internalDocumentRepository;
+        this.documentRepository = documentRepository;
     }
 
     public List<String> getPublicSettings(SettingType type) {
@@ -48,8 +48,8 @@ public class SettingService {
 
     public List<String> getPublicTags(List<String> sources) {
         return sources.isEmpty()
-            ? internalDocumentRepository.findPublicTags()
-            : internalDocumentRepository.findPublicTagsBySources(sources);
+            ? documentRepository.findPublicTags()
+            : documentRepository.findPublicTagsBySources(sources);
     }
 
     public List<String> getTags(String currentUser, List<String> sources) {
@@ -58,18 +58,18 @@ public class SettingService {
             return getPublicTags(sources);
         }
         return sources.isEmpty()
-                ? internalDocumentRepository.findAllTags()
-                : internalDocumentRepository.findTagsBySources(sources);
+                ? documentRepository.findAllTags()
+                : documentRepository.findTagsBySources(sources);
     }
 
     private List<String> getPublicSources() {
-        return internalDocumentRepository.findPublicSources();
+        return documentRepository.findPublicSources();
     }
 
     private List<String> getSources(String currentUser) {
         var userId = userService.getUuid(currentUser);
         return userService.hasAccessToInternalDocuments(userId)
-                ? internalDocumentRepository.findAllSources()
+                ? documentRepository.findAllSources()
                 : getPublicSources();
     }
 

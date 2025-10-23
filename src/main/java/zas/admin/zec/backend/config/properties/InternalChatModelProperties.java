@@ -11,4 +11,6 @@ public record InternalChatModelProperties(
         String chatBaseUrl,
         String embeddingModel,
         String embeddingBaseUrl,
-        Integer embeddingDimensions) {}
+        Integer embeddingDimensions,
+        String rerankerModel,
+        String rerankerBaseUrl) {}

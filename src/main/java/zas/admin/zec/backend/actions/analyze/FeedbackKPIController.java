@@ -7,9 +7,11 @@ import org.springframework.web.bind.annotation.RestController;
 import zas.admin.zec.backend.actions.analyze.FeedbackDTO.MessageFeedback;
 import zas.admin.zec.backend.actions.analyze.FeedbackDTO.SourceFeedback;
 import zas.admin.zec.backend.actions.analyze.FeedbackDTO.Stats;
+import zas.admin.zec.backend.config.security.RequireAdmin;
 
 import java.util.List;
 
+@RequireAdmin
 @RestController
 @RequestMapping("/api/feedback")
 public class FeedbackKPIController {
