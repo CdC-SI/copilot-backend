@@ -21,7 +21,7 @@ public class ChatAgent implements Agent {
     private final TranslationService translationService;
     private final ChatClient client;
 
-    public ChatAgent(TranslationService translationService, @Qualifier("publicChatModel") ChatModel model) {
+    public ChatAgent(TranslationService translationService, @Qualifier("internalChatModel") ChatModel model) {
         this.translationService = translationService;
         this.client = ChatClient.create(model);
     }

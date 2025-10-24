@@ -4,7 +4,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import zas.admin.zec.backend.actions.authorize.UserService;
-import zas.admin.zec.backend.config.RequireAdmin;
+import zas.admin.zec.backend.config.security.RequireAdmin;
 
 import java.util.Map;
 import java.util.Optional;

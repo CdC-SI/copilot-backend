@@ -1,5 +1,4 @@
-package zas.admin.zec.backend.config;
-
+package zas.admin.zec.backend.config.security;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 
@@ -10,6 +9,6 @@ import java.lang.annotation.Target;
 
 @Target({ElementType.METHOD, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
-@PreAuthorize("@authz.isUser(authentication)")
-public @interface RequireUser {
+@PreAuthorize("@authz.isExpert(authentication)")
+public @interface RequireExpert {
 }

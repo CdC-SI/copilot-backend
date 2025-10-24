@@ -11,7 +11,7 @@ import org.springframework.ai.rag.preretrieval.query.expansion.QueryExpander;
 import org.springframework.ai.rag.preretrieval.query.transformation.CompressionQueryTransformer;
 import org.springframework.ai.rag.preretrieval.query.transformation.QueryTransformer;
 import org.springframework.ai.rag.preretrieval.query.transformation.RewriteQueryTransformer;
-import org.springframework.ai.rag.retrieval.search.DocumentRetriever;
+import org.springframework.ai.rag.retrieval.search.VectorStoreDocumentRetriever;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.ai.vectorstore.filter.Filter;
 import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
@@ -24,10 +24,11 @@ import zas.admin.zec.backend.actions.api.StreamEventType;
 import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.actions.converse.Message;
 import zas.admin.zec.backend.actions.converse.Question;
+import zas.admin.zec.backend.config.properties.RerankingProperties;
 import zas.admin.zec.backend.rag.RAGPrompts;
 import zas.admin.zec.backend.rag.advisor.RAGAdvisor;
 import zas.admin.zec.backend.rag.joiner.RankedDocumentJoiner;
-import zas.admin.zec.backend.rag.retriever.CopilotDocumentRetriever;
+import zas.admin.zec.backend.rag.reranker.DocumentReranker;
 import zas.admin.zec.backend.rag.token.SourceToken;
 import zas.admin.zec.backend.rag.token.TextToken;
 import zas.admin.zec.backend.rag.token.Token;
@@ -41,28 +42,24 @@ import static org.springframework.ai.rag.advisor.RetrievalAugmentationAdvisor.DO
 @Service
 public class RAGAgent implements Agent {
 
-    private final ChatModel internalChatModel;
-    private final ChatModel publicChatModel;
     private final ChatClient internalChatClient;
-    private final ChatClient publicChatClient;
     private final VectorStore documentStore;
-    private final DocumentRetriever legacyDocRetriever;
     private final UserService userService;
+    private final DocumentReranker reranker;
+    private final RerankingProperties rerankingProperties;
 
     public RAGAgent(
             @Qualifier("internalChatModel") ChatModel internalChatModel,
-            @Qualifier("publicChatModel") ChatModel publicChatModel,
             VectorStore documentStore,
-            DocumentRetriever legacyDocRetriever,
-            UserService userService) {
+            UserService userService,
+            DocumentReranker reranker,
+            RerankingProperties rerankingProperties) {
 
-        this.internalChatModel = internalChatModel;
-        this.publicChatModel = publicChatModel;
         this.internalChatClient = ChatClient.create(internalChatModel);
-        this.publicChatClient = ChatClient.create(publicChatModel);
         this.documentStore = documentStore;
-        this.legacyDocRetriever = legacyDocRetriever;
         this.userService = userService;
+        this.reranker = reranker;
+        this.rerankingProperties = rerankingProperties;
     }
 
     @Override
@@ -79,11 +76,8 @@ public class RAGAgent implements Agent {
     public Flux<Token> processQuestion(Question question, String userId, List<Message> conversationHistory) {
         boolean hasAccessToInternalDocuments = userService.hasAccessToInternalDocuments(userId);
         Advisor rag = getRagAdvisor(question, hasAccessToInternalDocuments, !conversationHistory.isEmpty(), userId);
-        ChatClient client = hasAccessToInternalDocuments
-                ? internalChatClient
-                : publicChatClient;
 
-        return client
+        return internalChatClient
                 .prompt()
                 .system(RAGPrompts.getRagSystemPrompt(question.language()).formatted(question.responseFormat()))
                 .messages(conversationHistory.stream().map(this::convertToMessage).toList())
@@ -126,26 +120,19 @@ public class RAGAgent implements Agent {
     }
 
     private Advisor getRagAdvisor(Question question, boolean userHasAccessToInternalDocuments, boolean hasHistory, String userId) {
-        var chatClient = userHasAccessToInternalDocuments
-                ? internalChatClient
-                : publicChatClient;
-
         var transformers = new ArrayList<QueryTransformer>();
         if (hasHistory) {
-            transformers.add(compresser(question.language(), chatClient));
+            transformers.add(compresser(question.language(), internalChatClient));
         }
-        transformers.add(rewriter(question.language(), chatClient));
-        var queryExpander = expander(question.language(), chatClient);
-        var documentRetriever = CopilotDocumentRetriever.builder()
-                .documentStore(documentStore)
-                .legacyDocumentRetriever(legacyDocRetriever)
-                .filterExpression(buildExpression(question, userHasAccessToInternalDocuments, userId))
+        transformers.add(rewriter(question.language(), internalChatClient));
+        var queryExpander = expander(question.language(), internalChatClient);
+        var documentRetriever = VectorStoreDocumentRetriever.builder()
+                .vectorStore(documentStore)
+                .filterExpression(() -> buildExpression(question, userHasAccessToInternalDocuments, userId))
                 .topK(5)
                 .build();
 
-        var documentJoiner = userHasAccessToInternalDocuments
-                ? new RankedDocumentJoiner(internalChatModel, 5)
-                : new RankedDocumentJoiner(publicChatModel, 5);
+        var documentJoiner = new RankedDocumentJoiner(reranker, 5, rerankingProperties.scoreThreshold());
 
         return RAGAdvisor.builder()
                 .queryTransformers(transformers)
@@ -230,6 +217,7 @@ public class RAGAgent implements Agent {
                     var meta = doc.getMetadata();
                     if (meta.containsKey("url") && meta.get("url") != "") {
                         return SourceToken.fromURLWithDetails(
+                                doc.getId(),
                                 (String) meta.get("url"),
                                 (String) meta.get("page_num"),
                                 (String) meta.get("subsection"),
@@ -237,6 +225,7 @@ public class RAGAgent implements Agent {
                         );
                     }
                     return SourceToken.fromFileWithDetails(
+                            doc.getId(),
                             (String) meta.get("title"),
                             (String) meta.get("page_num"),
                             (String) meta.get("subsection"),

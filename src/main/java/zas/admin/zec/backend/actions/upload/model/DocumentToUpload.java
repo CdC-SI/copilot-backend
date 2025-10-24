@@ -5,13 +5,15 @@ import org.springframework.web.multipart.MultipartFile;
 public record DocumentToUpload(
         MultipartFile file,
         String lang,
-        boolean embed) {
+        boolean embed,
+        boolean faqStore) {
 
     public DocumentToUpload(UploadRequest request) {
         this(
                 request.multipartFile(),
                 request.lang(),
-                request.embed()
+                request.embed(),
+                false
         );
     }
 
@@ -19,7 +21,8 @@ public record DocumentToUpload(
         this(
                 file,
                 "fr",
-                false
+                false,
+                file.getOriginalFilename().startsWith("faq_q")
         );
     }
 }

@@ -49,7 +49,7 @@ public class ChatModelsConfig {
                 .build();
     }
 
-    @Bean
+    @Bean(name = "visionModel")
     public ChatModel visionModel() {
         var api = OpenAiApi.builder()
                 .apiKey(internalChatModelProperties.apiKey())
