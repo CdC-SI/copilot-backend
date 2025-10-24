@@ -38,7 +38,7 @@ info:
       ```
 
 servers:
-  - url: https://copilot-d.zas.admin.ch/copilot
+  - url: https://copilot-r.zas.admin.ch/copilot
     description: Development
 
 paths:
