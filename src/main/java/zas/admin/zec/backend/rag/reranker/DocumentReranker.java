@@ -70,7 +70,7 @@ public class DocumentReranker {
                             "model", internalChatModelProperties.rerankerModel(),
                             "text_1", singletonList(formatQuery(query)),
                             "text_2", formatDocuments(documents),
-                            "truncate_prompt_tokens", -1
+                            "truncate_prompt_tokens", 16384
                     ))
                     .retrieve()
                     .bodyToMono(RerankResponse.class)
