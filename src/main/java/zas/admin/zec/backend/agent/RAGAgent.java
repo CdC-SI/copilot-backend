@@ -189,7 +189,7 @@ public class RAGAgent implements Agent {
                 .promptTemplate(new PromptTemplate(
                         RAGPrompts.getQueryExpanderTemplate(lang)
                 ))
-                .numberOfQueries(5)
+                .numberOfQueries(1)
                 .build();
     }
 

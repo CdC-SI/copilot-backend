@@ -65,7 +65,7 @@ public class DocumentReranker {
         debugBeforeReranking(documents);
         try {
             var response = reranker.post()
-                    .uri("/v1/score")
+                    .uri("/score")
                     .bodyValue(Map.of(
                             "model", internalChatModelProperties.rerankerModel(),
                             "text_1", singletonList(formatQuery(query)),
