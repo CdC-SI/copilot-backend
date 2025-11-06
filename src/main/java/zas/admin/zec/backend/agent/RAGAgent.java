@@ -24,7 +24,7 @@ import zas.admin.zec.backend.actions.api.StreamEventType;
 import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.actions.converse.Message;
 import zas.admin.zec.backend.actions.converse.Question;
-import zas.admin.zec.backend.config.properties.RerankingProperties;
+import zas.admin.zec.backend.config.properties.RetrievingProperties;
 import zas.admin.zec.backend.rag.RAGPrompts;
 import zas.admin.zec.backend.rag.advisor.RAGAdvisor;
 import zas.admin.zec.backend.rag.joiner.RankedDocumentJoiner;
@@ -46,20 +46,20 @@ public class RAGAgent implements Agent {
     private final VectorStore documentStore;
     private final UserService userService;
     private final DocumentReranker reranker;
-    private final RerankingProperties rerankingProperties;
+    private final RetrievingProperties retrievingProperties;
 
     public RAGAgent(
             @Qualifier("internalChatModel") ChatModel internalChatModel,
             VectorStore documentStore,
             UserService userService,
             DocumentReranker reranker,
-            RerankingProperties rerankingProperties) {
+            RetrievingProperties retrievingProperties) {
 
         this.internalChatClient = ChatClient.create(internalChatModel);
         this.documentStore = documentStore;
         this.userService = userService;
         this.reranker = reranker;
-        this.rerankingProperties = rerankingProperties;
+        this.retrievingProperties = retrievingProperties;
     }
 
     @Override
@@ -120,19 +120,15 @@ public class RAGAgent implements Agent {
     }
 
     private Advisor getRagAdvisor(Question question, boolean userHasAccessToInternalDocuments, boolean hasHistory, String userId) {
-        var transformers = new ArrayList<QueryTransformer>();
-        if (hasHistory) {
-            transformers.add(compresser(question.language(), internalChatClient));
-        }
-        transformers.add(rewriter(question.language(), internalChatClient));
+        var transformers = transformers(question.language(), hasHistory);
         var queryExpander = expander(question.language(), internalChatClient);
         var documentRetriever = VectorStoreDocumentRetriever.builder()
                 .vectorStore(documentStore)
                 .filterExpression(() -> buildExpression(question, userHasAccessToInternalDocuments, userId))
-                .topK(5)
+                .topK(retrievingProperties.topK())
                 .build();
 
-        var documentJoiner = new RankedDocumentJoiner(reranker, 5, rerankingProperties.scoreThreshold());
+        var documentJoiner = new RankedDocumentJoiner(reranker);
 
         return RAGAdvisor.builder()
                 .queryTransformers(transformers)
@@ -165,6 +161,19 @@ public class RAGAgent implements Agent {
         return combined.build();
     }
 
+    private List<QueryTransformer> transformers(String language, boolean hasHistory) {
+        var transformers = new ArrayList<QueryTransformer>();
+
+        if (retrievingProperties.queryCompresserProperties().enabled() && hasHistory) {
+            transformers.add(compresser(language, internalChatClient));
+        }
+        if (retrievingProperties.queryRewriterProperties().enabled()) {
+            transformers.add(rewriter(language, internalChatClient));
+        }
+
+        return transformers;
+    }
+
     private QueryTransformer compresser(String lang, ChatClient client) {
         return CompressionQueryTransformer.builder()
                 .chatClientBuilder(client.mutate())
@@ -184,12 +193,17 @@ public class RAGAgent implements Agent {
     }
 
     private QueryExpander expander(String lang, ChatClient client) {
+        if (!retrievingProperties.queryExpanderProperties().enabled()) {
+            return (List::of);
+        }
+
         return MultiQueryExpander.builder()
                 .chatClientBuilder(client.mutate())
                 .promptTemplate(new PromptTemplate(
                         RAGPrompts.getQueryExpanderTemplate(lang)
                 ))
-                .numberOfQueries(1)
+                .numberOfQueries(retrievingProperties.queryExpanderProperties().numberOfExpansions())
+                .includeOriginal(retrievingProperties.queryExpanderProperties().includeOriginal())
                 .build();
     }
 
