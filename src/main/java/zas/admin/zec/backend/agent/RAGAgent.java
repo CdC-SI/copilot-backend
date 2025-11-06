@@ -164,10 +164,10 @@ public class RAGAgent implements Agent {
     private List<QueryTransformer> transformers(String language, boolean hasHistory) {
         var transformers = new ArrayList<QueryTransformer>();
 
-        if (retrievingProperties.queryCompresserProperties().enabled() && hasHistory) {
+        if (retrievingProperties.queryCompresser().enabled() && hasHistory) {
             transformers.add(compresser(language, internalChatClient));
         }
-        if (retrievingProperties.queryRewriterProperties().enabled()) {
+        if (retrievingProperties.queryRewriter().enabled()) {
             transformers.add(rewriter(language, internalChatClient));
         }
 
@@ -193,7 +193,7 @@ public class RAGAgent implements Agent {
     }
 
     private QueryExpander expander(String lang, ChatClient client) {
-        if (!retrievingProperties.queryExpanderProperties().enabled()) {
+        if (!retrievingProperties.queryExpander().enabled()) {
             return (List::of);
         }
 
@@ -202,8 +202,8 @@ public class RAGAgent implements Agent {
                 .promptTemplate(new PromptTemplate(
                         RAGPrompts.getQueryExpanderTemplate(lang)
                 ))
-                .numberOfQueries(retrievingProperties.queryExpanderProperties().numberOfExpansions())
-                .includeOriginal(retrievingProperties.queryExpanderProperties().includeOriginal())
+                .numberOfQueries(retrievingProperties.queryExpander().numberOfExpansions())
+                .includeOriginal(retrievingProperties.queryExpander().includeOriginal())
                 .build();
     }
 

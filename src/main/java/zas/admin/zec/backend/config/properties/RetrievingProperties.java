@@ -8,7 +8,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 @EnableConfigurationProperties({QueryCompresserProperties.class, QueryRewriterProperties.class, QueryExpanderProperties.class})
 public record RetrievingProperties(
         @NotNull Integer topK,
-        @NotNull QueryCompresserProperties queryCompresserProperties,
-        @NotNull QueryRewriterProperties queryRewriterProperties,
-        @NotNull QueryExpanderProperties queryExpanderProperties) {}
+        @NotNull QueryCompresserProperties queryCompresser,
+        @NotNull QueryRewriterProperties queryRewriter,
+        @NotNull QueryExpanderProperties queryExpander) {}
 
