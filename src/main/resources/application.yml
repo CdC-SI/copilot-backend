@@ -95,9 +95,21 @@ faq:
       limit: ${FAQ_SEMANTIC_MATCHING_LIMIT:10}
       metric: ${FAQ_SEMANTIC_MATCHING_METRIC:cosine_similarity}
 rag:
+  retrieving:
+    top-k: ${RAG_RETRIEVING_TOP_K:5}
+    query-expander:
+      enabled: ${RAG_RETRIEVING_QUERY_EXPANDER_ENABLED:true}
+      number-of-expansions: ${RAG_RETRIEVING_QUERY_EXPANDER_NUMBER_OF_EXPANSIONS:3}
+    query-compresser:
+      enabled: ${RAG_RETRIEVING_QUERY_COMPRESSER_ENABLED:true}
+    query-rewriter:
+      enabled: ${RAG_RETRIEVING_QUERY_REWRITER_ENABLED:true}
   reranking:
     cohere-api-key: ${COHERE_API_KEY:cohere_api_key}
     score-threshold: ${RERANKING_SCORE_THRESHOLD:0.5}
+    enabled: ${RERANKING_ENABLED:true}
+    truncate-prompt-tokens: ${RERANKING_TRUNCATE_PROMPT_TOKENS:16384}
+    top-k: ${RERANKING_TOP_K:5}
 logging:
   level:
     zas.admin.zec: DEBUG

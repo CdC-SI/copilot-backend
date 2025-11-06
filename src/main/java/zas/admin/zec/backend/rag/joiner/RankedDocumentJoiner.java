@@ -14,13 +14,13 @@ import java.util.stream.Collectors;
 public class RankedDocumentJoiner implements DocumentJoiner {
 
     private final DocumentReranker reranker;
-    private final int topK;
     private final float scoreThreshold;
+    private final int topK;
 
-    public RankedDocumentJoiner(DocumentReranker reranker, int topK, float scoreThreshold) {
+    public RankedDocumentJoiner(DocumentReranker reranker) {
         this.reranker = reranker;
-        this.topK = topK;
-        this.scoreThreshold = scoreThreshold;
+        this.scoreThreshold = reranker.getScoreThreshold();
+        this.topK = reranker.getTopK();
     }
 
     @Override
@@ -34,7 +34,7 @@ public class RankedDocumentJoiner implements DocumentJoiner {
                 .collect(Collectors.toMap(Document::getId, Function.identity(), (existing, duplicate) -> existing))
                 .values().stream()
                 .sorted(Comparator.comparingDouble(Document::getScore).reversed())
-                .limit(topK)
+                .limit(this.topK)
                 .toList();
     }
 }
