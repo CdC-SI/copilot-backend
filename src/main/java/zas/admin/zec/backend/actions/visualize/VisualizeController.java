@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import zas.admin.zec.backend.config.security.RequireAdmin;
+import zas.admin.zec.backend.config.security.RequireTranslator;
 
 @RestController
 @RequestMapping("/api/visualize")
@@ -29,7 +30,7 @@ public class VisualizeController {
         return ResponseEntity.ok(classification);
     }
 
-    @RequireAdmin
+    @RequireTranslator
     @PostMapping("/translate")
     public ResponseEntity<TextTranslation> translateFile(@RequestParam MultipartFile file, @RequestParam String language) {
         var translation = visionService.translateFile(file, language);

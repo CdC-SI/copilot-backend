@@ -32,6 +32,10 @@ public class AuthorizationLogic {
         return hasAnyRole(authentication.getName(), Role.EXPERT, Role.ADMIN);
     }
 
+    public boolean isTranslator(Authentication authentication) {
+        return hasAnyRole(authentication.getName(), Role.TRANSLATOR, Role.ADMIN);
+    }
+
     public boolean isExternalClient(Authentication authentication) {
         return authentication.getAuthorities().contains(new SimpleGrantedAuthority("EXTERNAL_CLIENT"));
     }
