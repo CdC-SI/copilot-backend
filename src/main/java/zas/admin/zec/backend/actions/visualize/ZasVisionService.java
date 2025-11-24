@@ -10,6 +10,10 @@ import org.springframework.ai.util.json.schema.JsonSchemaGenerator;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import zas.admin.zec.backend.actions.visualize.model.MedicalServices;
+import zas.admin.zec.backend.actions.visualize.model.TextTranslation;
+import zas.admin.zec.backend.actions.visualize.model.ZasDocumentType;
+import zas.admin.zec.backend.actions.visualize.model.sumex.SumexInvoice;
 import zas.admin.zec.backend.tools.JsonSchemaBuilder;
 
 import java.util.List;
@@ -57,6 +61,20 @@ public class ZasVisionService implements VisionService {
                 visionMessageService.fileMessage(file));
 
         return visionChatClient.prompt(prompt).options(options).call().entity(MedicalServices.class);
+    }
+
+    public SumexInvoice extractSumexInvoiceFromFile(MultipartFile file) {
+        String jsonSchema = JsonSchemaGenerator.generateForType(SumexInvoice.class);
+
+        var options = OpenAiChatOptions.builder()
+                .responseFormat(new ResponseFormat(ResponseFormat.Type.JSON_SCHEMA, jsonSchema))
+                .build();
+
+        var prompt = new Prompt(
+                visionMessageService.extractSumexInvoiceMessage(jsonSchema),
+                visionMessageService.fileMessage(file));
+
+        return visionChatClient.prompt(prompt).options(options).call().entity(SumexInvoice.class);
     }
 
 

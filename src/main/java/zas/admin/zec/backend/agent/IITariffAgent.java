@@ -11,7 +11,7 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import zas.admin.zec.backend.actions.converse.Message;
 import zas.admin.zec.backend.actions.converse.Question;
-import zas.admin.zec.backend.actions.visualize.MedicalService;
+import zas.admin.zec.backend.actions.visualize.model.MedicalService;
 import zas.admin.zec.backend.actions.visualize.VisionService;
 import zas.admin.zec.backend.rag.ChatStatus;
 import zas.admin.zec.backend.rag.token.StatusToken;
