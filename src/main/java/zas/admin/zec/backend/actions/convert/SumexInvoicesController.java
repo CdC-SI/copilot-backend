@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import zas.admin.zec.backend.actions.visualize.model.sumex.SumexInvoice;
+import zas.admin.zec.backend.config.security.RequireAdmin;
 
 import java.io.IOException;
 
@@ -22,6 +23,7 @@ public class SumexInvoicesController {
         this.templateService = templateService;
     }
 
+    @RequireAdmin
     @PostMapping("/convert")
     public ResponseEntity<Resource> convertSumexInvoice(@RequestBody SumexInvoice sumexInvoice) throws IOException {
         var xmlInvoice = templateService.render(sumexInvoice);
