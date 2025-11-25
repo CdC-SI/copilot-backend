@@ -49,9 +49,9 @@ public class SumexInvoiceToXmlTemplateService {
             return new ByteArrayResource(bytes) {
                 @Override
                 public String getFilename() {
-                    return model.metaData() != null
-                            ? model.metaData().invoiceNumber() + ".xml"
-                            : "sumex-invoice.xml";
+                    return model.metaData().invoiceNumber().isBlank()
+                            ? "sumex-invoice.xml"
+                            : model.metaData().invoiceNumber() + ".xml";
                 }
             };
         } catch (TemplateException e) {
