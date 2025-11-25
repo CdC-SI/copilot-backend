@@ -12,7 +12,7 @@
 	</invoice:processing>
 	<invoice:payload request_type="invoice" request_subtype="normal">
 		<invoice:credit request_timestamp="1732921200" request_date="2024-11-30T00:00:00" request_id="23_45.01"/>
-		<invoice:invoice request_timestamp="1755237734" request_date="${creationDate}" request_id="${metadata.invoiceNumber()}"/>
+		<invoice:invoice request_timestamp="1755237734" request_date="${creationDate}" request_id="${metadata.invoiceNumber()?blank_to_null!'1'}"/>
 		<invoice:body role_title="${author.name()}" role="physician" place="practice">
 			<invoice:prolog>
 				<invoice:package name="GeneralInvoiceRequestTest" copyright="CdC" version="1"/>
@@ -77,8 +77,8 @@
 						</invoice:postal>
 					</invoice:company>
 				</invoice:insurance>
-				<invoice:patient gender="${patient.gender()?blank_to_null!'male'}" sex="${patient.gender()?blank_to_null!'male'}" birthdate="${patient.birthday()?blank_to_null!'1990-20-12'}" ssn="${patient.avsNumber()?blank_to_null!'7560665324444'}">
-					<invoice:person salutation="<#if patient.gender() == 'female'>Frau<#elseif patient.gender() == 'male'>Herr<#else>male</#if>">
+				<invoice:patient gender="${patient.gender()?blank_to_null!'male'}" sex="${patient.gender()?blank_to_null!'male'}" birthdate="${patient.birthday()?blank_to_null!'1990-12-20'}" ssn="${patient.avsNumber()?blank_to_null!'7560665324444'}">
+					<invoice:person salutation="<#if patient.gender() == 'female'>Frau<#elseif patient.gender() == 'male'>Herr<#else>Unbekannt</#if>">
 						<invoice:familyname>${patient.lastName()}</invoice:familyname>
 						<invoice:givenname>${patient.firstName()}</invoice:givenname>
 						<invoice:postal>
