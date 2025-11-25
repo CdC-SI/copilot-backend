@@ -4,5 +4,4 @@ public record InvoiceAuthor(
         String gln,
         String name,
         String locality
-) {
-}
+) {}

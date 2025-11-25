@@ -13,5 +13,4 @@ public record PaymentInformation(
         String locality,
         String bvr,
         String bicSwift
-) {
-}
+) {}

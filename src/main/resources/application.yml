@@ -22,6 +22,10 @@ spring:
       keepalive-time: ${DS_KEEPALIVE_TIME:45000}
       max-lifetime: ${DS_MAX_LIFETIME:300000}
       auto-commit: false
+  freemarker:
+    template-loader-path: classpath:/templates/
+    prefer-file-system-access: false
+    charset: UTF-8
   jpa:
     hibernate:
       ddl-auto: update

@@ -1,5 +1,7 @@
 package zas.admin.zec.backend.actions.visualize.model.sumex;
 
+import org.springframework.boot.context.properties.bind.DefaultValue;
+
 import java.util.List;
 
 public record SumexInvoice(
@@ -8,5 +10,5 @@ public record SumexInvoice(
         InvoiceMetaData metaData,
         List<MedicalService> medicalServices,
         PaymentInformation paymentInformation,
-        Double totalAmount
+        @DefaultValue("0.0") Double totalAmount
 ) {}

@@ -40,7 +40,6 @@ public class VisualizeController {
         return ResponseEntity.ok(translation);
     }
 
-
     @PostMapping("/sumex")
     public ResponseEntity<SumexInvoice> sumex(@RequestParam MultipartFile file) {
         var translation = visionService.extractSumexInvoiceFromFile(file);
