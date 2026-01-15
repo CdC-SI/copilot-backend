@@ -43,7 +43,8 @@ public class ConversationService {
     public ConversationService(ConversationRepository conversationRepository,
                                ConversationTitleRepository conversationTitleRepository,
                                ConversationMetaDataHolder conversationMetaDataHolder,
-                               @Qualifier("internalChatModel") ChatModel chatModel, AgentFactory agentFactory,
+                               AgentFactory agentFactory,
+                               @Qualifier("internalChatModel") ChatModel chatModel,
                                @Qualifier("asyncExecutor") TaskExecutor taskExecutor) {
 
         this.conversationRepository = conversationRepository;

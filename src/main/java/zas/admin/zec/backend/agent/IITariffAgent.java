@@ -4,15 +4,14 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import zas.admin.zec.backend.actions.converse.Message;
 import zas.admin.zec.backend.actions.converse.Question;
-import zas.admin.zec.backend.actions.visualize.model.MedicalService;
 import zas.admin.zec.backend.actions.visualize.VisionService;
+import zas.admin.zec.backend.actions.visualize.model.MedicalService;
 import zas.admin.zec.backend.rag.ChatStatus;
 import zas.admin.zec.backend.rag.token.StatusToken;
 import zas.admin.zec.backend.rag.token.TextToken;
@@ -25,7 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@Service
+@Deprecated
 public class IITariffAgent implements Agent {
 
     private final ChatClient client;

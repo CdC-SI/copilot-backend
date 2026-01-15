@@ -41,6 +41,7 @@ public class ChatModelsConfig {
                 .model(internalChatModelProperties.chatModel())
                 .temperature(0.0)
                 .maxTokens(16384)
+                .reasoningEffort("low")
                 .build();
 
         return OpenAiChatModel.builder()

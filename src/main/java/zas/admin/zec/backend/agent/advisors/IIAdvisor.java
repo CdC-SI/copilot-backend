@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Predicate;
 
+@Deprecated
 public class IIAdvisor implements StreamAdvisor {
 
     private final ConversationMetaDataHolder holder;

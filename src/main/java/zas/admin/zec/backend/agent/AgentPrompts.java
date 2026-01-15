@@ -16,12 +16,6 @@ public class AgentPrompts {
                 RAG_AGENT: questions factuelles simples
                 RAG_AGENT: questions multipartites (plusieurs sous questions)
                 RAG_AGENT: questions générales relatives à l'AVS/AI
-            
-                PENSION_AGENT: questions sur le calcul du taux de réduction lié au départ à la retraite
-                PENSION_AGENT: questions sur le calcul de supplément de rente lié au départ à la retraite
-
-                II_AGENT: questions sur le calcul de la rente AI
-                II_AGENT: questions sur l'atribution de rentes AI
             </agents>
             
             <exemples>
@@ -31,11 +25,9 @@ public class AgentPrompts {
                 Traduis ce message en italien -> CHAT_AGENT
                 Update ma préférences de détail de réponse à très détaillé -> CHAT_AGENT
                 Mets à jour mes préférences de recherche à fedlex -> CHAT_AGENT
-                Je suis née le 1962.31.12, je souhaite prendre ma retraite le 01.01.2025 et mon revenu annuel est d'environ 55'000 CHF. Quel est mon taux de réduction ? -> PENSION_AGENT
-                Quel sera mon taux de réduction si je suis née le 1965-11-07, je souhaite prendre ma retraite le 2026-04-15 et mon revenu annuel est de 76200 ? -> PENSION_AGENT
-                Voici mes informations: date de naissance le 03.01.1968 et je pars à la retraite en 2027. Je gagne environ 90000 CHF par an. Puis-je bénéficier d'un supplément ou taux de réduction ? -> PENSION_AGENT
-                J'ai besoin d'aide pour calculer la rente AI d'un bénéficiaire. -> II_AGENT
-                Je souhaite calculer mon salaire exigible, je bénéficie d’une rente invalidité. -> II_AGENT
+                Quels sont les changements récents de la législation AVS? -> RAG_AGENT
+                Peux-tu m'expliquer les conditions d'octroi d'une rente AI? -> RAG_AGENT
+                Comment fonctionne le système de bonus-malus dans l'AVS? -> RAG_AGENT
             </exemples>
             
             <question>
@@ -60,9 +52,6 @@ public class AgentPrompts {
                 RAG_AGENT: einfache Sachfragen
                 RAG_AGENT: Mehrteilige Fragen (mehrere Unterfragen)
                 RAG_AGENT: Allgemeine Fragen zur AHV/IV
-            
-                PENSION_AGENT: Fragen zur Berechnung des Kürzungssatzes bei der Pensionierung
-                PENSION_AGENT: Fragen zur Berechnung des Rentenzuschlags bei der Pensionierung
             </agents>
             
             <beispiele>
@@ -72,9 +61,9 @@ public class AgentPrompts {
                 Übersetze diese Nachricht ins Italienische -> CHAT_AGENT
                 Aktualisiert meine Antwortdetailpräferenzen auf sehr detailliert -> CHAT_AGENT
                 Aktualisiert meine Suchpräferenzen auf fedlex -> CHAT_AGENT
-                Ich bin am 1962.31.12 geboren, möchte am 01.01.2025 in Rente gehen und mein Jahreseinkommen beträgt ca. 55'000 CHF. Wie hoch ist mein Kürzungssatz? -> PENSION_AGENT
-                Wie hoch ist mein Kürzungssatz, wenn ich am 1965-11-07 geboren bin, am 2026-04-15 in Rente gehen möchte und mein Jahreseinkommen 76200 beträgt? -> PENSION_AGENT
-                Hier sind meine Informationen: Geburtsdatum 03.01.1968 und ich gehe 2027 in Rente. Ich verdiene etwa 90000 CHF pro Jahr. Kann ich einen Zuschlag oder einen Kürzungssatz erhalten? -> PENSION_AGENT
+                Was sind die jüngsten Änderungen in der AHV-Gesetzgebung? -> RAG_AGENT
+                Kannst du mir die Anspruchsvoraussetzungen für eine IV-Rente erklären? -> RAG_AGENT
+                Wie funktioniert das Bonus-Malus-System in der AHV? -> RAG_AGENT
             </beispiele>
             
             <frage>
@@ -99,9 +88,6 @@ public class AgentPrompts {
                 RAG_AGENT: domande semplici e concrete
                 RAG_AGENT: domande in più parti (diverse sotto-domande)
                 RAG_AGENT: domande generali sull'AVS/AI
-            
-                PENSION_AGENT: domande sul calcolo del tasso di riduzione al momento del pensionamento
-                PENSION_AGENT: domande sul calcolo del supplemento di pensione al momento del pensionamento
             </agenti>
             
             <esempi>
@@ -111,9 +97,9 @@ public class AgentPrompts {
                 Traduci questo messaggio in italiano -> CHAT_AGENT
                 Aggiornare le preferenze di dettaglio della risposta a Molto dettagliato -> CHAT_AGENT
                 Aggiornare le preferenze di ricerca a fedlex -> CHAT_AGENT
-                Sono nato il 31.12.1962, voglio andare in pensione il 01.01.2025 e il mio reddito annuo è di circa 55.000 franchi. Qual è il mio tasso di riduzione? -> AGENTE_PENSIONE
-                Qual è il mio tasso di riduzione se sono nato il 1965-11-07, voglio andare in pensione il 2026-04-15 e il mio reddito annuo è di CHF 76200? -> AGENTE_PENSIONE
-                Ecco le mie informazioni: sono nato il 03.01.1968 e andrò in pensione nel 2027. Guadagno circa 90.000 franchi all'anno. Posso beneficiare di un'integrazione o di una riduzione? -> AGENTE_PENSIONE
+                Quali sono i recenti cambiamenti nella legislazione AVS? -> RAG_AGENT
+                Puoi spiegarmi i requisiti per l'ottenimento di una rendita AI? -> RAG_AGENT
+                Come funziona il sistema bonus-malus nell'AVS? -> RAG_AGENT
             </esempi>
             
             <domanda>

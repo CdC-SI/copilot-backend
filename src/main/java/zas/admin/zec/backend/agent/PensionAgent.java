@@ -3,7 +3,6 @@ package zas.admin.zec.backend.agent;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import zas.admin.zec.backend.actions.converse.Message;
 import zas.admin.zec.backend.actions.converse.Question;
@@ -15,7 +14,7 @@ import zas.admin.zec.backend.rag.token.Token;
 import java.util.List;
 import java.util.Map;
 
-@Service
+@Deprecated
 public class PensionAgent implements Agent {
 
     private final ChatClient client;
