@@ -7,6 +7,7 @@ import zas.admin.zec.backend.persistence.entity.TempSourceDocumentEntity;
 import zas.admin.zec.backend.persistence.repository.TempSourceDocumentRepository;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 
 @Slf4j
 public final class SourceDocUploadStrategy implements UploadStrategy {
@@ -23,10 +24,11 @@ public final class SourceDocUploadStrategy implements UploadStrategy {
             var doc = new TempSourceDocumentEntity();
             doc.setFileName(document.file().getOriginalFilename());
             doc.setContent(document.file().getBytes());
+            doc.setUploadedAt(LocalDateTime.now());
 
             sourceRepository.save(doc);
         } catch (IOException e) {
-            throw new UploadException(document.file().getOriginalFilename(), "Error while uploading CSV", e);
+            throw new UploadException(document.file().getOriginalFilename(), "Error while uploading PDF", e);
         }
     }
 }
