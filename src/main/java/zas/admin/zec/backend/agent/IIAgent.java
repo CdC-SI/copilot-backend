@@ -4,7 +4,6 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import zas.admin.zec.backend.actions.converse.Message;
 import zas.admin.zec.backend.actions.converse.Question;
@@ -24,7 +23,7 @@ import zas.admin.zec.backend.tools.ConversationMetaDataHolder;
 import java.util.List;
 import java.util.Optional;
 
-@Service
+@Deprecated
 public class IIAgent implements Agent {
 
     private final ChatClient client;
@@ -177,7 +176,7 @@ public class IIAgent implements Agent {
         return client
                 .prompt()
                 .system(system -> system.text(
-                        AgentPrompts.getModuleExplanationPrompt().getTemplate())
+                                AgentPrompts.getModuleExplanationPrompt().getTemplate())
                         .param("decision", decision)
                         .param("calculation", calculation)
                 )
@@ -203,3 +202,4 @@ public class IIAgent implements Agent {
         return new TextToken(r.getResult().getOutput().getText());
     }
 }
+

@@ -3,17 +3,21 @@ package zas.admin.zec.backend.actions.upload;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.ai.vectorstore.filter.Filter;
+import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import zas.admin.zec.backend.actions.upload.etl.PdfDocumentReader;
 import zas.admin.zec.backend.actions.upload.model.DocumentToUpload;
+import zas.admin.zec.backend.actions.upload.model.PersonalDoc;
 import zas.admin.zec.backend.actions.upload.strategy.AdminDocUploadStrategyFactory;
 import zas.admin.zec.backend.actions.upload.validation.UploadException;
 import zas.admin.zec.backend.persistence.entity.TempSourceDocumentEntity;
 import zas.admin.zec.backend.persistence.repository.TempSourceDocumentRepository;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Slf4j
@@ -37,7 +41,9 @@ public class UploadService {
 
     public record Doc(String filename, ByteArrayResource content) {}
     public Doc download(String filename) {
-        TempSourceDocumentEntity byFileName = sourceDocumentRepository.findByFileName(filename);
+        TempSourceDocumentEntity byFileName = sourceDocumentRepository.findByFileName(filename)
+                .orElseThrow(() -> new IllegalArgumentException("Document not found: " + filename));
+
         return new Doc(filename, new ByteArrayResource(byFileName.getContent()));
     }
 
@@ -54,11 +60,29 @@ public class UploadService {
             personalDoc.setFileName(document.file().getOriginalFilename());
             personalDoc.setContent(document.file().getBytes());
             personalDoc.setUserUuid(userUuid);
+            personalDoc.setUploadedAt(LocalDateTime.now());
+
             tempSourceDocumentRepository.save(personalDoc);
             vectorStore.write(documents);
         } catch (IOException e) {
             throw new UploadException(document.file().getOriginalFilename(), "Error while uploading personal document", e);
         }
+    }
+
+    public List<PersonalDoc> getUserPersonalDocs(String userUuid) {
+        return tempSourceDocumentRepository.findAllByUserUuid(userUuid)
+                .stream()
+                .map(doc -> new PersonalDoc(doc.getFileName(), doc.getUploadedAt()))
+                .toList();
+    }
+
+    @Transactional
+    public void deleteUserPersonalDocument(String filename, String userUuid) {
+        var docEntity = tempSourceDocumentRepository.findByFileNameAndUserUuid(filename, userUuid)
+                .orElseThrow(() -> new IllegalArgumentException(String.format("Document %s not found", filename)));
+
+        tempSourceDocumentRepository.delete(docEntity);
+        vectorStore.delete(buildUserFileFilter(userUuid, filename));
     }
 
     public void uploadAdminDocuments(List<DocumentToUpload> documents) {
@@ -72,5 +96,13 @@ public class UploadService {
         clean.getMetadata().put("user_uuid", userUuid);
         clean.getMetadata().put("title", filename);
         return clean;
+    }
+
+    private Filter.Expression buildUserFileFilter(String userUuid, String filename) {
+        var expressionBuilder = new FilterExpressionBuilder();
+        return expressionBuilder.and(
+                expressionBuilder.eq("user_uuid", userUuid),
+                expressionBuilder.eq("title", filename)
+        ).build();
     }
 }

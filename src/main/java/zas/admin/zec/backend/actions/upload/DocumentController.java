@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.actions.upload.model.DocumentToUpload;
+import zas.admin.zec.backend.actions.upload.model.PersonalDoc;
 import zas.admin.zec.backend.actions.upload.model.UploadRequest;
 import zas.admin.zec.backend.actions.upload.validation.ValidMultipartFileList;
 import zas.admin.zec.backend.config.security.RequireAdmin;
@@ -40,6 +41,22 @@ public class DocumentController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=%s".formatted(download.filename()))
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(download.content());
+    }
+
+    @RequireUser
+    @GetMapping("/user-docs")
+    public ResponseEntity<List<PersonalDoc>> getUserDocuments(Authentication authentication) {
+        var userUuid = userService.getUuid(authentication.getName());
+        var documentNames = uploadService.getUserPersonalDocs(userUuid);
+        return ResponseEntity.ok(documentNames);
+    }
+
+    @RequireUser
+    @DeleteMapping("/user-docs")
+    public ResponseEntity<Void> deleteUserDocument(@RequestParam String filename, Authentication authentication) {
+        var userUuid = userService.getUuid(authentication.getName());
+        uploadService.deleteUserPersonalDocument(filename, userUuid);
+        return ResponseEntity.ok().build();
     }
 
     @RequireUser
