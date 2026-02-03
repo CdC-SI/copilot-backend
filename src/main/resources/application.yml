@@ -35,6 +35,16 @@ spring:
         format_sql: false
         show_sql: true
     open-in-view: false
+  activemq:
+    broker-url: ${ACTIVEMQ_BROKER_URL:failover:ssl://amq-a.zas.admin.ch:61617}
+    user: ${ACTIVEMQ_USER}
+    password: ${ACTIVEMQ_PASSWORD}
+    packages:
+      trust-all: true
+  jms:
+    pub-sub-domain: true
+    template:
+      default-destination: ${JMS_DEFAULT_TOPIC:gaime.webapp}
   h2:
     console:
       enabled: true
@@ -138,3 +148,8 @@ proxy:
 ai:
   agent:
     ii-data-folder: ${II_DATA_FOLDER}
+
+nuxeo:
+  url: ${NUXEO_URL:https://nuxeo-a.zas.admin.ch/nuxeo}
+  username: ${NUXEO_USERNAME}
+  password: ${NUXEO_PASSWORD}
