@@ -36,7 +36,7 @@ spring:
         show_sql: true
     open-in-view: false
   activemq:
-    broker-url: ${ACTIVEMQ_BROKER_URL:failover:ssl://amq-a.zas.admin.ch:61617}
+    broker-url: ${ACTIVEMQ_BROKER_URL}
     user: ${ACTIVEMQ_USER}
     password: ${ACTIVEMQ_PASSWORD}
     packages:
