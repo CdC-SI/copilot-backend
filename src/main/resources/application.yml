@@ -150,6 +150,6 @@ ai:
     ii-data-folder: ${II_DATA_FOLDER}
 
 nuxeo:
-  url: ${NUXEO_URL:https://nuxeo-a.zas.admin.ch/nuxeo}
+  url: ${NUXEO_URL}
   username: ${NUXEO_USERNAME}
   password: ${NUXEO_PASSWORD}
