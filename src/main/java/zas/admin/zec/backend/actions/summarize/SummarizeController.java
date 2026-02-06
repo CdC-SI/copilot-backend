@@ -129,7 +129,7 @@ public class SummarizeController {
             }
 
             // Envoyer le message JMS
-            gaimeJmsService.sendOpenDocumentsMessage("VNM", references);
+            gaimeJmsService.sendOpenDocumentsMessage(user.getTrigramme(), references);
 
             log.info("Message JMS envoyé avec succès pour {} référence(s)", references.size());
             return ResponseEntity.ok(
