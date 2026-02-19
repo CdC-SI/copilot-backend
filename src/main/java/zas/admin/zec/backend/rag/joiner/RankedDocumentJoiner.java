@@ -5,6 +5,7 @@ import org.springframework.ai.rag.Query;
 import org.springframework.ai.rag.retrieval.join.DocumentJoiner;
 import zas.admin.zec.backend.rag.reranker.DocumentReranker;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -16,16 +17,18 @@ public class RankedDocumentJoiner implements DocumentJoiner {
     private final DocumentReranker reranker;
     private final float scoreThreshold;
     private final int topK;
+    private final List<Document> conversationDocuments;
 
-    public RankedDocumentJoiner(DocumentReranker reranker) {
+    public RankedDocumentJoiner(DocumentReranker reranker, List<Document> conversationDocuments) {
         this.reranker = reranker;
         this.scoreThreshold = reranker.getScoreThreshold();
         this.topK = reranker.getTopK();
+        this.conversationDocuments = new ArrayList<>(conversationDocuments);
     }
 
     @Override
     public List<Document> join(Map<Query, List<List<Document>>> documentsForQuery) {
-        return documentsForQuery.entrySet().stream()
+        var ragRerankedDocs = documentsForQuery.entrySet().stream()
                 .flatMap(entry -> entry.getValue()
                         .stream()
                         .flatMap(docs -> reranker.rerank(entry.getKey().text(), docs).stream())
@@ -36,5 +39,9 @@ public class RankedDocumentJoiner implements DocumentJoiner {
                 .sorted(Comparator.comparingDouble(Document::getScore).reversed())
                 .limit(this.topK)
                 .toList();
+
+        // Combine with conversation documents
+        conversationDocuments.addAll(ragRerankedDocs);
+        return conversationDocuments;
     }
 }

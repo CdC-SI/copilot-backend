@@ -1,5 +1,6 @@
 package zas.admin.zec.backend.agent;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.api.Advisor;
 import org.springframework.ai.chat.model.ChatModel;
@@ -25,6 +26,7 @@ import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.actions.converse.Message;
 import zas.admin.zec.backend.actions.converse.Question;
 import zas.admin.zec.backend.config.properties.RetrievingProperties;
+import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
 import zas.admin.zec.backend.rag.RAGPrompts;
 import zas.admin.zec.backend.rag.advisor.RAGAdvisor;
 import zas.admin.zec.backend.rag.joiner.RankedDocumentJoiner;
@@ -39,6 +41,7 @@ import java.util.*;
 import static java.util.function.Predicate.not;
 import static org.springframework.ai.rag.advisor.RetrievalAugmentationAdvisor.DOCUMENT_CONTEXT;
 
+@Slf4j
 @Service
 public class RAGAgent implements Agent {
 
@@ -47,19 +50,22 @@ public class RAGAgent implements Agent {
     private final UserService userService;
     private final DocumentReranker reranker;
     private final RetrievingProperties retrievingProperties;
+    private final AttachmentRepository attachmentRepository;
 
     public RAGAgent(
             @Qualifier("internalChatModel") ChatModel internalChatModel,
             VectorStore documentStore,
             UserService userService,
             DocumentReranker reranker,
-            RetrievingProperties retrievingProperties) {
+            RetrievingProperties retrievingProperties,
+            AttachmentRepository attachmentRepository) {
 
         this.internalChatClient = ChatClient.create(internalChatModel);
         this.documentStore = documentStore;
         this.userService = userService;
         this.reranker = reranker;
         this.retrievingProperties = retrievingProperties;
+        this.attachmentRepository = attachmentRepository;
     }
 
     @Override
@@ -120,6 +126,7 @@ public class RAGAgent implements Agent {
     }
 
     private Advisor getRagAdvisor(Question question, boolean userHasAccessToInternalDocuments, boolean hasHistory, String userId) {
+        var conversationDocuments = getConversationDocuments(question, userId);
         var transformers = transformers(question.language(), hasHistory);
         var queryExpander = expander(question.language(), internalChatClient);
         var documentRetriever = VectorStoreDocumentRetriever.builder()
@@ -128,7 +135,7 @@ public class RAGAgent implements Agent {
                 .topK(retrievingProperties.topK())
                 .build();
 
-        var documentJoiner = new RankedDocumentJoiner(reranker);
+        var documentJoiner = new RankedDocumentJoiner(reranker, conversationDocuments);
 
         return RAGAdvisor.builder()
                 .queryTransformers(transformers)
@@ -136,6 +143,19 @@ public class RAGAgent implements Agent {
                 .documentRetriever(documentRetriever)
                 .documentJoiner(documentJoiner)
                 .build();
+    }
+
+    private List<Document> getConversationDocuments(Question question, String userId) {
+        return attachmentRepository.findAllByConversationIdAndUserId(question.conversationId(), userId)
+                .stream()
+                .map(attachmentEntity -> new Document(
+                        attachmentEntity.getContent(),
+                        Map.of(
+                                "title", attachmentEntity.getFilename(),
+                                "state", "personal.uploads")
+                        )
+                )
+                .toList();
     }
 
     private Filter.Expression buildExpression(Question question, boolean userHasAccessToInternalDocuments, String userId) {

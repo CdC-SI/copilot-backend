@@ -4,23 +4,30 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
+import zas.admin.zec.backend.actions.summarize.LlmOcrService;
+import zas.admin.zec.backend.actions.upload.UploadService;
 import zas.admin.zec.backend.agent.Agent;
 import zas.admin.zec.backend.agent.AgentFactory;
+import zas.admin.zec.backend.persistence.entity.AttachmentEntity;
 import zas.admin.zec.backend.persistence.entity.ConversationTitleEntity;
 import zas.admin.zec.backend.persistence.entity.MessageEntity;
+import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
 import zas.admin.zec.backend.persistence.repository.ConversationRepository;
 import zas.admin.zec.backend.persistence.repository.ConversationTitleRepository;
 import zas.admin.zec.backend.rag.ChatStatus;
 import zas.admin.zec.backend.rag.token.*;
 import zas.admin.zec.backend.tools.ConversationMetaDataHolder;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -36,23 +43,29 @@ public class ConversationService {
     private final ConversationRepository conversationRepository;
     private final ConversationTitleRepository conversationTitleRepository;
     private final ConversationMetaDataHolder conversationMetaDataHolder;
+    private final AttachmentRepository attachmentRepository;
     private final ChatClient chatClient;
     private final AgentFactory agentFactory;
     private final TaskExecutor taskExecutor;
+    private final LlmOcrService ocrService;
 
     public ConversationService(ConversationRepository conversationRepository,
                                ConversationTitleRepository conversationTitleRepository,
                                ConversationMetaDataHolder conversationMetaDataHolder,
+                               AttachmentRepository attachmentRepository,
                                AgentFactory agentFactory,
                                @Qualifier("internalChatModel") ChatModel chatModel,
-                               @Qualifier("asyncExecutor") TaskExecutor taskExecutor) {
+                               @Qualifier("asyncExecutor") TaskExecutor taskExecutor,
+                               LlmOcrService ocrService) {
 
         this.conversationRepository = conversationRepository;
         this.conversationTitleRepository = conversationTitleRepository;
         this.conversationMetaDataHolder = conversationMetaDataHolder;
+        this.attachmentRepository = attachmentRepository;
         this.chatClient = ChatClient.create(chatModel);
         this.agentFactory = agentFactory;
         this.taskExecutor = taskExecutor;
+        this.ocrService = ocrService;
     }
 
     public List<Source> getSourcesByMessageUuid(String conversationUuid, String messageUuid) {
@@ -72,8 +85,10 @@ public class ConversationService {
                 .toList();
     }
 
-    public List<Message> getByConversationIdAndUserId(String conversationId, String userId) {
-        return getConversationHistory(conversationId, userId, Limit.unlimited());
+    public Conversation getByConversationIdAndUserId(String conversationId, String userId) {
+        List<Message> messages = getConversationHistory(conversationId, userId, Limit.unlimited());
+        List<Attachment> attachments = getAttachmentsForConversation(conversationId, userId);
+        return new Conversation(conversationId, userId, messages, attachments);
     }
 
     public void initConversation(String userId, String conversationId, List<FAQMessage> messages) {
@@ -95,6 +110,7 @@ public class ConversationService {
 
     public void delete(String userId, String conversationId) {
         conversationMetaDataHolder.clearMetaData(conversationId);
+        attachmentRepository.deleteByUserIdAndConversationId(userId, conversationId);
         conversationRepository.deleteByUserIdAndConversationId(userId, conversationId);
         conversationTitleRepository.deleteByUserIdAndConversationId(userId, conversationId);
     }
@@ -145,6 +161,46 @@ public class ConversationService {
                     log.error(err.getMessage(), err);
                     return Flux.just("<error>%s</error>".formatted(err.getMessage()));
                 });
+    }
+
+    @Transactional
+    public ConversationAttachments attachFilesToConversation(String conversationId, String userId, List<MultipartFile> files) throws IOException {
+        var convId = conversationId == null ? UUID.randomUUID().toString() : conversationId;
+
+        List<Attachment> attachments = new ArrayList<>();
+        for (MultipartFile file : files) {
+            var bytes = file.getBytes();
+            var entity = new AttachmentEntity();
+            entity.setConversationId(convId);
+            entity.setUserId(userId);
+            entity.setFilename(file.getOriginalFilename());
+            entity.setFileSize(file.getSize());
+            entity.setFileBytes(bytes);
+            entity.setContent(ocrService.ocrFile(bytes));
+
+            var saved = attachmentRepository.save(entity);
+            attachments.add(new Attachment(saved.getId(), saved.getFilename(), saved.getFileSize()));
+        }
+
+        return new ConversationAttachments(convId, attachments);
+    }
+
+    public UploadService.Doc getAttachment(String conversationId, Long attachmentId, String userUuid) {
+        var entity = attachmentRepository.findByIdAndConversationIdAndUserId(attachmentId, conversationId, userUuid)
+                .orElseThrow(() -> new NoSuchElementException("Attachment not found"));
+
+        return new UploadService.Doc(entity.getFilename(), new ByteArrayResource(entity.getFileBytes()));
+    }
+
+    public List<Attachment> getAttachmentsForConversation(String conversationId, String userId) {
+        return attachmentRepository.findAllByConversationIdAndUserId(conversationId, userId)
+                .stream()
+                .map(entity -> new Attachment(entity.getId(), entity.getFilename(), entity.getFileSize()))
+                .toList();
+    }
+
+    public void deleteAttachment(Long attachmentId, String userId) {
+        attachmentRepository.deleteByIdAndUserId(attachmentId, userId);
     }
 
     private Flux<Token> getTokenStream(Question question, String userId) {

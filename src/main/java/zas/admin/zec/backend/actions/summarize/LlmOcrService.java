@@ -43,7 +43,7 @@ public class LlmOcrService {
         this.visionModel = visionModel;
     }
 
-    public String ocrPdf(byte[] fileBytes) throws IOException {
+    public String ocrFile(byte[] fileBytes) throws IOException {
         String mimeType = detectMimeType(fileBytes);
         log.info("Detected MIME type: {}", mimeType);
 

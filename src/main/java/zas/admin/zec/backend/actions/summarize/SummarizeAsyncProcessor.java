@@ -99,7 +99,7 @@ public class SummarizeAsyncProcessor {
     private String extractTextFromDocument(DocumentVO document) {
         try {
             byte[] documentContent = documentService.getDocumentContent(document);
-            return llmOcrService.ocrPdf(documentContent);
+            return llmOcrService.ocrFile(documentContent);
         } catch (IOException e) {
             log.warn("Impossible d'extraire le texte du document: {}", document.getObjectToken(), e);
             return "Pas de contenu disponible pour ce document : " + document.getObjectToken();
