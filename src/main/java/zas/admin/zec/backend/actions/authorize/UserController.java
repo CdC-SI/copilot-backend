@@ -1,6 +1,7 @@
 package zas.admin.zec.backend.actions.authorize;
 
 import ch.admin.zas.common.security.users.ZasUser;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -63,16 +64,11 @@ public class UserController {
     }
 
     @RequireAdmin
-    @PutMapping("/{username}/promote")
-    public ResponseEntity<Void> promoteUser(@PathVariable String username) {
-        userService.promote(username);
-        return ResponseEntity.ok().build();
-    }
-
-    @RequireAdmin
-    @PutMapping("/{username}/demote")
-    public ResponseEntity<Void> demoteUser(@PathVariable String username) {
-        userService.demote(username);
+    @PutMapping("/{username}/roles")
+    public ResponseEntity<Void> updateUserRoles(
+            @PathVariable String username,
+            @RequestBody @Valid UpdateRolesRequest request) {
+        userService.updateRoles(username, request.roles());
         return ResponseEntity.ok().build();
     }
 
