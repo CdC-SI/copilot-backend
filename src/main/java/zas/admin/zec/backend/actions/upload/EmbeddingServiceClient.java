@@ -28,6 +28,8 @@ public class EmbeddingServiceClient {
                 .build();
     }
 
+    private record VLLMWrapper (List<EmbeddingRequest> instances) {}
+
     /**
      * Appelle le service externe d'embedding pour traiter un document.
      *
@@ -39,7 +41,7 @@ public class EmbeddingServiceClient {
 
         EmbeddingServiceResponse response = webClient.post()
                 .uri("/v1/models/user-pdf-preprocessing:predict")
-                .bodyValue(request)
+                .bodyValue(new VLLMWrapper(List.of(request)))
                 .retrieve()
                 .bodyToMono(EmbeddingServiceResponse.class)
                 .block();

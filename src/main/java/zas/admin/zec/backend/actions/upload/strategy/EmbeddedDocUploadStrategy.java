@@ -109,7 +109,7 @@ public final class EmbeddedDocUploadStrategy implements UploadStrategy {
         batch.clear();
     }
 
-    private static float[] parseEmbedding(String field) {
+    public static float[] parseEmbedding(String field) {
         String[] parts = field.split(",");
         float[] out = new float[parts.length];
         for (int i = 0; i < parts.length; i++) {

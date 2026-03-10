@@ -13,7 +13,7 @@ import java.util.Map;
  */
 public record EmbeddingChunkResponse(
         @JsonProperty("content") String content,
-        @JsonProperty("embedding") float[] embedding,
+        @JsonProperty("embedding") String embedding,
         @JsonProperty("metadata") Map<String, String> metadata
 ) {}
 

@@ -7,6 +7,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import zas.admin.zec.backend.actions.upload.model.EmbeddingChunkResponse;
 import zas.admin.zec.backend.actions.upload.model.EmbeddingRequest;
 import zas.admin.zec.backend.actions.upload.model.EmbeddingStatus;
+import zas.admin.zec.backend.actions.upload.strategy.EmbeddedDocUploadStrategy;
 import zas.admin.zec.backend.persistence.entity.DocumentEntity;
 import zas.admin.zec.backend.persistence.repository.DocumentRepository;
 import zas.admin.zec.backend.persistence.repository.TempSourceDocumentRepository;
@@ -119,7 +120,7 @@ public class UploadAsyncProcessor {
     private DocumentEntity toDocumentEntity(EmbeddingChunkResponse chunk) {
         var entity = new DocumentEntity();
         entity.setContent(chunk.content());
-        entity.setEmbedding(chunk.embedding());
+        entity.setEmbedding(EmbeddedDocUploadStrategy.parseEmbedding(chunk.embedding()));
         entity.setMetadata(chunk.metadata());
 
         return entity;
