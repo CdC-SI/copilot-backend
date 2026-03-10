@@ -91,6 +91,8 @@ spring:
         initialize-schema: true
 py-backend:
   baseUrl: http://copilot:8000
+embedding-service:
+  base-url: ${EMBEDDING_SERVICE_BASE_URL}
 identity-check:
   baseUrl: ${IDENTITY_CHECK_BASE_URL:https://api.int.adnovum-vips.ch}
   call-back-url: ${IDENTITY_CHECK_CALL_BACK_URL:http://localhost:4200/tools}

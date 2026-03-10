@@ -4,5 +4,6 @@ import java.time.LocalDateTime;
 
 public record PersonalDoc(
    String title,
-   LocalDateTime uploadedAt
+   LocalDateTime uploadedAt,
+   EmbeddingStatus status
 ) {}
