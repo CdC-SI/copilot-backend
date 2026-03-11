@@ -1,5 +1,6 @@
 package zas.admin.zec.backend.config.security;
 
+import ch.admin.zas.common.security.users.ZasUser;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
@@ -17,6 +18,10 @@ public class AuthorizationLogic {
 
     public boolean isUser(Authentication authentication) {
         return hasRole(authentication.getName(), Role.USER);
+    }
+
+    public boolean isZasUser(Authentication authentication) {
+        return authentication instanceof ZasUser && isUser(authentication);
     }
 
     public boolean isInternalUser(Authentication authentication) {

@@ -8,7 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import zas.admin.zec.backend.config.security.RequireAdmin;
-import zas.admin.zec.backend.config.security.RequireUser;
+import zas.admin.zec.backend.config.security.RequireZasUser;
 
 import java.util.List;
 import java.util.Map;
@@ -31,7 +31,7 @@ public class SourceRequestController {
      * Crée une nouvelle demande de source.
      * Accessible aux utilisateurs authentifiés.
      */
-    @RequireUser
+    @RequireZasUser
     @PostMapping
     public ResponseEntity<SourceRequestDto> createRequest(
             @RequestBody @Valid CreateSourceRequest request,
@@ -46,7 +46,7 @@ public class SourceRequestController {
      * Récupère les demandes de l'utilisateur connecté.
      * Accessible aux utilisateurs authentifiés.
      */
-    @RequireUser
+    @RequireZasUser
     @GetMapping("/my")
     public ResponseEntity<List<SourceRequestDto>> getMyRequests(
             @RequestParam(required = false) Integer limit,
@@ -88,7 +88,7 @@ public class SourceRequestController {
      * Les utilisateurs peuvent accéder uniquement à leurs propres demandes.
      * Les administrateurs peuvent accéder à toutes les demandes.
      */
-    @RequireUser
+    @RequireZasUser
     @GetMapping("/{id}")
     public ResponseEntity<SourceRequestDto> getById(@PathVariable Long id, Authentication authentication) {
         log.debug("User '{}' fetching source request {}", authentication.getName(), id);
@@ -97,7 +97,7 @@ public class SourceRequestController {
         return ResponseEntity.ok(request);
     }
 
-    @RequireUser
+    @RequireZasUser
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteById(@PathVariable Long id, Authentication authentication) {
         var visa = ((ZasUser) authentication.getPrincipal()).getTrigramme();
