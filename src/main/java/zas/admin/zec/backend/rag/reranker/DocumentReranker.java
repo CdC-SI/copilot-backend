@@ -107,6 +107,10 @@ public class DocumentReranker {
         return rerankingProperties.topK();
     }
 
+    public boolean isEnabled() {
+        return rerankingProperties.enabled();
+    }
+
     private void debugBeforeReranking(List<Document> documents) {
         log.debug("Documents score before reranking: {}", documents.stream()
                 .map(doc -> String.format("id=%s, score=%.4f", doc.getId(), doc.getScore()))

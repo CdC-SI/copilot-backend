@@ -35,6 +35,16 @@ spring:
         format_sql: false
         show_sql: true
     open-in-view: false
+  activemq:
+    broker-url: ${ACTIVEMQ_BROKER_URL}
+    user: ${ACTIVEMQ_USER}
+    password: ${ACTIVEMQ_PASSWORD}
+    packages:
+      trust-all: true
+  jms:
+    pub-sub-domain: true
+    template:
+      default-destination: ${JMS_DEFAULT_TOPIC:gaime.webapp}
   h2:
     console:
       enabled: true
@@ -81,6 +91,8 @@ spring:
         initialize-schema: true
 py-backend:
   baseUrl: http://copilot:8000
+embedding-service:
+  base-url: ${EMBEDDING_SERVICE_BASE_URL}
 identity-check:
   baseUrl: ${IDENTITY_CHECK_BASE_URL:https://api.int.adnovum-vips.ch}
   call-back-url: ${IDENTITY_CHECK_CALL_BACK_URL:http://localhost:4200/tools}
@@ -109,6 +121,10 @@ rag:
       enabled: ${RAG_RETRIEVING_QUERY_COMPRESSER_ENABLED:true}
     query-rewriter:
       enabled: ${RAG_RETRIEVING_QUERY_REWRITER_ENABLED:true}
+    bm25:
+      enabled: ${RAG_RETRIEVING_BM25_ENABLED:false}
+      top-k: ${RAG_RETRIEVING_BM25_TOP_K:2}
+      text-search-config: ${RAG_RETRIEVING_BM25_TEXT_SEARCH_CONFIG:simple}
   reranking:
     cohere-api-key: ${COHERE_API_KEY:cohere_api_key}
     score-threshold: ${RERANKING_SCORE_THRESHOLD:0.5}
@@ -138,3 +154,8 @@ proxy:
 ai:
   agent:
     ii-data-folder: ${II_DATA_FOLDER}
+
+nuxeo:
+  url: ${NUXEO_URL}
+  username: ${NUXEO_USERNAME}
+  password: ${NUXEO_PASSWORD}

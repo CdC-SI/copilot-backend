@@ -121,58 +121,28 @@ public class UserService {
     }
 
     /**
-     * Promote user to expert
-     * Promote expert to admin
+     * Update user roles with the provided list of roles.
+     * Validates that all roles are valid before updating.
      *
-     * @param username the username of the user to promote
+     * @param username the username of the user to update
+     * @param roles the list of roles to assign
+     * @throws IllegalArgumentException if user not found or if any role is invalid
      */
-    public void promote(String username) {
+    public void updateRoles(String username, List<String> roles) {
         UserEntity user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException(USER_NOT_FOUND));
 
-        if (user.getRoles().contains(Role.ADMIN.name())) {
-            log.warn("User {} is already an admin, skip promotion", user.getUsername());
-            return;
+        // Validate all roles before updating
+        for (String role : roles) {
+            try {
+                Role.from(role);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Invalid role: " + role);
+            }
         }
 
-        if (!user.getRoles().contains(Role.EXPERT.name())) {
-            log.debug("Promoting {} to expert", user.getUsername());
-            user.getRoles().add(Role.EXPERT.name());
-            userRepository.save(user);
-            return;
-        }
-
-        log.debug("Promoting {} to admin", user.getUsername());
-        user.getRoles().remove(Role.EXPERT.name());
-        user.getRoles().add(Role.ADMIN.name());
-        userRepository.save(user);
-    }
-
-    /**
-     * Demote admin to expert
-     * Demote expert to user
-     *
-     * @param username the username of the user to demote
-     */
-    public void demote(String username) {
-        UserEntity user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalArgumentException(USER_NOT_FOUND));
-
-        if (user.getRoles().size() == 1) {
-            log.warn("User {} is already a user, skip demotion", user.getUsername());
-            return;
-        }
-
-        if (user.getRoles().contains(Role.ADMIN.name())) {
-            log.debug("Demoting admin {} to expert", user.getUsername());
-            user.getRoles().remove(Role.ADMIN.name());
-            user.getRoles().add(Role.EXPERT.name());
-            userRepository.save(user);
-            return;
-        }
-
-        log.debug("Demoting expert {} to user", user.getUsername());
-        user.getRoles().remove(Role.EXPERT.name());
+        log.debug("Updating roles for user {} to {}", username, roles);
+        user.setRoles(roles);
         userRepository.save(user);
     }
 

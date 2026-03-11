@@ -3,6 +3,7 @@ package zas.admin.zec.backend.persistence.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import zas.admin.zec.backend.actions.upload.model.EmbeddingStatus;
 
 import java.time.LocalDateTime;
 
@@ -27,5 +28,9 @@ public class TempSourceDocumentEntity {
 
     @Column(name = "uploaded_at")
     private LocalDateTime uploadedAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private EmbeddingStatus status;
 
 }

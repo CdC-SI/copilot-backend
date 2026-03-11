@@ -1,5 +1,6 @@
 package zas.admin.zec.backend.agent;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.api.Advisor;
 import org.springframework.ai.chat.model.ChatModel;
@@ -11,11 +12,13 @@ import org.springframework.ai.rag.preretrieval.query.expansion.QueryExpander;
 import org.springframework.ai.rag.preretrieval.query.transformation.CompressionQueryTransformer;
 import org.springframework.ai.rag.preretrieval.query.transformation.QueryTransformer;
 import org.springframework.ai.rag.preretrieval.query.transformation.RewriteQueryTransformer;
+import org.springframework.ai.rag.retrieval.search.DocumentRetriever;
 import org.springframework.ai.rag.retrieval.search.VectorStoreDocumentRetriever;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.ai.vectorstore.filter.Filter;
 import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -25,20 +28,25 @@ import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.actions.converse.Message;
 import zas.admin.zec.backend.actions.converse.Question;
 import zas.admin.zec.backend.config.properties.RetrievingProperties;
+import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
 import zas.admin.zec.backend.rag.RAGPrompts;
 import zas.admin.zec.backend.rag.advisor.RAGAdvisor;
 import zas.admin.zec.backend.rag.joiner.RankedDocumentJoiner;
 import zas.admin.zec.backend.rag.reranker.DocumentReranker;
+import zas.admin.zec.backend.rag.retriever.BM25DocumentRetriever;
+import zas.admin.zec.backend.rag.retriever.HybridDocumentRetriever;
 import zas.admin.zec.backend.rag.token.SourceToken;
 import zas.admin.zec.backend.rag.token.TextToken;
 import zas.admin.zec.backend.rag.token.Token;
 
 import java.time.Instant;
 import java.util.*;
+import java.util.function.Supplier;
 
 import static java.util.function.Predicate.not;
 import static org.springframework.ai.rag.advisor.RetrievalAugmentationAdvisor.DOCUMENT_CONTEXT;
 
+@Slf4j
 @Service
 public class RAGAgent implements Agent {
 
@@ -47,19 +55,25 @@ public class RAGAgent implements Agent {
     private final UserService userService;
     private final DocumentReranker reranker;
     private final RetrievingProperties retrievingProperties;
+    private final AttachmentRepository attachmentRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     public RAGAgent(
             @Qualifier("internalChatModel") ChatModel internalChatModel,
             VectorStore documentStore,
             UserService userService,
             DocumentReranker reranker,
-            RetrievingProperties retrievingProperties) {
+            RetrievingProperties retrievingProperties,
+            AttachmentRepository attachmentRepository,
+            JdbcTemplate jdbcTemplate) {
 
         this.internalChatClient = ChatClient.create(internalChatModel);
         this.documentStore = documentStore;
         this.userService = userService;
         this.reranker = reranker;
         this.retrievingProperties = retrievingProperties;
+        this.attachmentRepository = attachmentRepository;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @Override
@@ -120,15 +134,21 @@ public class RAGAgent implements Agent {
     }
 
     private Advisor getRagAdvisor(Question question, boolean userHasAccessToInternalDocuments, boolean hasHistory, String userId) {
+        var conversationDocuments = getConversationDocuments(question, userId);
         var transformers = transformers(question.language(), hasHistory);
         var queryExpander = expander(question.language(), internalChatClient);
-        var documentRetriever = VectorStoreDocumentRetriever.builder()
+        var filterExpressionSupplier = (java.util.function.Supplier<Filter.Expression>)
+                () -> buildExpression(question, userHasAccessToInternalDocuments, userId);
+
+        var vectorRetriever = VectorStoreDocumentRetriever.builder()
                 .vectorStore(documentStore)
-                .filterExpression(() -> buildExpression(question, userHasAccessToInternalDocuments, userId))
+                .filterExpression(filterExpressionSupplier)
                 .topK(retrievingProperties.topK())
                 .build();
 
-        var documentJoiner = new RankedDocumentJoiner(reranker);
+        DocumentRetriever documentRetriever = getDocumentRetriever(filterExpressionSupplier, vectorRetriever);
+
+        var documentJoiner = new RankedDocumentJoiner(reranker, conversationDocuments);
 
         return RAGAdvisor.builder()
                 .queryTransformers(transformers)
@@ -136,6 +156,34 @@ public class RAGAgent implements Agent {
                 .documentRetriever(documentRetriever)
                 .documentJoiner(documentJoiner)
                 .build();
+    }
+
+    private DocumentRetriever getDocumentRetriever(Supplier<Filter.Expression> filterExpressionSupplier, VectorStoreDocumentRetriever vectorRetriever) {
+        DocumentRetriever documentRetriever;
+        if (retrievingProperties.bm25().enabled()) {
+            var bm25Retriever = new BM25DocumentRetriever(
+                    jdbcTemplate,
+                    retrievingProperties.bm25().topK(),
+                    filterExpressionSupplier
+            );
+            documentRetriever = new HybridDocumentRetriever(vectorRetriever, bm25Retriever);
+        } else {
+            documentRetriever = vectorRetriever;
+        }
+        return documentRetriever;
+    }
+
+    private List<Document> getConversationDocuments(Question question, String userId) {
+        return attachmentRepository.findAllByConversationIdAndUserId(question.conversationId(), userId)
+                .stream()
+                .map(attachmentEntity -> new Document(
+                        attachmentEntity.getContent(),
+                        Map.of(
+                                "title", attachmentEntity.getFilename(),
+                                "state", "personal.uploads")
+                        )
+                )
+                .toList();
     }
 
     private Filter.Expression buildExpression(Question question, boolean userHasAccessToInternalDocuments, String userId) {

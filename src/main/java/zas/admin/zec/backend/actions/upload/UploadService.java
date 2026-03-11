@@ -1,15 +1,16 @@
 package zas.admin.zec.backend.actions.upload;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.ai.vectorstore.filter.Filter;
 import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import zas.admin.zec.backend.actions.upload.etl.PdfDocumentReader;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import zas.admin.zec.backend.actions.upload.model.DocumentToUpload;
+import zas.admin.zec.backend.actions.upload.model.EmbeddingStatus;
 import zas.admin.zec.backend.actions.upload.model.PersonalDoc;
 import zas.admin.zec.backend.actions.upload.strategy.AdminDocUploadStrategyFactory;
 import zas.admin.zec.backend.actions.upload.validation.UploadException;
@@ -28,15 +29,19 @@ public class UploadService {
     private final TempSourceDocumentRepository sourceDocumentRepository;
     private final VectorStore vectorStore;
     private final TempSourceDocumentRepository tempSourceDocumentRepository;
+    private final UploadAsyncProcessor uploadAsyncProcessor;
 
     public UploadService(AdminDocUploadStrategyFactory adminDocUploadStrategyFactory,
                          TempSourceDocumentRepository sourceDocumentRepository,
-                         VectorStore vectorStore, TempSourceDocumentRepository tempSourceDocumentRepository) {
+                         VectorStore vectorStore,
+                         TempSourceDocumentRepository tempSourceDocumentRepository,
+                         UploadAsyncProcessor uploadAsyncProcessor) {
 
         this.adminDocUploadStrategyFactory = adminDocUploadStrategyFactory;
         this.sourceDocumentRepository = sourceDocumentRepository;
         this.vectorStore = vectorStore;
         this.tempSourceDocumentRepository = tempSourceDocumentRepository;
+        this.uploadAsyncProcessor = uploadAsyncProcessor;
     }
 
     public record Doc(String filename, ByteArrayResource content) {}
@@ -49,30 +54,32 @@ public class UploadService {
 
     @Transactional
     public void uploadPersonalDocument(DocumentToUpload document, String userUuid) {
-        var reader = new PdfDocumentReader(document.file());
-        List<Document> documents = reader.read()
-                .stream()
-                .map(doc -> enrichMetadata(doc, userUuid, document.file().getOriginalFilename()))
-                .toList();
-
         try {
             TempSourceDocumentEntity personalDoc = new TempSourceDocumentEntity();
             personalDoc.setFileName(document.file().getOriginalFilename());
             personalDoc.setContent(document.file().getBytes());
             personalDoc.setUserUuid(userUuid);
             personalDoc.setUploadedAt(LocalDateTime.now());
+            personalDoc.setStatus(EmbeddingStatus.PENDING);
 
-            tempSourceDocumentRepository.save(personalDoc);
-            vectorStore.write(documents);
+            var savedDoc = tempSourceDocumentRepository.save(personalDoc);
+
+            log.info("Document personnel {} persisté, lancement du traitement d'embedding asynchrone",
+                    document.file().getOriginalFilename());
+
+            Long docId = savedDoc.getId();
+            TransactionSynchronizationManager.registerSynchronization(
+                    TransactionSynchronization.forExecuteAfterCommit(() -> uploadAsyncProcessor.processEmbedding(docId)));
         } catch (IOException e) {
-            throw new UploadException(document.file().getOriginalFilename(), "Error while uploading personal document", e);
+            throw new UploadException(document.file().getOriginalFilename(),
+                    "Error while uploading personal document", e);
         }
     }
 
     public List<PersonalDoc> getUserPersonalDocs(String userUuid) {
         return tempSourceDocumentRepository.findAllByUserUuid(userUuid)
                 .stream()
-                .map(doc -> new PersonalDoc(doc.getFileName(), doc.getUploadedAt()))
+                .map(doc -> new PersonalDoc(doc.getFileName(), doc.getUploadedAt(), doc.getStatus()))
                 .toList();
     }
 
@@ -89,14 +96,6 @@ public class UploadService {
         documents.forEach(doc -> adminDocUploadStrategyFactory.getUploadStrategy(doc).upload(doc));
     }
 
-    private Document enrichMetadata(Document document, String userUuid, String filename) {
-        //Suppression des caractères null
-        //(évite les erreurs sql car postgres ne supporte pas les caractères null dans les chaînes de caractères)
-        Document clean = document.mutate().text(document.getText().replaceAll("\u0000", "")).build();
-        clean.getMetadata().put("user_uuid", userUuid);
-        clean.getMetadata().put("title", filename);
-        return clean;
-    }
 
     private Filter.Expression buildUserFileFilter(String userUuid, String filename) {
         var expressionBuilder = new FilterExpressionBuilder();

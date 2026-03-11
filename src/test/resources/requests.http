@@ -69,3 +69,30 @@ Content-Type: application/json
 
 ### Get sources setting
 GET http://localhost:8080/api/settings?type=LLM_MODEL
+
+### ====== SYNTHÈSE / SUMMARIZE ======
+
+### Créer une nouvelle tâche de synthèse
+POST http://localhost:8080/copilot/api/summaries/756.1234.5678.90
+Content-Type: application/json
+
+### Récupérer toutes les tâches de synthèse
+GET http://localhost:8080/copilot/api/summaries
+Accept: application/json
+
+### Récupérer le détail d'une tâche terminée
+GET http://localhost:8080/copilot/api/summaries/1
+Accept: application/json
+
+### Relancer une tâche existante
+PUT http://localhost:8080/copilot/api/summaries/1
+Content-Type: application/json
+
+### Afficher les références d'une tâche terminée via JMS
+POST http://localhost:8080/copilot/api/summaries/1/open-references
+Content-Type: application/json
+
+{
+  "visa": "USER123"
+}
+

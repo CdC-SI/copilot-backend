@@ -51,7 +51,7 @@ public class IITariffAgent implements Agent {
     public Flux<Token> processQuestion(Question question, String userId, List<Message> conversationHistory) {
         Token ocrStatus = createOcrStatusToken(question);
 
-        Mono<Map<String, List<String>>> tariffsMono = extractTariffsFromOcr(question.attachments());
+        Mono<Map<String, List<String>>> tariffsMono = extractTariffsFromOcr(List.of());
         Mono<Map<String, List<String>>> tariffsInfosMono = fetchTariffsInfo(tariffsMono);
 
         Mono<Token> tariffsStatus = createTariffsStatusToken(tariffsMono, question);
