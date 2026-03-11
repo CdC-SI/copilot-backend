@@ -44,7 +44,7 @@ public class GaimeJmsService {
         String jsonMessage = objectMapper.writeValueAsString(openInfo);
         String fullMessage = GAIME_MESSAGE + jsonMessage;
 
-        log.debug("Message JMS topic: {}", fullMessage);
+        log.debug("Message JMS topic prepared: action={}, tokensCount={}", openInfo.getAction(), objTokens.size());
 
         jmsTemplate.convertAndSend(fullMessage);
 
