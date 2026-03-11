@@ -22,7 +22,7 @@ public class DocumentEntity {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "content", columnDefinition = "text")
+    @Column(name = "content", columnDefinition = "TEXT")
     private String content;
 
     @Type(JsonType.class)

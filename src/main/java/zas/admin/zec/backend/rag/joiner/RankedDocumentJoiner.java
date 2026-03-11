@@ -37,11 +37,12 @@ public class RankedDocumentJoiner implements DocumentJoiner {
                 .collect(Collectors.toMap(Document::getId, Function.identity(), (existing, duplicate) -> existing))
                 .values().stream()
                 .sorted(Comparator.comparingDouble(Document::getScore).reversed())
-                .limit(this.topK)
+                .limit(reranker.isEnabled() ? this.topK : 10)
                 .toList();
 
         // Combine with conversation documents
-        conversationDocuments.addAll(ragRerankedDocs);
-        return conversationDocuments;
+        var result = new ArrayList<>(conversationDocuments);
+        result.addAll(ragRerankedDocs);
+        return result;
     }
 }

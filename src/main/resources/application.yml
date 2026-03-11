@@ -121,6 +121,10 @@ rag:
       enabled: ${RAG_RETRIEVING_QUERY_COMPRESSER_ENABLED:true}
     query-rewriter:
       enabled: ${RAG_RETRIEVING_QUERY_REWRITER_ENABLED:true}
+    bm25:
+      enabled: ${RAG_RETRIEVING_BM25_ENABLED:false}
+      top-k: ${RAG_RETRIEVING_BM25_TOP_K:2}
+      text-search-config: ${RAG_RETRIEVING_BM25_TEXT_SEARCH_CONFIG:simple}
   reranking:
     cohere-api-key: ${COHERE_API_KEY:cohere_api_key}
     score-threshold: ${RERANKING_SCORE_THRESHOLD:0.5}
