@@ -114,16 +114,6 @@ public class SummarizeController {
         }
 
         log.info("Demande d'affichage des références pour la tâche ID: {} (visa: {})", id, user.getTrigramme());
-        log.info(user.getTrigramme());
-        log.info(user.getFirstname());
-        log.info(user.getLastname());
-        log.info(user.getUserForDb());
-        log.info(user.getVisa());
-        log.info(user.getIncomingToken());
-        log.info(user.getIncomingAccessToken());
-        log.info("Roles : {}", user.getRoles());
-        log.info(user.getAdditionalProperties().toString());
-        log.info("Trigrams : {}", user.getZasTrigrams());
         try {
             // Récupérer les références de la tâche
             List<String> references = summarizeService.getTaskReferences(id);
