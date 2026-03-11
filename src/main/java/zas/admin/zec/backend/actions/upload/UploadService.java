@@ -7,8 +7,6 @@ import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import zas.admin.zec.backend.actions.upload.model.DocumentToUpload;
 import zas.admin.zec.backend.actions.upload.model.EmbeddingStatus;
 import zas.admin.zec.backend.actions.upload.model.PersonalDoc;
@@ -67,9 +65,7 @@ public class UploadService {
             log.info("Document personnel {} persisté, lancement du traitement d'embedding asynchrone",
                     document.file().getOriginalFilename());
 
-            Long docId = savedDoc.getId();
-            TransactionSynchronizationManager.registerSynchronization(
-                    TransactionSynchronization.forExecuteAfterCommit(() -> uploadAsyncProcessor.processEmbedding(docId)));
+            uploadAsyncProcessor.processEmbedding(savedDoc.getId());
         } catch (IOException e) {
             throw new UploadException(document.file().getOriginalFilename(),
                     "Error while uploading personal document", e);
