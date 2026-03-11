@@ -2,6 +2,7 @@ package zas.admin.zec.backend.actions.converse;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -14,6 +15,7 @@ import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.config.security.RequireUser;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 
@@ -87,7 +89,7 @@ public class ConversationController {
         var userUuid = userService.getUuid(authentication.getName());
         var attachment = conversationService.getAttachment(conversationId, attachmentId, userUuid);
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=%s".formatted(attachment.filename()))
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename(attachment.filename(), StandardCharsets.UTF_8).build().toString())
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .body(attachment.content());
     }
