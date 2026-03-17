@@ -17,7 +17,18 @@ import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 @Configuration
 public class PublicApiSecurityConfig {
 
+    private static final String ACTUATOR_PATH = "/actuator/**";
     private static final String PUBLIC_API_PATH = "/api/public/v1/**";
+
+    @Bean
+    @Order(0)
+    SecurityFilterChain actuatorSecurityFilterChain(HttpSecurity http) throws Exception {
+        http.csrf(AbstractHttpConfigurer::disable)
+                .securityMatcher(ACTUATOR_PATH)
+                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
+
+        return http.build();
+    }
 
     @Bean
     @Order(1)

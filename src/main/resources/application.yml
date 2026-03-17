@@ -65,6 +65,14 @@ spring:
             type: PKCS12
   ai:
     chat:
+      observations:
+        log-prompt: ${OB_CHAT_PROMPT:false}
+        log-completion: ${OB_CHAT_COMPLETION:false}
+        include-error-logging: ${OB_CHAT_ERROR:false}
+      client:
+        observations:
+          log-prompt: ${OB_CHAT_CLIENT_PROMPT:false}
+          log-completion: ${OB_CHAT_CLIENT_COMPLETION:false}
       public:
         api-key: ${OPENAI_API_KEY}
         chat-model: ${PUBLIC_CHAT_MODEL}
@@ -82,6 +90,8 @@ spring:
         reranker-base-url: ${RERANKER_BASE_URL}
 
     vectorstore:
+      observations:
+        log-query-response: ${OB_VS_QUERY_RESPONSE:false}
       pgvector:
         dimensions: ${PGVECTOR_DIMENSIONS:1024}
         distance-type: cosine_distance
@@ -159,3 +169,15 @@ nuxeo:
   url: ${NUXEO_URL}
   username: ${NUXEO_USERNAME}
   password: ${NUXEO_PASSWORD}
+
+management:
+  observations:
+    enable:
+      default: true
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus
+  endpoint:
+    health:
+      show-details: ${HEALTH_DETAILS:never}
