@@ -23,7 +23,7 @@ public class TempSourceDocumentEntity {
     @Column(name = "content")
     private byte[] content;
 
-    @Column(name = "user_uuid", nullable = false)
+    @Column(name = "user_uuid")
     private String userUuid;
 
     @Column(name = "uploaded_at")
