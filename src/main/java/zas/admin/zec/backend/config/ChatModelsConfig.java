@@ -60,7 +60,7 @@ public class ChatModelsConfig {
         var options = OpenAiChatOptions.builder()
                 .model(internalChatModelProperties.visionModel())
                 .temperature(0.0)
-                .maxTokens(16384)
+                .maxTokens(15360)
                 .build();
 
         return OpenAiChatModel.builder()
