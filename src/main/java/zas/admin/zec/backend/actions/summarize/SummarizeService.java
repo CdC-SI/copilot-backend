@@ -6,6 +6,7 @@ import org.springframework.transaction.annotation.Transactional;
 import zas.admin.zec.backend.persistence.entity.SummaryTaskEntity;
 import zas.admin.zec.backend.persistence.repository.SummaryTaskRepository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -81,6 +82,7 @@ public class SummarizeService {
                 .orElseThrow(() -> new TaskNotFoundException("Tâche introuvable avec l'ID: " + taskId));
 
         // Réinitialiser le statut et effacer les anciennes données
+        task.setCreatedAt(LocalDateTime.now());
         task.setStatus(SummaryTaskStatus.EN_COURS);
         task.setSummaryMarkdown(null);
         task.setErrorMessage(null);
