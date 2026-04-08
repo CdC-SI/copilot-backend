@@ -33,6 +33,11 @@ public class ConversationController {
         this.conversationService = conversationService;
     }
 
+    @GetMapping("/workspaces")
+    public ResponseEntity<List<String>> getWorkspaces() {
+        return ResponseEntity.ok(conversationService.getWorkspaces());
+    }
+
     @GetMapping("/titles")
     public ResponseEntity<List<ConversationTitle>> getConversationTitles(Authentication authentication) {
         var userUuid = userService.getUuid(authentication.getName());

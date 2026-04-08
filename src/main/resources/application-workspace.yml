@@ -1,0 +1,29 @@
+workspace:
+  default-workspace: GENERAL
+  sources:
+    RH:
+      - rh
+    OAIE:
+      - oaie
+    AF:
+      - csc_afac
+      - praxisleitfaden_fz
+    DIRECTIVE:
+      - DAA
+      - DIN
+      - DSD
+      - fedlex
+      - lavs
+    GENERAL:
+      - ahv_iv_mementos
+      - eak_lernbaustein
+      - akis
+      - bsv
+      - eak_website
+      - sozialversicherungen
+      - user_pdf_upload
+      - user_edit
+      - faq_bsv
+      - knowledge_base
+      - zasweb
+      - bsvweb

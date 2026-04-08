@@ -20,6 +20,7 @@ import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import zas.admin.zec.backend.actions.api.StreamEvent;
@@ -27,6 +28,7 @@ import zas.admin.zec.backend.actions.api.StreamEventType;
 import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.actions.converse.Message;
 import zas.admin.zec.backend.actions.converse.Question;
+import zas.admin.zec.backend.agent.tools.ii.utils.SourceResolver;
 import zas.admin.zec.backend.config.properties.RetrievingProperties;
 import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
 import zas.admin.zec.backend.rag.RAGPrompts;
@@ -57,6 +59,7 @@ public class RAGAgent implements Agent {
     private final RetrievingProperties retrievingProperties;
     private final AttachmentRepository attachmentRepository;
     private final JdbcTemplate jdbcTemplate;
+    private final SourceResolver sourceResolver;
 
     public RAGAgent(
             @Qualifier("internalChatModel") ChatModel internalChatModel,
@@ -65,7 +68,7 @@ public class RAGAgent implements Agent {
             DocumentReranker reranker,
             RetrievingProperties retrievingProperties,
             AttachmentRepository attachmentRepository,
-            JdbcTemplate jdbcTemplate) {
+            JdbcTemplate jdbcTemplate, SourceResolver sourceResolver) {
 
         this.internalChatClient = ChatClient.create(internalChatModel);
         this.documentStore = documentStore;
@@ -74,6 +77,7 @@ public class RAGAgent implements Agent {
         this.retrievingProperties = retrievingProperties;
         this.attachmentRepository = attachmentRepository;
         this.jdbcTemplate = jdbcTemplate;
+        this.sourceResolver = sourceResolver;
     }
 
     @Override
@@ -189,12 +193,12 @@ public class RAGAgent implements Agent {
     private Filter.Expression buildExpression(Question question, boolean userHasAccessToInternalDocuments, String userId) {
         FilterExpressionBuilder builder = new FilterExpressionBuilder();
         List<FilterExpressionBuilder.Op> ops = new ArrayList<>();
-        if (question.tags() != null && !question.tags().isEmpty()) {
-            ops.add(builder.in("tags", List.copyOf(question.tags())));
+
+        var sources = sourceResolver.resolve(question.workspace());
+        if (!CollectionUtils.isEmpty(sources)) {
+            ops.add(builder.in("source", List.copyOf(sources)));
         }
-        if (question.sources() != null && !question.sources().isEmpty()) {
-            ops.add(builder.in("source", List.copyOf(question.sources())));
-        }
+
         if (!userHasAccessToInternalDocuments) {
            ops.add(builder.ne("organizations", "ZAS"));
         }

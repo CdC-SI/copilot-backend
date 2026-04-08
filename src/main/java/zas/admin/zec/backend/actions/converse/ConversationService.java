@@ -9,6 +9,7 @@ import org.springframework.core.task.TaskExecutor;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -17,6 +18,7 @@ import zas.admin.zec.backend.actions.summarize.LlmOcrService;
 import zas.admin.zec.backend.actions.upload.UploadService;
 import zas.admin.zec.backend.agent.Agent;
 import zas.admin.zec.backend.agent.AgentFactory;
+import zas.admin.zec.backend.agent.tools.ii.utils.WorkspaceProperties;
 import zas.admin.zec.backend.persistence.entity.AttachmentEntity;
 import zas.admin.zec.backend.persistence.entity.ConversationTitleEntity;
 import zas.admin.zec.backend.persistence.entity.MessageEntity;
@@ -48,6 +50,8 @@ public class ConversationService {
     private final AgentFactory agentFactory;
     private final TaskExecutor taskExecutor;
     private final LlmOcrService ocrService;
+    private final WorkspaceProperties workspaceProperties;
+
 
     public ConversationService(ConversationRepository conversationRepository,
                                ConversationTitleRepository conversationTitleRepository,
@@ -56,7 +60,7 @@ public class ConversationService {
                                AgentFactory agentFactory,
                                @Qualifier("internalChatModel") ChatModel chatModel,
                                @Qualifier("asyncExecutor") TaskExecutor taskExecutor,
-                               LlmOcrService ocrService) {
+                               LlmOcrService ocrService, WorkspaceProperties workspaceProperties) {
 
         this.conversationRepository = conversationRepository;
         this.conversationTitleRepository = conversationTitleRepository;
@@ -66,6 +70,7 @@ public class ConversationService {
         this.agentFactory = agentFactory;
         this.taskExecutor = taskExecutor;
         this.ocrService = ocrService;
+        this.workspaceProperties = workspaceProperties;
     }
 
     public List<Source> getSourcesByMessageUuid(String conversationUuid, String messageUuid) {
@@ -81,7 +86,7 @@ public class ConversationService {
     public List<ConversationTitle> getTitlesByUserId(String userId) {
         return conversationTitleRepository.findByUserIdOrderByTimestamp(userId)
                 .stream()
-                .map(title -> new ConversationTitle(title.getTitle(), title.getUserId(), title.getConversationId(), title.getTimestamp()))
+                .map(title -> new ConversationTitle(title.getTitle(), title.getUserId(), title.getConversationId(), title.getTimestamp(), title.getWorkspace()))
                 .toList();
     }
 
@@ -96,7 +101,13 @@ public class ConversationService {
             save(message, userId, conversationId);
         }
 
-        generateConversationTitle(messages.get(0).message(), messages.get(1).message(), userId, conversationId, messages.get(0).lang());
+        var workspace = workspaceProperties.getSources().entrySet().stream()
+                .filter(entry -> entry.getValue().contains(messages.getFirst().source()))
+                .map(Map.Entry::getKey)
+                .findFirst()
+                .orElse("");
+
+        generateConversationTitle(messages.get(0).message(), messages.get(1).message(), userId, conversationId, messages.get(0).lang(), workspace);
     }
 
     public void update(String userUuid, String conversationId, List<FAQMessage> messages) {
@@ -248,7 +259,7 @@ public class ConversationService {
 
         save(userMessage, userId, question.conversationId());
         save(assistantMessage, userId, question.conversationId());
-        generateConversationTitle(question.query(), answer, userId, question.conversationId(), question.language());
+        generateConversationTitle(question.query(), answer, userId, question.conversationId(), question.language(), question.workspace());
     }
 
     private List<Message> getConversationHistory(String conversationId, String userId, Limit limit) {
@@ -371,7 +382,7 @@ public class ConversationService {
         return String.join("#", Arrays.stream(sourceParts).filter(part -> part != null && !part.isEmpty()).toList());
     }
 
-    private void generateConversationTitle(String initialQuery, String initialResponse, String userId, String conversationId, String language) {
+    private void generateConversationTitle(String initialQuery, String initialResponse, String userId, String conversationId, String language, String workspace) {
         if (conversationTitleRepository.findByUserIdAndConversationId(userId, conversationId).isEmpty()) {
             var title = chatClient.prompt()
                     .system(ConversationPrompts.getConversationTitlePrompt(language)
@@ -385,8 +396,13 @@ public class ConversationService {
             entity.setConversationId(conversationId);
             entity.setTitle(title);
             entity.setTimestamp(LocalDateTime.now());
+            entity.setWorkspace(StringUtils.hasLength(workspace) ? workspace : workspaceProperties.getDefaultWorkspace());
 
             conversationTitleRepository.save(entity);
         }
+    }
+
+    public List<String> getWorkspaces() {
+        return List.copyOf(workspaceProperties.getSources().keySet());
     }
 }
