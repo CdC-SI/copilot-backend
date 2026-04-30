@@ -10,6 +10,8 @@ import zas.admin.zec.backend.actions.visualize.model.sumex.SumexInvoice;
 import zas.admin.zec.backend.config.security.RequireAdmin;
 import zas.admin.zec.backend.config.security.RequireTranslator;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/visualize")
 public class VisualizeController {
@@ -35,7 +37,7 @@ public class VisualizeController {
 
     @RequireTranslator
     @PostMapping("/translate")
-    public ResponseEntity<TextTranslation> translateFile(@RequestParam MultipartFile file, @RequestParam String language) {
+    public ResponseEntity<List<TextTranslation>> translateFile(@RequestParam MultipartFile file, @RequestParam String language) {
         var translation = visionService.translateFile(file, language);
         return ResponseEntity.ok(translation);
     }

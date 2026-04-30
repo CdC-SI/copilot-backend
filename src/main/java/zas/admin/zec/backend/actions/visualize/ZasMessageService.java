@@ -71,6 +71,25 @@ public class ZasMessageService implements VisionMessageService {
     }
 
     @Override
+    public SystemMessage translateImageMessage(String language) {
+        String template = """
+            You are an expert OCR and translator.
+            Your task is to extract the text from the given image, detect its original language, and translate it into the following language: {language}.
+            Keep the original formatting as much as possible (paragraphs, lists, tables).
+            You must respond with a JSON object containing exactly two fields:
+            - "translatedText": the translated text
+            - "detectedLanguage": the full human-readable name of the detected language of the original text (e.g. "French", "German", "English")
+        """;
+
+        var promptTemplate = PromptTemplate.builder()
+                .template(template)
+                .variables(Map.of("language", language))
+                .build();
+
+        return new SystemMessage(promptTemplate.render());
+    }
+
+    @Override
     public UserMessage structureDataFromImageMessage(String jsonSchema) {
         String template = """
             <CONTEXTE>

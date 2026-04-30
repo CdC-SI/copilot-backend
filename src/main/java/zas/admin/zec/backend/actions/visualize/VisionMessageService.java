@@ -17,6 +17,8 @@ public interface VisionMessageService {
 
      UserMessage translateMessage(String language, String textToTranslate);
 
+     SystemMessage translateImageMessage(String language);
+
      SystemMessage extractTariffPositionMessage(String jsonSchema);
 
      SystemMessage extractSumexInvoiceMessage(String jsonSchema);

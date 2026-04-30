@@ -19,7 +19,7 @@ public interface VisionService {
 
     ZasDocumentType classifyFile(MultipartFile file);
 
-    TextTranslation translateFile(MultipartFile file, String language);
+    List<TextTranslation> translateFile(MultipartFile file, String language);
 
     SumexInvoice extractSumexInvoiceFromFile(MultipartFile file);
 }
