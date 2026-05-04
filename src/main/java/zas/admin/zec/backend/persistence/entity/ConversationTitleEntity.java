@@ -26,6 +26,9 @@ public class ConversationTitleEntity {
     @Column(name = "chat_title", nullable = false, columnDefinition = "text")
     private String title;
 
+    @Column(name = "workspace", nullable = false, columnDefinition = "text")
+    private String workspace;
+
     @Column(name = "timestamp", nullable = false)
     private LocalDateTime timestamp;
 
