@@ -8,6 +8,8 @@ decorator:
         acquire: 1
         lease: 0
 spring:
+  profiles:
+    include: workspace
   application:
     name: copilot-backend
   datasource:
