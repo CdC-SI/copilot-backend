@@ -112,7 +112,7 @@ server:
   tomcat:
     max-swallow-size: -1
   servlet:
-    context-path: /copilot
+    context-path: /zia
 faq:
   search:
     min-result-before-semantic-search: ${FAQ_MIN_RESULT_BEFORE_SEMANTIC_SEARCH:5}
