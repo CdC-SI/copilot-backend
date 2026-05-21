@@ -1,4 +1,4 @@
-package zas.admin.zec.backend.agent.tools.ii.utils;
+package zas.admin.zec.backend.config.properties;
 
 import lombok.Getter;
 import lombok.Setter;

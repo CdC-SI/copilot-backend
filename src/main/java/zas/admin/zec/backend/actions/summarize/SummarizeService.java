@@ -14,6 +14,12 @@ import java.util.Optional;
 @Service
 public class SummarizeService {
 
+    private static final String MSG_TASK_NOT_FOUND = "Tâche introuvable avec l'ID: ";
+    private static final String MSG_TASK_NOT_COMPLETED = "La tâche n'est pas encore terminée. Statut actuel: ";
+    private static final String MSG_EXISTING_SUMMARY = "Une synthèse terminée existe déjà pour ce numéro AVS";
+    private static final String MSG_TASK_STARTED = "Traitement de synthèse démarré";
+    private static final String MSG_TASK_RESTARTED = "Traitement de synthèse relancé";
+
     private final SummaryTaskRepository summaryTaskRepository;
     private final SummarizeAsyncProcessor asyncProcessor;
 
@@ -43,7 +49,7 @@ public class SummarizeService {
                     existingTask.get().getId(),
                     navs,
                     SummaryTaskStatus.TERMINEE,
-                    "Une synthèse terminée existe déjà pour ce numéro AVS"
+                    MSG_EXISTING_SUMMARY
             );
         }
 
@@ -62,7 +68,7 @@ public class SummarizeService {
                 task.getId(),
                 navs,
                 SummaryTaskStatus.EN_COURS,
-                "Traitement de synthèse démarré"
+                MSG_TASK_STARTED
         );
     }
 
@@ -79,7 +85,7 @@ public class SummarizeService {
         log.info("Demande de relance de la tâche ID: {}", taskId);
 
         SummaryTaskEntity task = summaryTaskRepository.findById(taskId)
-                .orElseThrow(() -> new TaskNotFoundException("Tâche introuvable avec l'ID: " + taskId));
+                .orElseThrow(() -> new TaskNotFoundException(MSG_TASK_NOT_FOUND + taskId));
 
         // Réinitialiser le statut et effacer les anciennes données
         task.setCreatedAt(LocalDateTime.now());
@@ -97,7 +103,7 @@ public class SummarizeService {
                 task.getId(),
                 task.getNavs(),
                 SummaryTaskStatus.EN_COURS,
-                "Traitement de synthèse relancé"
+                MSG_TASK_RESTARTED
         );
     }
 
@@ -123,10 +129,10 @@ public class SummarizeService {
      */
     public SummaryDetailResponse getSummaryDetail(Long taskId) {
         SummaryTaskEntity task = summaryTaskRepository.findById(taskId)
-                .orElseThrow(() -> new TaskNotFoundException("Tâche introuvable avec l'ID: " + taskId));
+                .orElseThrow(() -> new TaskNotFoundException(MSG_TASK_NOT_FOUND + taskId));
 
         if (task.getStatus() != SummaryTaskStatus.TERMINEE) {
-            throw new TaskNotCompletedException("La tâche n'est pas encore terminée. Statut actuel: " + task.getStatus());
+            throw new TaskNotCompletedException(MSG_TASK_NOT_COMPLETED + task.getStatus());
         }
 
         return new SummaryDetailResponse(
@@ -150,10 +156,10 @@ public class SummarizeService {
         log.debug("Récupération des références pour la tâche ID: {}", taskId);
 
         SummaryTaskEntity task = summaryTaskRepository.findById(taskId)
-                .orElseThrow(() -> new TaskNotFoundException("Tâche introuvable avec l'ID: " + taskId));
+                .orElseThrow(() -> new TaskNotFoundException(MSG_TASK_NOT_FOUND + taskId));
 
         if (task.getStatus() != SummaryTaskStatus.TERMINEE) {
-            throw new TaskNotCompletedException("La tâche n'est pas encore terminée. Statut actuel: " + task.getStatus());
+            throw new TaskNotCompletedException(MSG_TASK_NOT_COMPLETED + task.getStatus());
         }
 
         List<String> references = task.getReferences();

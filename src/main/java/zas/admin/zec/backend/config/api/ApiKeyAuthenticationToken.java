@@ -9,8 +9,8 @@ import java.util.Collection;
 // Après validation: principal = ApiClientPrincipal (avec id, name, etc.), credentials = null
 public class ApiKeyAuthenticationToken extends AbstractAuthenticationToken {
 
-    private final Object principal;
-    private final Object credentials;
+    private final transient Object principal;
+    private final transient Object credentials;
 
     public ApiKeyAuthenticationToken(String keyId, String rawSecret) {
         super(null);
