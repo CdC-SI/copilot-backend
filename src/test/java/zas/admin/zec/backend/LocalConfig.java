@@ -24,7 +24,7 @@ public class LocalConfig {
         String imageName = new ImageFromDockerfile("copilot-backend-postgres-test", false)
                 .withFileFromPath(".", Path.of("src/test/resources/docker"))
                 .withFileFromPath("init-extensions.sql", Path.of("src/test/resources/init-extensions.sql"))
-                .withFileFromPath("pg-textsearch-postgresql-18_1.2.0-1_amd64.deb", Path.of("src/test/resources/pg-textsearch-postgresql-18_1.2.0-1_amd64.deb"))
+                .withFileFromPath("docker/pg-textsearch-postgresql-18_1.2.0-1_amd64.deb", Path.of("src/test/resources/docker/pg-textsearch-postgresql-18_1.2.0-1_amd64.deb"))
                 .get();
 
         return new PostgreSQLContainer<>(DockerImageName.parse(imageName).asCompatibleSubstituteFor("postgres"))
