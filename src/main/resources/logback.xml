@@ -1,0 +1,27 @@
+<configuration>
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <fieldNames class="net.logstash.logback.fieldnames.ShortenedFieldNames"/>
+            <mdcKeyFieldName>zas.user=user</mdcKeyFieldName>
+            <mdcKeyFieldName>zas.correlation=correlation</mdcKeyFieldName>
+        </encoder>
+    </appender>
+
+    <appender name="LOCAL" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="SECURITY_EVENT" level="${LOG_LEVEL:-INFO}" additivity="false">
+        <appender-ref ref="${LOG_APPENDER:-STDOUT}" />
+    </logger>
+
+    <logger name="OPDO_EVENT" level="${LOG_LEVEL:-INFO}" additivity="false">
+        <appender-ref ref="${LOG_APPENDER:-STDOUT}" />
+    </logger>
+
+    <root level="${LOG_LEVEL:-INFO}">
+        <appender-ref ref="${LOG_APPENDER:-STDOUT}" />
+    </root>
+</configuration>

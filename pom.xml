@@ -28,6 +28,9 @@
         <activemq.version>6.2.5</activemq.version>
         <micrometer.version>1.16.5</micrometer.version>
         <postgresql.version>42.7.11</postgresql.version>
+        <jweb-security-events.version>2.3.2</jweb-security-events.version>
+        <jweb.version>1.4.1</jweb.version>
+        <flyway.version>12.6.1</flyway.version>
     </properties>
 
     <dependencies>
@@ -49,6 +52,24 @@
                     <artifactId>commons-io</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>ch.admin.zas.jweb.securityevents</groupId>
+            <artifactId>jweb-security-events-starter-web</artifactId>
+            <version>${jweb-security-events.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>ch.admin.zas.jweb</groupId>
+            <artifactId>jweb-web-starter</artifactId>
+            <version>${jweb.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
         </dependency>
         <dependency>
             <groupId>ch.admin.zas</groupId>
@@ -164,6 +185,21 @@
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-testcontainers</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

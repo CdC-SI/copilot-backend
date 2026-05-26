@@ -12,6 +12,17 @@ spring:
     include: workspace
   application:
     name: copilot-backend
+  flyway:
+    enabled: true
+    url: ${FLYWAY_DS_URL:}
+    user: ${FLYWAY_DS_USERNAME:}
+    password: ${FLYWAY_DS_PASSWORD:}
+    locations: classpath:db/migration
+    validate-on-migrate: true
+    baseline-on-migrate: false
+    lock-retry-count: 10
+    connect-retries: 5
+    connect-retries-interval: 5
   datasource:
     url: ${DS_URL:jdbc:postgresql://localhost:5432/pg_db}
     username: ${DS_USERNAME}
@@ -29,8 +40,6 @@ spring:
     prefer-file-system-access: false
     charset: UTF-8
   jpa:
-    hibernate:
-      ddl-auto: update
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
