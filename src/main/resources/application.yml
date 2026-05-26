@@ -110,7 +110,7 @@ spring:
         max-document-batch-size: 10000
         index-type: hnsw
         table-name: vector_store
-        initialize-schema: true
+        initialize-schema: ${PG_VECTOR_INIT:false}
 py-backend:
   baseUrl: http://copilot:8000
 embedding-service:
