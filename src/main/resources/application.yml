@@ -19,10 +19,11 @@ spring:
     password: ${FLYWAY_DS_PASSWORD:}
     locations: classpath:db/migration
     validate-on-migrate: true
-    baseline-on-migrate: false
+    baseline-on-migrate: true
     lock-retry-count: 10
     connect-retries: 5
     connect-retries-interval: 5
+    baseline-version: 1
   datasource:
     url: ${DS_URL:jdbc:postgresql://localhost:5432/pg_db}
     username: ${DS_USERNAME}
