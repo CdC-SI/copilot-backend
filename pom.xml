@@ -20,7 +20,7 @@
         <java.version>21</java.version>
         <jjwt.version>0.12.6</jjwt.version>
         <mapstruct.version>1.6.3</mapstruct.version>
-        <spring-ai.version>1.1.6</spring-ai.version>
+        <spring-ai.version>1.1.7</spring-ai.version>
         <caffeine.version>3.2.0</caffeine.version>
         <zas-common-security-starter.version>3.5.8.1</zas-common-security-starter.version>
         <netty.version>4.2.13.Final</netty.version>
@@ -276,6 +276,11 @@
                 <version>${spring-ai.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.modelcontextprotocol.sdk</groupId>
+                <artifactId>mcp-json-jackson2</artifactId>
+                <version>1.0.0</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
