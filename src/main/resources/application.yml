@@ -111,6 +111,9 @@ spring:
         index-type: hnsw
         table-name: vector_store
         initialize-schema: ${PG_VECTOR_INIT:false}
+  mvc:
+    async:
+      request-timeout: 120000
 py-backend:
   baseUrl: http://copilot:8000
 embedding-service:
@@ -123,6 +126,7 @@ server:
     max-swallow-size: -1
   servlet:
     context-path: /zia
+    register-default-servlet: false
 faq:
   search:
     min-result-before-semantic-search: ${FAQ_MIN_RESULT_BEFORE_SEMANTIC_SEARCH:5}
