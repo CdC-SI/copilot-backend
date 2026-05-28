@@ -7,13 +7,17 @@ import org.springframework.stereotype.Component;
 import zas.admin.zec.backend.actions.authorize.Role;
 import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.actions.authorize.UserStatus;
+import zas.admin.zec.backend.tools.SecurityLogging;
+
 
 @Component("authz")
 public class AuthorizationLogic {
     private final UserService userService;
+    private final SecurityLogging securityLogging;
 
-    public AuthorizationLogic(UserService userService) {
+    public AuthorizationLogic(UserService userService, SecurityLogging securityLogging) {
         this.userService = userService;
+        this.securityLogging = securityLogging;
     }
 
     public boolean isUser(Authentication authentication) {
@@ -30,7 +34,13 @@ public class AuthorizationLogic {
     }
 
     public boolean isAdmin(Authentication authentication) {
-        return hasRole(authentication.getName(), Role.ADMIN);
+        return isAdmin(authentication, "admin action");
+    }
+
+    public boolean isAdmin(Authentication authentication, String eventAction) {
+        var hasAdminRole = hasRole(authentication.getName(), Role.ADMIN);
+        securityLogging.logSensitiveOperation(eventAction, hasAdminRole);
+        return hasAdminRole;
     }
 
     public boolean isExpert(Authentication authentication) {

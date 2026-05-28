@@ -6,8 +6,10 @@ import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.core.annotation.AnnotationTemplateExpressionDefaults;
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationFilter;
@@ -15,10 +17,12 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 @Configuration
+@EnableMethodSecurity
 public class PublicApiSecurityConfig {
 
     private static final String ACTUATOR_PATH = "/actuator/**";
     private static final String PUBLIC_API_PATH = "/api/public/v1/**";
+
 
     @Bean
     @Order(0)
@@ -72,5 +76,10 @@ public class PublicApiSecurityConfig {
             response.getWriter().write("{\"error\": {\"code\": \"unauthorized\", \"message\": \"Invalid or missing API key\"}}");
         });
         return apiKeyFilter;
+    }
+
+    @Bean
+    static AnnotationTemplateExpressionDefaults templateExpressionDefaults() {
+        return new AnnotationTemplateExpressionDefaults();
     }
 }
