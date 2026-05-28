@@ -78,8 +78,8 @@
         </dependency>
         <dependency>
             <groupId>ch.admin.zas.commons</groupId>
-            <artifactId>zas-common-security-starter</artifactId>
-            <version>${zas-common-security-starter.version}</version>
+            <artifactId>zas-common-security-dto</artifactId>
+            <version>3.5.4</version>
         </dependency>
         <!-- Spring -->
         <dependency>
