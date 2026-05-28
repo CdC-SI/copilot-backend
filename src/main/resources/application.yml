@@ -161,7 +161,9 @@ logging:
   level:
     zas.admin.zec: DEBUG
     org:
+      apache.catalina.core: DEBUG
       springframework:
+        boot.web.servlet: TRACE
         ai: DEBUG
         security: DEBUG
 deepl:
