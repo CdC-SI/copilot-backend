@@ -111,6 +111,7 @@ spring:
         index-type: hnsw
         table-name: vector_store
         initialize-schema: ${PG_VECTOR_INIT:false}
+        schema-name: ${PG_VECTOR_SCHEMA:public}
   mvc:
     async:
       request-timeout: 120000
