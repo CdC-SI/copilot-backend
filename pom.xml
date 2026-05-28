@@ -22,7 +22,7 @@
         <mapstruct.version>1.6.3</mapstruct.version>
         <spring-ai.version>1.1.7</spring-ai.version>
         <caffeine.version>3.2.0</caffeine.version>
-        <zas-common-security-starter.version>3.5.8.1</zas-common-security-starter.version>
+        <zas-common-security-starter.version>3.5.8.2</zas-common-security-starter.version>
         <netty.version>4.2.13.Final</netty.version>
         <tomcat.version>10.1.55</tomcat.version>
         <activemq.version>6.2.5</activemq.version>
