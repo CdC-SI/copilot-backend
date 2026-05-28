@@ -21,7 +21,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
-    private final SecurityEventsLogger logger = SecurityEventsLogger.getLogger();
     private static final String EPORTAL_GUEST_USERNAME = "00000000-0000-0000-0000-000000000000";
 
     public record UserResponse(String userId) {}
