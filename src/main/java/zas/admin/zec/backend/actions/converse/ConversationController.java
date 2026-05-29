@@ -2,11 +2,7 @@ package zas.admin.zec.backend.actions.converse;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
-import org.springframework.http.ContentDisposition;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -85,7 +81,7 @@ public class ConversationController {
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<String> askQuestion(@ModelAttribute Question question, Authentication authentication) {
-        var userUuid = userService.getUuid(authentication.getName());
+        var userUuid = "d0c7a301-53cc-4292-9c9c-24bfbee0907a";
         return conversationService.streamAnswer(question.withDefaults(), userUuid);
     }
 
