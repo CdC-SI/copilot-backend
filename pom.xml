@@ -28,7 +28,7 @@
         <micrometer.version>1.16.5</micrometer.version>
         <postgresql.version>42.7.11</postgresql.version>
         <jweb-security-events.version>2.3.2</jweb-security-events.version>
-        <jweb.version>1.4.1</jweb.version>
+        <jweb.version>1.4.0</jweb.version>
         <flyway.version>12.6.1</flyway.version>
     </properties>
 

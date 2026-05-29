@@ -1,12 +1,9 @@
 package zas.admin.zec.backend.config;
 
-import ch.qos.logback.access.tomcat.LogbackValve;
 import jakarta.servlet.Filter;
 import jakarta.servlet.http.HttpServletRequest;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.springframework.boot.web.embedded.tomcat.TomcatServletWebServerFactory;
-import org.springframework.boot.web.server.WebServerFactoryCustomizer;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,16 +13,6 @@ import org.springframework.core.Ordered;
 public class AsyncProbeConfig {
 
     private static final Log logger = LogFactory.getLog(AsyncProbeConfig.class);
-
-    @Bean
-    public WebServerFactoryCustomizer<TomcatServletWebServerFactory> accessLogsCustomizer() {
-        return factory -> {
-            var logbackValve = new LogbackValve();
-            logbackValve.setFilename("logback-access.xml");
-            logbackValve.setAsyncSupported(true);
-            factory.addContextValves(logbackValve);
-        };
-    }
 
     @Bean
     FilterRegistrationBean<Filter> asyncProbeBeforeAll() {
