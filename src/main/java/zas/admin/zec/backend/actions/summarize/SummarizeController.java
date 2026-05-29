@@ -1,6 +1,7 @@
 package zas.admin.zec.backend.actions.summarize;
 
-import ch.admin.zas.common.security.users.ZasUser;
+import zas.admin.zec.backend.config.security.ZasUser;
+import ch.admin.zas.jweb.securityevents.core.utils.OPDOOperation;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -9,6 +10,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import zas.admin.zec.backend.actions.summarize.jms.GaimeJmsService;
 import zas.admin.zec.backend.config.security.RequireAdmin;
+import zas.admin.zec.backend.tools.SecurityLogging;
+import zas.admin.zec.backend.tools.OpdoPersonalData;
 
 import java.util.List;
 import java.util.Map;
@@ -32,10 +35,12 @@ public class SummarizeController {
 
     private final SummarizeService summarizeService;
     private final GaimeJmsService gaimeJmsService;
+    private final SecurityLogging securityLogging;
 
-    public SummarizeController(SummarizeService summarizeService, GaimeJmsService gaimeJmsService) {
+    public SummarizeController(SummarizeService summarizeService, GaimeJmsService gaimeJmsService, SecurityLogging securityLogging) {
         this.summarizeService = summarizeService;
         this.gaimeJmsService = gaimeJmsService;
+        this.securityLogging = securityLogging;
     }
 
     /**
@@ -47,13 +52,10 @@ public class SummarizeController {
      */
     @PostMapping("/{navs}")
     public ResponseEntity<SummaryTaskCreatedResponse> createSummary(@PathVariable String navs) {
-        log.info("Demande de création de synthèse pour NAVS: {}", navs);
-
+        securityLogging.log("Création de synthèse pour un numéro AVS", OPDOOperation.READING,
+                List.of(OpdoPersonalData.builder().field("navs", navs).build()));
         SummaryTaskCreatedResponse response = summarizeService.startSummarization(navs);
-
-        // Si la tâche existait déjà terminée, on retourne 200 OK, sinon 201 CREATED
         HttpStatus status = response.status() == SummaryTaskStatus.TERMINEE ? HttpStatus.OK : HttpStatus.CREATED;
-
         return ResponseEntity.status(status).body(response);
     }
 
@@ -116,7 +118,7 @@ public class SummarizeController {
      */
     @PostMapping("/{id}/open-references")
     public ResponseEntity<Map<String, Object>> openReferences(@PathVariable Long id, Authentication authentication) {
-        if (!(authentication.getPrincipal() instanceof ZasUser user)) {
+        if (!(authentication instanceof ZasUser user)) {
             log.error("Utilisateur non authentifié ou de type incorrect");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
                     Map.of(KEY_ERROR, MSG_UNAUTHORIZED)

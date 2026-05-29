@@ -1,6 +1,7 @@
 application:
   name: @project.artifactId@
   version: @project.version@
+  environment: ${ENVIRONMENT:local}
 decorator:
   datasource:
     flexy-pool:
