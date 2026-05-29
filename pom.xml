@@ -59,11 +59,6 @@
             <version>${jweb-security-events.version}</version>
         </dependency>
         <dependency>
-            <groupId>ch.admin.zas.jweb</groupId>
-            <artifactId>jweb-web-starter</artifactId>
-            <version>${jweb.version}</version>
-        </dependency>
-        <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-core</artifactId>
         </dependency>
