@@ -112,9 +112,17 @@ spring:
         index-type: hnsw
         table-name: vector_store
         initialize-schema: ${PG_VECTOR_INIT:false}
+        schema-name: ${PG_VECTOR_SCHEMA:public}
   mvc:
     async:
       request-timeout: 120000
+  task:
+    execution:
+      pool:
+        core-size: 8
+        max-size: 50
+        queue-capacity: 100
+      thread-name-prefix: async-exec-
 py-backend:
   baseUrl: http://copilot:8000
 embedding-service:
