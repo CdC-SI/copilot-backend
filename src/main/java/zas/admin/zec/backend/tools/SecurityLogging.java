@@ -8,8 +8,6 @@ import ch.admin.zas.jweb.securityevents.event.OPDOEvent;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.info.BuildProperties;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.event.EventListener;
-import org.springframework.security.authentication.event.AuthenticationSuccessEvent;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -73,13 +71,6 @@ public class SecurityLogging {
                 .username(getUserName()));
     }
 
-    public void logAuthenticationSuccess(String username, String httpMethod) {
-        logger.authenticationSucceeded(builder -> builder
-                .clientIpAddress(getClientIp().orElse(""))
-                .httpMethod(httpMethod)
-                .username(username));
-    }
-
     private Optional<String> getClientIp() {
         return requestDataProvider.getClientIp();
     }
@@ -95,18 +86,6 @@ public class SecurityLogging {
         }
 
         return auth.getName();
-    }
-
-    @EventListener
-    public void onAuthenticationSuccess(AuthenticationSuccessEvent event) {
-        logAuthenticationSuccess(event.getAuthentication().getName(), "");
-    }
-
-    public void logAuthenticationFailure(String reason, String httpMethod) {
-        logger.authenticationFailed(builder -> builder
-                .clientIpAddress(getClientIp().orElse(""))
-                .httpMethod(httpMethod)
-                .username(getUserName()));
     }
 
     public void logSensitiveOperation(String eventAction, boolean success) {

@@ -1,6 +1,6 @@
 package zas.admin.zec.backend.actions.sourcerequest;
 
-import ch.admin.zas.common.security.users.ZasUser;
+import zas.admin.zec.backend.config.security.ZasUser;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -37,7 +37,7 @@ public class SourceRequestController {
             @RequestBody @Valid CreateSourceRequest request,
             Authentication authentication) {
         log.info("User '{}' creating new source request", authentication.getName());
-        var visa = ((ZasUser) authentication.getPrincipal()).getTrigramme();
+        var visa = ((ZasUser) authentication).getTrigramme();
         var created = sourceRequestService.createRequest(request, visa);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
@@ -52,7 +52,7 @@ public class SourceRequestController {
             @RequestParam(required = false) Integer limit,
             Authentication authentication) {
         log.debug("User '{}' fetching their source requests", authentication.getName());
-        var visa = ((ZasUser) authentication.getPrincipal()).getTrigramme();
+        var visa = ((ZasUser) authentication).getTrigramme();
         var requests = sourceRequestService.getUserRequests(visa, limit);
         return ResponseEntity.ok(requests);
     }
@@ -92,7 +92,7 @@ public class SourceRequestController {
     @GetMapping("/{id}")
     public ResponseEntity<SourceRequestDto> getById(@PathVariable Long id, Authentication authentication) {
         log.debug("User '{}' fetching source request {}", authentication.getName(), id);
-        var visa = ((ZasUser) authentication.getPrincipal()).getTrigramme();
+        var visa = ((ZasUser) authentication).getTrigramme();
         var request = sourceRequestService.getById(id, visa);
         return ResponseEntity.ok(request);
     }
@@ -100,7 +100,7 @@ public class SourceRequestController {
     @RequireZasUser
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteById(@PathVariable Long id, Authentication authentication) {
-        var visa = ((ZasUser) authentication.getPrincipal()).getTrigramme();
+        var visa = ((ZasUser) authentication).getTrigramme();
         sourceRequestService.deleteById(id, visa);
         return ResponseEntity.ok().build();
     }

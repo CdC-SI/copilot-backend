@@ -1,6 +1,6 @@
 package zas.admin.zec.backend.actions.summarize;
 
-import ch.admin.zas.common.security.users.ZasUser;
+import zas.admin.zec.backend.config.security.ZasUser;
 import ch.admin.zas.jweb.securityevents.core.utils.OPDOOperation;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.extern.slf4j.Slf4j;
@@ -118,7 +118,7 @@ public class SummarizeController {
      */
     @PostMapping("/{id}/open-references")
     public ResponseEntity<Map<String, Object>> openReferences(@PathVariable Long id, Authentication authentication) {
-        if (!(authentication.getPrincipal() instanceof ZasUser user)) {
+        if (!(authentication instanceof ZasUser user)) {
             log.error("Utilisateur non authentifié ou de type incorrect");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
                     Map.of(KEY_ERROR, MSG_UNAUTHORIZED)

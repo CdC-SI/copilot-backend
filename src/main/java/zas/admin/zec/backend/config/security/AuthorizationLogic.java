@@ -1,6 +1,5 @@
 package zas.admin.zec.backend.config.security;
 
-import ch.admin.zas.common.security.users.ZasUser;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;

@@ -1,7 +1,6 @@
 package zas.admin.zec.backend.actions.authorize;
 
-import ch.admin.zas.common.security.users.ZasUser;
-import ch.admin.zas.jweb.securityevents.core.SecurityEventsLogger;
+import zas.admin.zec.backend.config.security.ZasUser;
 import ch.admin.zas.jweb.securityevents.core.utils.OPDOOperation;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
@@ -105,7 +104,7 @@ public class UserController {
         UserProfile profile;
         if (authentication.getName().equals(EPORTAL_GUEST_USERNAME)) {
             profile = getCopilotGuestProfile();
-        } else if (authentication.getPrincipal() instanceof ZasUser zasUser) {
+        } else if (authentication instanceof ZasUser zasUser) {
             profile = getCopilotProfileFromZasUser(zasUser);
         } else {
             profile = getCopilotProfileFromExternalUser(authentication.getName());
