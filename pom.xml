@@ -6,7 +6,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.3.13</version>
+        <version>3.5.14</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
 
@@ -78,8 +78,8 @@
         </dependency>
         <dependency>
             <groupId>ch.admin.zas.commons</groupId>
-            <artifactId>zas-common-security-starter</artifactId>
-            <version>${zas-common-security-starter.version}</version>
+            <artifactId>zas-common-security-dto</artifactId>
+            <version>3.5.4</version>
         </dependency>
         <!-- Spring -->
         <dependency>
