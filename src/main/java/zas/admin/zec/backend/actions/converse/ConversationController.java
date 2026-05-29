@@ -10,8 +10,8 @@ import org.springframework.web.multipart.MultipartFile;
 import reactor.core.publisher.Flux;
 import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.config.security.RequireUser;
-import zas.admin.zec.backend.tools.SecurityLogging;
 import zas.admin.zec.backend.tools.OpdoPersonalData;
+import zas.admin.zec.backend.tools.SecurityLogging;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -95,7 +95,7 @@ public class ConversationController {
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<String> askQuestion(@ModelAttribute Question question, Authentication authentication) {
-        var userUuid = "d0c7a301-53cc-4292-9c9c-24bfbee0907a";
+        var userUuid = userService.getUuid(authentication.getName());
         return conversationService.streamAnswer(question.withDefaults(), userUuid);
     }
 
