@@ -18,7 +18,7 @@ import zas.admin.zec.backend.actions.summarize.LlmOcrService;
 import zas.admin.zec.backend.actions.upload.UploadService;
 import zas.admin.zec.backend.agent.Agent;
 import zas.admin.zec.backend.agent.AgentFactory;
-import zas.admin.zec.backend.agent.tools.ii.utils.WorkspaceProperties;
+import zas.admin.zec.backend.config.properties.WorkspaceProperties;
 import zas.admin.zec.backend.persistence.entity.AttachmentEntity;
 import zas.admin.zec.backend.persistence.entity.ConversationTitleEntity;
 import zas.admin.zec.backend.persistence.entity.MessageEntity;
@@ -27,7 +27,6 @@ import zas.admin.zec.backend.persistence.repository.ConversationRepository;
 import zas.admin.zec.backend.persistence.repository.ConversationTitleRepository;
 import zas.admin.zec.backend.rag.ChatStatus;
 import zas.admin.zec.backend.rag.token.*;
-import zas.admin.zec.backend.tools.ConversationMetaDataHolder;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -44,7 +43,6 @@ public class ConversationService {
 
     private final ConversationRepository conversationRepository;
     private final ConversationTitleRepository conversationTitleRepository;
-    private final ConversationMetaDataHolder conversationMetaDataHolder;
     private final AttachmentRepository attachmentRepository;
     private final ChatClient chatClient;
     private final AgentFactory agentFactory;
@@ -55,7 +53,6 @@ public class ConversationService {
 
     public ConversationService(ConversationRepository conversationRepository,
                                ConversationTitleRepository conversationTitleRepository,
-                               ConversationMetaDataHolder conversationMetaDataHolder,
                                AttachmentRepository attachmentRepository,
                                AgentFactory agentFactory,
                                @Qualifier("internalChatModel") ChatModel chatModel,
@@ -64,7 +61,6 @@ public class ConversationService {
 
         this.conversationRepository = conversationRepository;
         this.conversationTitleRepository = conversationTitleRepository;
-        this.conversationMetaDataHolder = conversationMetaDataHolder;
         this.attachmentRepository = attachmentRepository;
         this.chatClient = ChatClient.create(chatModel);
         this.agentFactory = agentFactory;
@@ -120,7 +116,6 @@ public class ConversationService {
     }
 
     public void delete(String userId, String conversationId) {
-        conversationMetaDataHolder.clearMetaData(conversationId);
         attachmentRepository.deleteByUserIdAndConversationId(userId, conversationId);
         conversationRepository.deleteByUserIdAndConversationId(userId, conversationId);
         conversationTitleRepository.deleteByUserIdAndConversationId(userId, conversationId);

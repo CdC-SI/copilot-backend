@@ -9,6 +9,7 @@ import java.lang.annotation.Target;
 
 @Target({ElementType.METHOD, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
-@PreAuthorize("@authz.isAdmin(authentication)")
+@PreAuthorize("@authz.isAdmin(authentication, '{value}')")
 public @interface RequireAdmin {
+    String value() default "admin action";
 }

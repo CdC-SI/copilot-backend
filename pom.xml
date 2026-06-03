@@ -6,7 +6,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.3.0</version>
+        <version>3.5.14</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
 
@@ -20,9 +20,16 @@
         <java.version>21</java.version>
         <jjwt.version>0.12.6</jjwt.version>
         <mapstruct.version>1.6.3</mapstruct.version>
-        <spring-ai.version>1.0.0</spring-ai.version>
+        <spring-ai.version>1.1.7</spring-ai.version>
         <caffeine.version>3.2.0</caffeine.version>
-        <zas-common-security-starter.version>3.3.5</zas-common-security-starter.version>
+        <netty.version>4.2.13.Final</netty.version>
+        <tomcat.version>10.1.55</tomcat.version>
+        <activemq.version>6.2.5</activemq.version>
+        <micrometer.version>1.16.5</micrometer.version>
+        <postgresql.version>42.7.11</postgresql.version>
+        <jweb-security-events.version>2.3.2</jweb-security-events.version>
+        <jweb.version>1.4.2</jweb.version>
+        <flyway.version>12.6.1</flyway.version>
     </properties>
 
     <dependencies>
@@ -46,16 +53,28 @@
             </exclusions>
         </dependency>
         <dependency>
+            <groupId>ch.admin.zas.jweb.securityevents</groupId>
+            <artifactId>jweb-security-events-starter-web</artifactId>
+            <version>${jweb-security-events.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>ch.admin.zas.jweb</groupId>
+            <artifactId>jweb-web-starter</artifactId>
+            <version>${jweb.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
+        <dependency>
             <groupId>ch.admin.zas</groupId>
             <artifactId>gaime-gedo-dao</artifactId>
             <version>5.2.0</version>
         </dependency>
-        <dependency>
-            <groupId>ch.admin.zas.commons</groupId>
-            <artifactId>zas-common-security-starter</artifactId>
-            <version>${zas-common-security-starter.version}</version>
-        </dependency>
-        <!-- Spring -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-freemarker</artifactId>
@@ -63,6 +82,10 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -162,6 +185,21 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>io.hypersistence</groupId>
             <artifactId>hypersistence-utils-hibernate-63</artifactId>
             <version>3.8.3</version>
@@ -193,7 +231,7 @@
         <dependency>
             <groupId>org.apache.tika</groupId>
             <artifactId>tika-core</artifactId>
-            <version>3.0.0</version>
+            <version>3.2.2</version>
         </dependency>
         <dependency>
             <groupId>org.mapstruct</groupId>
@@ -218,12 +256,12 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-text</artifactId>
-            <version>1.10.0</version>
+            <version>1.14.0</version>
         </dependency>
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcprov-jdk18on</artifactId>
-            <version>1.78.1</version>
+            <version>1.84</version>
         </dependency>
     </dependencies>
 
@@ -236,6 +274,11 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <dependency>
+                <groupId>io.modelcontextprotocol.sdk</groupId>
+                <artifactId>mcp-json-jackson2</artifactId>
+                <version>1.0.0</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -245,6 +288,13 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>build-info</goal>
+                        </goals>
+                    </execution>
+                </executions>
                 <configuration>
                     <excludes>
                         <exclude>

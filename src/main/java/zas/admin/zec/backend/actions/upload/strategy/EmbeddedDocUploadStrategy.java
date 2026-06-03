@@ -25,9 +25,13 @@ import java.util.List;
 public final class EmbeddedDocUploadStrategy implements UploadStrategy {
 
     private static final int BATCH_SIZE = 1000;
+    private static final String COL_CONTENT = "content";
+    private static final String COL_METADATA = "metadata";
+    private static final String COL_EMBEDDING = "embedding";
+    private static final String ERR_UPLOAD_CSV = "Error while uploading CSV";
     private static final CSVFormat CSV_FMT = CSVFormat.DEFAULT
             .builder()
-            .setHeader("content", "metadata", "embedding")
+            .setHeader(COL_CONTENT, COL_METADATA, COL_EMBEDDING)
             .setSkipHeaderRecord(true)
             .setTrim(true)
             .build();
@@ -49,7 +53,7 @@ public final class EmbeddedDocUploadStrategy implements UploadStrategy {
             if (doc.faqStore()) processQuestionCSV(in);
             else processDocumentCSV(in);
         } catch (IOException e) {
-            throw new UploadException(doc.file().getOriginalFilename(), "Error while uploading CSV", e);
+            throw new UploadException(doc.file().getOriginalFilename(), ERR_UPLOAD_CSV, e);
         }
     }
 
@@ -93,13 +97,13 @@ public final class EmbeddedDocUploadStrategy implements UploadStrategy {
 
     private void setCommonFields(Object entity, CSVRecord rec) throws JsonProcessingException {
         if (entity instanceof DocumentEntity doc) {
-            doc.setContent(rec.get("content"));
-            doc.setMetadata(mapper.readValue(rec.get("metadata"), new TypeReference<>() {}));
-            doc.setEmbedding(parseEmbedding(rec.get("embedding")));
+            doc.setContent(rec.get(COL_CONTENT));
+            doc.setMetadata(mapper.readValue(rec.get(COL_METADATA), new TypeReference<>() {}));
+            doc.setEmbedding(parseEmbedding(rec.get(COL_EMBEDDING)));
         } else if (entity instanceof QuestionEntity question) {
-            question.setContent(rec.get("content"));
-            question.setMetadata(mapper.readValue(rec.get("metadata"), new TypeReference<>() {}));
-            question.setEmbedding(parseEmbedding(rec.get("embedding")));
+            question.setContent(rec.get(COL_CONTENT));
+            question.setMetadata(mapper.readValue(rec.get(COL_METADATA), new TypeReference<>() {}));
+            question.setEmbedding(parseEmbedding(rec.get(COL_EMBEDDING)));
         }
     }
 

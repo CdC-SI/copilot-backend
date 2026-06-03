@@ -1,6 +1,7 @@
 application:
   name: @project.artifactId@
   version: @project.version@
+  environment: ${ENVIRONMENT:local}
 decorator:
   datasource:
     flexy-pool:
@@ -12,6 +13,18 @@ spring:
     include: workspace
   application:
     name: copilot-backend
+  flyway:
+    enabled: true
+    url: ${FLYWAY_DS_URL:${DS_URL}}
+    user: ${FLYWAY_DS_USERNAME:}
+    password: ${FLYWAY_DS_PASSWORD:}
+    locations: classpath:db/migration
+    validate-on-migrate: true
+    baseline-on-migrate: true
+    lock-retry-count: 10
+    connect-retries: 5
+    connect-retries-interval: 5
+    baseline-version: 1
   datasource:
     url: ${DS_URL:jdbc:postgresql://localhost:5432/pg_db}
     username: ${DS_USERNAME}
@@ -29,8 +42,6 @@ spring:
     prefer-file-system-access: false
     charset: UTF-8
   jpa:
-    hibernate:
-      ddl-auto: update
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
@@ -100,7 +111,18 @@ spring:
         max-document-batch-size: 10000
         index-type: hnsw
         table-name: vector_store
-        initialize-schema: true
+        initialize-schema: ${PG_VECTOR_INIT:false}
+        schema-name: ${PG_VECTOR_SCHEMA:public}
+  mvc:
+    async:
+      request-timeout: 120000
+  task:
+    execution:
+      pool:
+        core-size: 8
+        max-size: 50
+        queue-capacity: 100
+      thread-name-prefix: async-exec-
 py-backend:
   baseUrl: http://copilot:8000
 embedding-service:
@@ -113,6 +135,7 @@ server:
     max-swallow-size: -1
   servlet:
     context-path: /zia
+    register-default-servlet: false
 faq:
   search:
     min-result-before-semantic-search: ${FAQ_MIN_RESULT_BEFORE_SEMANTIC_SEARCH:5}
@@ -147,7 +170,9 @@ logging:
   level:
     zas.admin.zec: DEBUG
     org:
+      apache.catalina.core: DEBUG
       springframework:
+        boot.web.servlet: TRACE
         ai: DEBUG
         security: DEBUG
 deepl:

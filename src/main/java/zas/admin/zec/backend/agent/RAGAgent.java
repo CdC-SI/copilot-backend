@@ -28,7 +28,6 @@ import zas.admin.zec.backend.actions.api.StreamEventType;
 import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.actions.converse.Message;
 import zas.admin.zec.backend.actions.converse.Question;
-import zas.admin.zec.backend.agent.tools.ii.utils.SourceResolver;
 import zas.admin.zec.backend.config.properties.RetrievingProperties;
 import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
 import zas.admin.zec.backend.rag.RAGPrompts;
@@ -40,6 +39,7 @@ import zas.admin.zec.backend.rag.retriever.HybridDocumentRetriever;
 import zas.admin.zec.backend.rag.token.SourceToken;
 import zas.admin.zec.backend.rag.token.TextToken;
 import zas.admin.zec.backend.rag.token.Token;
+import zas.admin.zec.backend.tools.SourceResolver;
 
 import java.time.Instant;
 import java.util.*;
@@ -51,6 +51,24 @@ import static org.springframework.ai.rag.advisor.RetrievalAugmentationAdvisor.DO
 @Slf4j
 @Service
 public class RAGAgent implements Agent {
+
+    private static final String AGENT_NAME = "RAG_AGENT";
+    private static final String MODEL_NAME = "zas-internal-model";
+    private static final String RSP_ID_PREFIX = "rsp_";
+    private static final String META_TITLE = "title";
+    private static final String META_STATE = "state";
+    private static final String META_URL = "url";
+    private static final String META_PAGE_NUM = "page_num";
+    private static final String META_SUBSECTION = "subsection";
+    private static final String META_SOURCE = "source";
+    private static final String META_ORGANIZATIONS = "organizations";
+    private static final String META_USER_UUID = "user_uuid";
+    private static final String STATE_PERSONAL_UPLOADS = "personal.uploads";
+    private static final String ORG_ZAS = "ZAS";
+    private static final String EVT_KEY_ID = "id";
+    private static final String EVT_KEY_MODEL = "model";
+    private static final String EVT_KEY_CREATED_AT = "created_at";
+    private static final String EVT_KEY_DELTA = "delta";
 
     private final ChatClient internalChatClient;
     private final VectorStore documentStore;
@@ -82,7 +100,7 @@ public class RAGAgent implements Agent {
 
     @Override
     public String getName() {
-        return "RAG_AGENT";
+        return AGENT_NAME;
     }
 
     @Override
@@ -113,9 +131,9 @@ public class RAGAgent implements Agent {
         StreamEvent created = new StreamEvent(
                 StreamEventType.CREATED,
                 Map.of(
-                        "id", "rsp_" + UUID.randomUUID(),
-                        "model", "zas-internal-model",
-                        "created_at", Instant.now().toString()
+                        EVT_KEY_ID, RSP_ID_PREFIX + UUID.randomUUID(),
+                        EVT_KEY_MODEL, MODEL_NAME,
+                        EVT_KEY_CREATED_AT, Instant.now().toString()
                 )
         );
 
@@ -128,12 +146,12 @@ public class RAGAgent implements Agent {
                 .chatResponse()
                 .flatMap(this::toTextToken)
                 .filter(not(token -> token.content().isBlank()))
-                .map(token -> new StreamEvent(StreamEventType.DELTA, Map.of("delta", token.content())));
+                .map(token -> new StreamEvent(StreamEventType.DELTA, Map.of(EVT_KEY_DELTA, token.content())));
 
         return Flux.concat(
                 Mono.just(created),
                 deltas,
-                Mono.just(new StreamEvent(StreamEventType.DELTA, Map.of("delta", "")))
+                Mono.just(new StreamEvent(StreamEventType.DELTA, Map.of(EVT_KEY_DELTA, "")))
         );
     }
 
@@ -183,8 +201,8 @@ public class RAGAgent implements Agent {
                 .map(attachmentEntity -> new Document(
                         attachmentEntity.getContent(),
                         Map.of(
-                                "title", attachmentEntity.getFilename(),
-                                "state", "personal.uploads")
+                                META_TITLE, attachmentEntity.getFilename(),
+                                META_STATE, STATE_PERSONAL_UPLOADS)
                         )
                 )
                 .toList();
@@ -196,14 +214,14 @@ public class RAGAgent implements Agent {
 
         var sources = sourceResolver.resolve(question.workspace());
         if (!CollectionUtils.isEmpty(sources)) {
-            ops.add(builder.in("source", List.copyOf(sources)));
+            ops.add(builder.in(META_SOURCE, List.copyOf(sources)));
         }
 
         if (!userHasAccessToInternalDocuments) {
-           ops.add(builder.ne("organizations", "ZAS"));
+           ops.add(builder.ne(META_ORGANIZATIONS, ORG_ZAS));
         }
 
-        ops.add(builder.group(builder.or(builder.eq("user_uuid", userId), builder.eq("user_uuid", ""))));
+        ops.add(builder.group(builder.or(builder.eq(META_USER_UUID, userId), builder.eq(META_USER_UUID, ""))));
 
         FilterExpressionBuilder.Op combined = ops.getFirst();
         for (int i = 1; i < ops.size(); i++) {
@@ -281,21 +299,21 @@ public class RAGAgent implements Agent {
         return Flux.fromIterable(sources)
                 .map(doc -> {
                     var meta = doc.getMetadata();
-                    if (meta.containsKey("url") && meta.get("url") != "") {
+                    if (meta.containsKey(META_URL) && meta.get(META_URL) != "") {
                         return SourceToken.fromURLWithDetails(
                                 doc.getId(),
-                                (String) meta.get("url"),
-                                (String) meta.get("page_num"),
-                                (String) meta.get("subsection"),
-                                (String) meta.get("state")
+                                (String) meta.get(META_URL),
+                                (String) meta.get(META_PAGE_NUM),
+                                (String) meta.get(META_SUBSECTION),
+                                (String) meta.get(META_STATE)
                         );
                     }
                     return SourceToken.fromFileWithDetails(
                             doc.getId(),
-                            (String) meta.get("title"),
-                            (String) meta.get("page_num"),
-                            (String) meta.get("subsection"),
-                            (String) meta.get("state")
+                            (String) meta.get(META_TITLE),
+                            (String) meta.get(META_PAGE_NUM),
+                            (String) meta.get(META_SUBSECTION),
+                            (String) meta.get(META_STATE)
                     );
                 });
     }

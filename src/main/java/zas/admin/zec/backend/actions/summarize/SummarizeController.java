@@ -1,6 +1,7 @@
 package zas.admin.zec.backend.actions.summarize;
 
-import ch.admin.zas.common.security.users.ZasUser;
+import zas.admin.zec.backend.config.security.ZasUser;
+import ch.admin.zas.jweb.securityevents.core.utils.OPDOOperation;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -9,6 +10,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import zas.admin.zec.backend.actions.summarize.jms.GaimeJmsService;
 import zas.admin.zec.backend.config.security.RequireAdmin;
+import zas.admin.zec.backend.tools.SecurityLogging;
+import zas.admin.zec.backend.tools.OpdoPersonalData;
 
 import java.util.List;
 import java.util.Map;
@@ -19,12 +22,25 @@ import java.util.Map;
 @RequestMapping("/api/summaries")
 public class SummarizeController {
 
+    private static final String KEY_ERROR = "error";
+    private static final String KEY_MESSAGE = "message";
+    private static final String KEY_TASK_ID = "taskId";
+    private static final String KEY_REFERENCES_COUNT = "referencesCount";
+    private static final String MSG_UNAUTHORIZED = "Utilisateur non authentifié";
+    private static final String MSG_NO_REFERENCES = "Aucune référence disponible pour cette tâche";
+    private static final String MSG_SEND_SUCCESS = "Demande d'affichage envoyée avec succès";
+    private static final String MSG_SEND_ERROR = "Erreur lors de l'envoi du message";
+    private static final String ERR_TASK_NOT_FOUND = "Tâche introuvable";
+    private static final String ERR_TASK_NOT_COMPLETED = "Tâche non terminée";
+
     private final SummarizeService summarizeService;
     private final GaimeJmsService gaimeJmsService;
+    private final SecurityLogging securityLogging;
 
-    public SummarizeController(SummarizeService summarizeService, GaimeJmsService gaimeJmsService) {
+    public SummarizeController(SummarizeService summarizeService, GaimeJmsService gaimeJmsService, SecurityLogging securityLogging) {
         this.summarizeService = summarizeService;
         this.gaimeJmsService = gaimeJmsService;
+        this.securityLogging = securityLogging;
     }
 
     /**
@@ -36,13 +52,10 @@ public class SummarizeController {
      */
     @PostMapping("/{navs}")
     public ResponseEntity<SummaryTaskCreatedResponse> createSummary(@PathVariable String navs) {
-        log.info("Demande de création de synthèse pour NAVS: {}", navs);
-
+        securityLogging.log("Création de synthèse pour un numéro AVS", OPDOOperation.READING,
+                List.of(OpdoPersonalData.builder().field("navs", navs).build()));
         SummaryTaskCreatedResponse response = summarizeService.startSummarization(navs);
-
-        // Si la tâche existait déjà terminée, on retourne 200 OK, sinon 201 CREATED
         HttpStatus status = response.status() == SummaryTaskStatus.TERMINEE ? HttpStatus.OK : HttpStatus.CREATED;
-
         return ResponseEntity.status(status).body(response);
     }
 
@@ -105,38 +118,35 @@ public class SummarizeController {
      */
     @PostMapping("/{id}/open-references")
     public ResponseEntity<Map<String, Object>> openReferences(@PathVariable Long id, Authentication authentication) {
-        if (!(authentication.getPrincipal() instanceof ZasUser user)) {
+        if (!(authentication instanceof ZasUser user)) {
             log.error("Utilisateur non authentifié ou de type incorrect");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
-                    Map.of(
-                            "error", "Utilisateur non authentifié")
+                    Map.of(KEY_ERROR, MSG_UNAUTHORIZED)
             );
         }
 
         log.info("Demande d'affichage des références pour la tâche ID: {} (visa: {})", id, user.getTrigramme());
         try {
-            // Récupérer les références de la tâche
             List<String> references = summarizeService.getTaskReferences(id);
 
             if (references.isEmpty()) {
                 log.warn("Aucune référence à afficher pour la tâche ID: {}", id);
                 return ResponseEntity.status(HttpStatus.NO_CONTENT).body(
                         Map.of(
-                                "message", "Aucune référence disponible pour cette tâche",
-                                "taskId", id
+                                KEY_MESSAGE, MSG_NO_REFERENCES,
+                                KEY_TASK_ID, id
                         )
                 );
             }
 
-            // Envoyer le message JMS
             gaimeJmsService.sendOpenDocumentsMessage(user.getTrigramme(), references);
 
             log.info("Message JMS envoyé avec succès pour {} référence(s)", references.size());
             return ResponseEntity.ok(
                     Map.of(
-                            "message", "Demande d'affichage envoyée avec succès",
-                            "taskId", id,
-                            "referencesCount", references.size()
+                            KEY_MESSAGE, MSG_SEND_SUCCESS,
+                            KEY_TASK_ID, id,
+                            KEY_REFERENCES_COUNT, references.size()
                     )
             );
 
@@ -147,8 +157,8 @@ public class SummarizeController {
             log.error("Erreur lors de la sérialisation du message JMS", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
                     Map.of(
-                            "error", "Erreur lors de l'envoi du message",
-                            "message", e.getMessage()
+                            KEY_ERROR, MSG_SEND_ERROR,
+                            KEY_MESSAGE, e.getMessage()
                     )
             );
         }
@@ -159,11 +169,11 @@ public class SummarizeController {
      */
     @ExceptionHandler(TaskNotFoundException.class)
     public ResponseEntity<Map<String, String>> handleTaskNotFound(TaskNotFoundException e) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Tâche introuvable", "message", e.getMessage()));
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(KEY_ERROR, ERR_TASK_NOT_FOUND, KEY_MESSAGE, e.getMessage()));
     }
 
     @ExceptionHandler(TaskNotCompletedException.class)
     public ResponseEntity<Map<String, String>> handleTaskNotCompleted(TaskNotCompletedException e) {
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", "Tâche non terminée", "message", e.getMessage()));
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(KEY_ERROR, ERR_TASK_NOT_COMPLETED, KEY_MESSAGE, e.getMessage()));
     }
 }

@@ -21,15 +21,10 @@ public class AgentFactory {
     }
 
     public Agent selectAppropriateAgent(Question question) {
-        var agentType = selectAgentType(question);
+        var agentType = RAG_AGENT;
         return agents.stream()
                 .filter(agent -> agent.getType() == agentType)
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("No agent found for type: " + agentType));
-    }
-
-    private AgentType selectAgentType(Question question) {
-        //TODO With the futur agentic Agent this will have to be reworked
-        return RAG_AGENT;
     }
 }
