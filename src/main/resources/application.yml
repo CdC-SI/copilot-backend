@@ -208,3 +208,15 @@ management:
   endpoint:
     health:
       show-details: ${HEALTH_DETAILS:never}
+
+springdoc:
+  api-docs:
+    enabled: ${SWAGGER_ENABLED:true}
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: ${SWAGGER_ENABLED:true}
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+  packages-to-scan: zas.admin.zec.backend
+

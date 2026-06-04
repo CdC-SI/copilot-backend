@@ -44,6 +44,12 @@ public class SecurityConfig {
     private static final String ACTUATOR_PATH = "/actuator/**";
     private static final String PUBLIC_API_PATH = "/api/public/v1/**";
     private static final String API_PATH = "/api/**";
+    private static final String[] SWAGGER_PATHS = {
+            "/swagger-ui/**",
+            "/swagger-ui.html",
+            "/v3/api-docs/**",
+            "/v3/api-docs.yaml"
+    };
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${zas.security.blue-token.public-key}")
@@ -52,6 +58,15 @@ public class SecurityConfig {
 
     @Bean
     @Order(0)
+    public SecurityFilterChain swaggerSecurityFilterChain(HttpSecurity http) throws Exception {
+        http.securityMatcher(SWAGGER_PATHS)
+                .csrf(AbstractHttpConfigurer::disable)
+                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
+        return http.build();
+    }
+
+    @Bean
+    @Order(1)
     public SecurityFilterChain actuatorSecurityFilterChain(HttpSecurity http) throws Exception {
         http.securityMatcher(ACTUATOR_PATH)
                 .csrf(AbstractHttpConfigurer::disable)
@@ -60,7 +75,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    @Order(1)
+    @Order(2)
     public SecurityFilterChain publicApiSecurityFilterChain(HttpSecurity http,
                                                             AuthenticationManager apiKeyAuthManager,
                                                             ApiKeyAuthenticationConverter converter) throws Exception {
@@ -84,7 +99,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    @Order(2)
+    @Order(3)
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.securityMatcher(API_PATH)
                 .csrf(AbstractHttpConfigurer::disable)
