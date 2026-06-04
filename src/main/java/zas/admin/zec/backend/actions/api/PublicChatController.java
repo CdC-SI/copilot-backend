@@ -11,55 +11,39 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
-import zas.admin.zec.backend.agent.RAGAgent;
 import zas.admin.zec.backend.config.api.RequireExternalClient;
 
 import java.util.Map;
 
 import static zas.admin.zec.backend.actions.api.StreamEventType.COMPLETED;
-import static zas.admin.zec.backend.actions.api.StreamEventType.ERROR;
+import static zas.admin.zec.backend.actions.api.StreamEventType.DELTA;
 
 @Slf4j
 @RestController
 @RequestMapping("/api/public/v1")
 public class PublicChatController {
 
-    private final RAGAgent ragAgent;
     private final ObjectMapper mapper;
 
-    public PublicChatController(RAGAgent ragAgent, ObjectMapper mapper) {
-        this.ragAgent = ragAgent;
+    public PublicChatController(ObjectMapper mapper) {
         this.mapper = mapper;
     }
 
     @RequireExternalClient
     @PostMapping(path = "/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ServerSentEvent<String>> chat(@Valid @RequestBody ChatRequest request) {
-        return ragAgent
-                .processPublicQuestion(request.input())
-                .map(evt -> ServerSentEvent.<String>builder()
-                        .event(evt.type().getEventName())
-                        .data(toJson(evt.payload()))
-                        .build())
-                .concatWith(Mono.just(ServerSentEvent.<String>builder()
-                        .event(COMPLETED.getEventName())
-                        .data("{}")
-                        .build()))
-                .doOnSubscribe(s -> log.info("SSE start: {}", request.input()))
-                .onErrorResume(ex -> {
-                    log.warn("Streaming error: {}", ex.toString());
-                    return Flux.just(
-                            ServerSentEvent.<String>builder()
-                                    .event(ERROR.getEventName())
-                                    .data(toJson(Map.of("message", ex.getMessage() == null ? "Internal error" : ex.getMessage())))
-                                    .build(),
-                            ServerSentEvent.<String>builder()
-                                    .event(COMPLETED.getEventName())
-                                    .data("{}")
-                                    .build()
-                    );
-                });
+        // TODO: l'API publique est temporairement débranchée (RAGAgent supprimé au profit de RAGTool).
+        // Réponse factice pour les tests/validation tant que le ChatClient agentique public n'est pas câblé.
+        return Flux.just(
+                        ServerSentEvent.<String>builder()
+                                .event(DELTA.getEventName())
+                                .data(toJson(Map.of("delta", "Public API temporairement indisponible.")))
+                                .build(),
+                        ServerSentEvent.<String>builder()
+                                .event(COMPLETED.getEventName())
+                                .data("{}")
+                                .build())
+                .doOnSubscribe(s -> log.info("SSE start (dummy): {}", request.input()));
     }
 
     private String toJson(Object payload) {

@@ -14,7 +14,7 @@ spring:
   application:
     name: copilot-backend
   flyway:
-    enabled: true
+    enabled: ${FLYWAY_ENABLED:true}
     url: ${FLYWAY_DS_URL:${DS_URL}}
     user: ${FLYWAY_DS_USERNAME:}
     password: ${FLYWAY_DS_PASSWORD:}

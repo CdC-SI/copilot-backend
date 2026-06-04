@@ -5,7 +5,6 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.ByteArrayResource;
-import org.springframework.core.task.TaskExecutor;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,8 +15,6 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import zas.admin.zec.backend.actions.summarize.LlmOcrService;
 import zas.admin.zec.backend.actions.upload.UploadService;
-import zas.admin.zec.backend.agent.Agent;
-import zas.admin.zec.backend.agent.AgentFactory;
 import zas.admin.zec.backend.config.properties.WorkspaceProperties;
 import zas.admin.zec.backend.persistence.entity.AttachmentEntity;
 import zas.admin.zec.backend.persistence.entity.ConversationTitleEntity;
@@ -25,14 +22,11 @@ import zas.admin.zec.backend.persistence.entity.MessageEntity;
 import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
 import zas.admin.zec.backend.persistence.repository.ConversationRepository;
 import zas.admin.zec.backend.persistence.repository.ConversationTitleRepository;
-import zas.admin.zec.backend.rag.ChatStatus;
 import zas.admin.zec.backend.rag.token.*;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 
 @Slf4j
 @Service
@@ -45,8 +39,7 @@ public class ConversationService {
     private final ConversationTitleRepository conversationTitleRepository;
     private final AttachmentRepository attachmentRepository;
     private final ChatClient chatClient;
-    private final AgentFactory agentFactory;
-    private final TaskExecutor taskExecutor;
+    private final RAGChatService ragChatService;
     private final LlmOcrService ocrService;
     private final WorkspaceProperties workspaceProperties;
 
@@ -54,17 +47,15 @@ public class ConversationService {
     public ConversationService(ConversationRepository conversationRepository,
                                ConversationTitleRepository conversationTitleRepository,
                                AttachmentRepository attachmentRepository,
-                               AgentFactory agentFactory,
+                               RAGChatService ragChatService,
                                @Qualifier("internalChatModel") ChatModel chatModel,
-                               @Qualifier("asyncExecutor") TaskExecutor taskExecutor,
                                LlmOcrService ocrService, WorkspaceProperties workspaceProperties) {
 
         this.conversationRepository = conversationRepository;
         this.conversationTitleRepository = conversationTitleRepository;
         this.attachmentRepository = attachmentRepository;
         this.chatClient = ChatClient.create(chatModel);
-        this.agentFactory = agentFactory;
-        this.taskExecutor = taskExecutor;
+        this.ragChatService = ragChatService;
         this.ocrService = ocrService;
         this.workspaceProperties = workspaceProperties;
     }
@@ -210,38 +201,9 @@ public class ConversationService {
     }
 
     private Flux<Token> getTokenStream(Question question, String userId) {
-        Token routingStatus = new StatusToken(ChatStatus.ROUTING, question.language());
-        return Flux.just(routingStatus)
-                .concatWith(getAgentAndHistoryStream(question, userId));
-    }
-
-    private Flux<Token> getAgentAndHistoryStream(Question question, String userId) {
-        var agentFuture = fetchAgentAsync(question);
-        var historyFuture = fetchConversationHistoryAsync(question, userId);
-        Mono<Token> handoffFuture = Mono.fromFuture(agentFuture).map(agent -> new StatusToken(ChatStatus.AGENT_HANDOFF, question.language(), agent.getName()));
-        var combined = agentFuture.thenCombine(historyFuture,
-                (agent, history) -> agent.processQuestion(question, userId, history));
-
-        // Return combined Flux
-        return handoffFuture.concatWith(Mono.fromFuture(combined).flatMapMany(Function.identity()));
-    }
-
-    private CompletableFuture<Agent> fetchAgentAsync(Question question) {
-        return CompletableFuture.supplyAsync(
-                () -> agentFactory.selectAppropriateAgent(question),
-                taskExecutor
-        );
-    }
-
-    private CompletableFuture<List<Message>> fetchConversationHistoryAsync(Question question, String userId) {
-        return CompletableFuture.supplyAsync(
-                () -> getConversationHistory(
-                        question.conversationId(),
-                        userId,
-                        Limit.unlimited()
-                ),
-                taskExecutor
-        );
+        return Mono.fromCallable(() -> getConversationHistory(question.conversationId(), userId, Limit.unlimited()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .flatMapMany(history -> ragChatService.answer(question, userId, history));
     }
 
     private void saveExchange(Question question, String userId, String assistantMessageId, String answer, Set<Source> sources,
