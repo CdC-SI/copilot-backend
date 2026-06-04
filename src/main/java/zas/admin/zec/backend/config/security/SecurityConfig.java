@@ -45,10 +45,10 @@ public class SecurityConfig {
     private static final String PUBLIC_API_PATH = "/api/public/v1/**";
     private static final String API_PATH = "/api/**";
     private static final String[] SWAGGER_PATHS = {
-            "/swagger-ui/**",
-            "/swagger-ui.html",
-            "/v3/api-docs/**",
-            "/v3/api-docs.yaml"
+            "/api/public/swagger-ui/**",
+            "/api/public/swagger-ui.html",
+            "/api/public/v3/api-docs/**",
+            "/api/public/v3/api-docs.yaml"
     };
     private static final ObjectMapper objectMapper = new ObjectMapper();
 

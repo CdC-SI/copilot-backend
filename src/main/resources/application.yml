@@ -212,10 +212,10 @@ management:
 springdoc:
   api-docs:
     enabled: ${SWAGGER_ENABLED:true}
-    path: /v3/api-docs
+    path: /api/public/v3/api-docs
   swagger-ui:
     enabled: ${SWAGGER_ENABLED:true}
-    path: /swagger-ui.html
+    path: /api/public/swagger-ui.html
     operations-sorter: method
     tags-sorter: alpha
   packages-to-scan: zas.admin.zec.backend
