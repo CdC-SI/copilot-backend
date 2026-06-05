@@ -10,11 +10,14 @@ import org.springframework.ai.document.Document;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Sinks;
 import zas.admin.zec.backend.rag.RAGPrompts;
 import zas.admin.zec.backend.rag.token.SourceToken;
 import zas.admin.zec.backend.rag.token.TextToken;
 import zas.admin.zec.backend.rag.token.Token;
+import zas.admin.zec.backend.tools.ConversationAttachmentTool;
 import zas.admin.zec.backend.tools.RAGTool;
+import zas.admin.zec.backend.tools.ToolContextKeys;
 
 import java.util.HashMap;
 import java.util.List;
@@ -22,8 +25,9 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * Service de conversation "agentique" : un unique {@link ChatClient} auquel est attribué le tool
- * {@link RAGTool}. Le LLM décide lui-même d'invoquer la recherche documentaire (tool-calling).
+ * Service de conversation "agentique" : un unique {@link ChatClient} auquel sont attribués le tool
+ * {@link RAGTool} (recherche documentaire) et {@link ConversationAttachmentTool} (pièces jointes).
+ * Le LLM décide lui-même d'invoquer ces tools via tool-calling.
  *
  * <p>Les données non fournies par le LLM (userId, langue, workspace, conversationId) transitent par
  * le {@code ToolContext}. Les documents éventuellement récupérés par le tool sont collectés via une
@@ -42,38 +46,50 @@ public class RAGChatService {
 
     private final ChatClient internalChatClient;
     private final RAGTool ragTool;
+    private final ConversationAttachmentTool attachmentTool;
 
-    public RAGChatService(@Qualifier("internalChatModel") ChatModel internalChatModel, RAGTool ragTool) {
+    public RAGChatService(@Qualifier("internalChatModel") ChatModel internalChatModel,
+                          RAGTool ragTool,
+                          ConversationAttachmentTool attachmentTool) {
         this.internalChatClient = ChatClient.create(internalChatModel);
         this.ragTool = ragTool;
+        this.attachmentTool = attachmentTool;
     }
 
     public Flux<Token> answer(Question question, String userId, List<Message> conversationHistory) {
         // Liste partagée (thread-safe) que le tool alimentera lors d'un éventuel appel.
         List<Document> retrievedDocuments = new CopyOnWriteArrayList<>();
 
+        // Sink partagé (thread-safe) dans lequel les tools émettent des StatusToken
+        // avant/pendant leur traitement, pour notifier le frontend en temps réel.
+        Sinks.Many<Token> statusSink = Sinks.many().unicast().onBackpressureBuffer();
+
         Map<String, Object> toolContext = new HashMap<>();
-        toolContext.put(RAGTool.CTX_USER_ID, userId);
-        toolContext.put(RAGTool.CTX_LANGUAGE, question.language());
-        toolContext.put(RAGTool.CTX_WORKSPACE, question.workspace());
-        toolContext.put(RAGTool.CTX_CONVERSATION_ID, question.conversationId());
-        toolContext.put(RAGTool.CTX_RETRIEVED_DOCUMENTS, retrievedDocuments);
+        toolContext.put(ToolContextKeys.CTX_USER_ID, userId);
+        toolContext.put(ToolContextKeys.CTX_LANGUAGE, question.language());
+        toolContext.put(ToolContextKeys.CTX_WORKSPACE, question.workspace());
+        toolContext.put(ToolContextKeys.CTX_CONVERSATION_ID, question.conversationId());
+        toolContext.put(ToolContextKeys.CTX_RETRIEVED_DOCUMENTS, retrievedDocuments);
+        toolContext.put(ToolContextKeys.CTX_STATUS_SINK, statusSink);
 
         Flux<Token> textTokens = internalChatClient
                 .prompt()
                 .system(agenticSystemPrompt(question))
                 .messages(conversationHistory.stream().map(this::convertToMessage).toList())
-                .tools(ragTool)
+                .tools(ragTool, attachmentTool)
                 .toolContext(toolContext)
                 .user(question.query())
                 .stream()
                 .chatResponse()
-                .flatMap(this::toTextToken);
+                .flatMap(this::toTextToken)
+                .doFinally(signal -> statusSink.tryEmitComplete());
 
         // Les sources ne sont connues qu'après la génération (si le tool a été appelé).
         Flux<Token> sourceTokens = Flux.defer(() -> toSourceTokens(retrievedDocuments));
 
-        return textTokens.concatWith(sourceTokens);
+        // statusSink.asFlux() émet les StatusToken produits pendant le tool-calling,
+        // avant et pendant que textTokens streame la réponse du LLM.
+        return statusSink.asFlux().mergeWith(textTokens).concatWith(sourceTokens);
     }
 
     private String agenticSystemPrompt(Question question) {

@@ -25,6 +25,7 @@ import org.springframework.util.CollectionUtils;
 import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.config.properties.RetrievingProperties;
 import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
+import zas.admin.zec.backend.rag.ChatStatus;
 import zas.admin.zec.backend.rag.RAGPrompts;
 import zas.admin.zec.backend.rag.joiner.RankedDocumentJoiner;
 import zas.admin.zec.backend.rag.reranker.DocumentReranker;
@@ -41,22 +42,12 @@ import java.util.stream.Collectors;
  *
  * <p>La requête de recherche est fournie par le LLM. Les données contextuelles non fournies par le
  * LLM (identité de l'utilisateur, langue, workspace, conversation) transitent par le
- * {@link ToolContext}.</p>
+ * {@link ToolContext} ; les clés sont définies dans {@link ToolContextKeys}.</p>
  */
 @Slf4j
 @Component
 public class RAGTool {
 
-    // --- Clés du ToolContext (à réutiliser par le futur orchestrateur agentique) ---
-    public static final String CTX_USER_ID = "userId";
-    public static final String CTX_LANGUAGE = "language";
-    public static final String CTX_WORKSPACE = "workspace";
-    public static final String CTX_CONVERSATION_ID = "conversationId";
-    /**
-     * Clé d'une {@link java.util.Collection} mutable de {@link Document} fournie par l'appelant :
-     * le tool y dépose les documents récupérés afin que l'appelant puisse reconstruire les sources.
-     */
-    public static final String CTX_RETRIEVED_DOCUMENTS = "retrievedDocuments";
 
     private static final String DEFAULT_LANGUAGE = "fr";
 
@@ -111,10 +102,13 @@ public class RAGTool {
             ToolContext toolContext) {
 
         Map<String, Object> context = toolContext != null ? toolContext.getContext() : Map.of();
-        String userId = asString(context.get(CTX_USER_ID), "");
-        String language = asString(context.get(CTX_LANGUAGE), DEFAULT_LANGUAGE);
-        String workspace = asString(context.get(CTX_WORKSPACE), "");
-        String conversationId = asString(context.get(CTX_CONVERSATION_ID), "");
+        String userId = asString(context.get(ToolContextKeys.CTX_USER_ID), "");
+        String language = asString(context.get(ToolContextKeys.CTX_LANGUAGE), DEFAULT_LANGUAGE);
+        String workspace = asString(context.get(ToolContextKeys.CTX_WORKSPACE), "");
+        String conversationId = asString(context.get(ToolContextKeys.CTX_CONVERSATION_ID), "");
+
+        // Notifier le frontend que la recherche documentaire est en cours.
+        ToolContextKeys.emitStatus(context, ChatStatus.RETRIEVAL, language);
 
         boolean hasAccessToInternalDocuments = !userId.isBlank()
                 && userService.hasAccessToInternalDocuments(userId);
@@ -122,7 +116,7 @@ public class RAGTool {
         List<Document> documents = retrieve(query, language, workspace, conversationId, userId, hasAccessToInternalDocuments);
 
         // Remonter les documents (avec leurs métadonnées) à l'appelant pour reconstruire les sources.
-        if (context.get(CTX_RETRIEVED_DOCUMENTS) instanceof Collection<?> sink) {
+        if (context.get(ToolContextKeys.CTX_RETRIEVED_DOCUMENTS) instanceof Collection<?> sink) {
             @SuppressWarnings("unchecked")
             var documentSink = (Collection<Document>) sink;
             documentSink.addAll(documents);

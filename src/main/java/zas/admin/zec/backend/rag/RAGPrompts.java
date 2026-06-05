@@ -256,6 +256,10 @@ public final class RAGPrompts {
                 <instruction>Appelez cet outil dès que la réponse nécessite des connaissances factuelles, juridiques, chiffrées ou procédurales sur les assurances sociales que vous ne pouvez pas déduire de manière fiable de la conversation en cours.</instruction>
                 <instruction>N'appelez PAS l'outil pour les demandes purement situationnelles ou conversationnelles qui peuvent être traitées à partir de la conversation existante : par exemple résumer la conversation, traduire ou reformuler un texte fourni, expliquer ou reformuler votre réponse précédente, répondre à une salutation ou à une question sur vos capacités.</instruction>
                 <instruction>Si vous appelez l'outil, fondez votre réponse exclusivement sur les documents qu'il retourne et sur l'historique de conversation. Si ces documents sont insuffisants, trop généraux ou contradictoires pour répondre précisément, dites-le clairement en 1 à 3 phrases et, si pertinent, posez une question de clarification.</instruction>
+                <outil>Vous disposez également de l'outil « list_conversation_attachments » qui retourne les noms des fichiers attachés à la conversation en cours.</outil>
+                <outil>Vous disposez également de l'outil « get_attachment_content » qui retourne le contenu textuel (extrait par OCR) d'un fichier attaché à la conversation.</outil>
+                <instruction>Appelez « get_attachment_content » dès que l'utilisateur demande une action sur une pièce jointe : traduction, résumé, extraction d'informations, reformulation, etc. Si un seul fichier est attaché, appelez directement « get_attachment_content » sans nom. Si plusieurs fichiers sont attachés et que le fichier cible n'est pas clair, appelez d'abord « list_conversation_attachments » pour identifier le bon fichier.</instruction>
+                <instruction>N'utilisez PAS « search_social_insurance_documentation » pour traiter le contenu d'une pièce jointe : utilisez exclusivement les outils « list_conversation_attachments » et « get_attachment_content ».</instruction>
             </outils>
 
             <instructions>
@@ -283,6 +287,9 @@ public final class RAGPrompts {
                 <anweisung>Rufen Sie dieses Werkzeug auf, sobald die Antwort faktisches, rechtliches, zahlenbasiertes oder verfahrensbezogenes Wissen zu den Sozialversicherungen erfordert, das Sie nicht zuverlässig aus dem laufenden Gespräch ableiten können.</anweisung>
                 <anweisung>Rufen Sie das Werkzeug NICHT auf für rein situative oder gesprächsbezogene Anliegen, die sich aus dem bestehenden Gespräch beantworten lassen: z. B. das Gespräch zusammenfassen, einen bereitgestellten Text übersetzen oder umformulieren, Ihre vorherige Antwort erklären oder umformulieren, auf eine Begrüssung oder eine Frage zu Ihren Fähigkeiten antworten.</anweisung>
                 <anweisung>Wenn Sie das Werkzeug aufrufen, stützen Sie Ihre Antwort ausschliesslich auf die zurückgegebenen Dokumente und den Gesprächsverlauf. Sind diese Dokumente unzureichend, zu allgemein oder widersprüchlich, sagen Sie dies klar in 1 bis 3 Sätzen und stellen Sie bei Bedarf eine Rückfrage.</anweisung>
+                <werkzeug>Ausserdem stehen Ihnen «list_conversation_attachments» (listet die Dateinamen der Anhänge der Konversation) und «get_attachment_content» (liefert den per OCR extrahierten Textinhalt eines Anhangs) zur Verfügung.</werkzeug>
+                <anweisung>Rufen Sie «get_attachment_content» auf, sobald die Nutzerin oder der Nutzer eine Aktion auf einen Anhang wünscht: Übersetzung, Zusammenfassung, Informationsextraktion, Umformulierung usw. Ist nur ein Anhang vorhanden, rufen Sie «get_attachment_content» direkt ohne Dateiname auf. Sind mehrere Anhänge vorhanden und ist das Zieldokument unklar, rufen Sie zuerst «list_conversation_attachments» auf.</anweisung>
+                <anweisung>Verwenden Sie NICHT «search_social_insurance_documentation» für Anfragen zum Inhalt eines Anhangs; nutzen Sie ausschliesslich «list_conversation_attachments» und «get_attachment_content».</anweisung>
             </werkzeuge>
 
             <anweisungen>
@@ -310,6 +317,9 @@ public final class RAGPrompts {
                 <istruzione>Richiama questo strumento non appena la risposta richiede conoscenze fattuali, giuridiche, numeriche o procedurali sulle assicurazioni sociali che non puoi dedurre in modo affidabile dalla conversazione in corso.</istruzione>
                 <istruzione>NON richiamare lo strumento per richieste puramente situazionali o conversazionali che possono essere gestite a partire dalla conversazione esistente: ad esempio riassumere la conversazione, tradurre o riformulare un testo fornito, spiegare o riformulare la tua risposta precedente, rispondere a un saluto o a una domanda sulle tue capacità.</istruzione>
                 <istruzione>Se richiami lo strumento, basa la tua risposta esclusivamente sui documenti che restituisce e sullo storico della conversazione. Se tali documenti sono insufficienti, troppo generici o contraddittori, dillo chiaramente in 1-3 frasi e, se pertinente, poni una domanda di chiarimento.</istruzione>
+                <strumento>Disponi inoltre degli strumenti «list_conversation_attachments» (elenca i nomi dei file allegati alla conversazione) e «get_attachment_content» (restituisce il contenuto testuale estratto via OCR di un allegato).</strumento>
+                <istruzione>Richiama «get_attachment_content» non appena l'utente richiede un'azione su un allegato: traduzione, riassunto, estrazione di informazioni, riformulazione, ecc. Se è presente un solo allegato, richiama «get_attachment_content» direttamente senza nome. Se sono presenti più allegati e il file di destinazione non è chiaro, richiama prima «list_conversation_attachments».</istruzione>
+                <istruzione>NON usare «search_social_insurance_documentation» per le richieste relative al contenuto di un allegato; usa esclusivamente «list_conversation_attachments» e «get_attachment_content».</istruzione>
             </strumenti>
 
             <istruzioni>
