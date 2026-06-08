@@ -113,12 +113,22 @@ public class ConversationController {
     public ResponseEntity<AttachmentUploadResponse> uploadAttachment(@RequestParam(required = false) String conversationId, List<MultipartFile> files, Authentication authentication) {
         var userUuid = userService.getUuid(authentication.getName());
         try {
-            var attachmentIdsByConvId = conversationService.attachFilesToConversation(conversationId, userUuid, files);
-            return ResponseEntity.status(HttpStatus.CREATED).body(AttachmentUploadResponse.success(attachmentIdsByConvId));
+            var conversationAttachments = conversationService.attachFilesToConversation(conversationId, userUuid, files);
+            return ResponseEntity.status(HttpStatus.ACCEPTED).body(AttachmentUploadResponse.pending(conversationAttachments));
         } catch (IOException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(AttachmentUploadResponse.failure("Failed to process attachments"));
+                    .body(AttachmentUploadResponse.failed("Failed to read attachment bytes"));
         }
+    }
+
+    /**
+     * Endpoint de polling : retourne le statut agrégé (PENDING / PROCESSED / FAILED) des pièces jointes
+     * d'une conversation. À appeler après le POST /attachments (202) jusqu'à obtenir PROCESSED ou FAILED.
+     */
+    @GetMapping("/{conversationId}/attachments")
+    public ResponseEntity<AttachmentUploadResponse> getAttachmentsStatus(@PathVariable String conversationId, Authentication authentication) {
+        var userUuid = userService.getUuid(authentication.getName());
+        return ResponseEntity.ok(conversationService.getAttachmentsStatus(conversationId, userUuid));
     }
 
     @DeleteMapping("/attachments/{attachmentId}")

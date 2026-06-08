@@ -8,6 +8,7 @@ import org.springframework.core.io.ByteArrayResource;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import reactor.core.publisher.Flux;
@@ -42,6 +43,8 @@ public class ConversationService {
     private final RAGChatService ragChatService;
     private final LlmOcrService ocrService;
     private final WorkspaceProperties workspaceProperties;
+    private final AttachmentAsyncProcessor attachmentAsyncProcessor;
+    private final TransactionTemplate transactionTemplate;
 
 
     public ConversationService(ConversationRepository conversationRepository,
@@ -49,7 +52,10 @@ public class ConversationService {
                                AttachmentRepository attachmentRepository,
                                RAGChatService ragChatService,
                                @Qualifier("internalChatModel") ChatModel chatModel,
-                               LlmOcrService ocrService, WorkspaceProperties workspaceProperties) {
+                               LlmOcrService ocrService,
+                               WorkspaceProperties workspaceProperties,
+                               AttachmentAsyncProcessor attachmentAsyncProcessor,
+                               TransactionTemplate transactionTemplate) {
 
         this.conversationRepository = conversationRepository;
         this.conversationTitleRepository = conversationTitleRepository;
@@ -58,6 +64,8 @@ public class ConversationService {
         this.ragChatService = ragChatService;
         this.ocrService = ocrService;
         this.workspaceProperties = workspaceProperties;
+        this.attachmentAsyncProcessor = attachmentAsyncProcessor;
+        this.transactionTemplate = transactionTemplate;
     }
 
     public List<Source> getSourcesByMessageUuid(String conversationUuid, String messageUuid) {
@@ -160,26 +168,62 @@ public class ConversationService {
                 });
     }
 
-    @Transactional
+    /**
+     * Persiste immédiatement les pièces jointes (bytes + métadonnées) en statut {@link AttachmentStatus#PENDING},
+     * puis déclenche l'OCR de façon asynchrone via {@link AttachmentAsyncProcessor}.
+     *
+     * <p><strong>Cycle de vie MultipartFile :</strong> les bytes sont lus et commités en base <em>avant</em>
+     * le retour de cette méthode. L'async ne reçoit que l'ID de l'entité et ne touche jamais au
+     * {@code MultipartFile}, dont le stockage temporaire peut être libéré dès le 202.</p>
+     */
     public ConversationAttachments attachFilesToConversation(String conversationId, String userId, List<MultipartFile> files) throws IOException {
         var convId = conversationId == null ? UUID.randomUUID().toString() : conversationId;
 
-        List<Attachment> attachments = new ArrayList<>();
-        for (MultipartFile file : files) {
-            var bytes = file.getBytes();
-            var entity = new AttachmentEntity();
-            entity.setConversationId(convId);
-            entity.setUserId(userId);
-            entity.setFilename(file.getOriginalFilename());
-            entity.setFileSize(file.getSize());
-            entity.setFileBytes(bytes);
-            entity.setContent(ocrService.ocrFile(bytes));
-
-            var saved = attachmentRepository.save(entity);
-            attachments.add(new Attachment(saved.getId(), saved.getFilename(), saved.getFileSize()));
+        // Lire tous les bytes AVANT la transaction : échec rapide si un fichier est illisible,
+        // et garantit que le MultipartFile n'est plus accédé après le retour HTTP 202.
+        record FileData(String filename, long size, byte[] bytes) {}
+        var filesData = new ArrayList<FileData>(files.size());
+        for (var file : files) {
+            filesData.add(new FileData(file.getOriginalFilename(), file.getSize(), file.getBytes()));
         }
 
+        // Transaction : persister les entités PENDING — commit garanti avant le dispatch async.
+        record PersistResult(Long id, String filename, long size) {}
+        List<PersistResult> results = transactionTemplate.execute(status -> {
+            var saved = new ArrayList<PersistResult>(filesData.size());
+            for (var data : filesData) {
+                var entity = new AttachmentEntity();
+                entity.setConversationId(convId);
+                entity.setUserId(userId);
+                entity.setFilename(data.filename());
+                entity.setFileSize(data.size());
+                entity.setFileBytes(data.bytes());
+                entity.setStatus(AttachmentStatus.PENDING);
+                // content est null : sera renseigné par AttachmentAsyncProcessor après l'OCR
+                var persisted = attachmentRepository.save(entity);
+                saved.add(new PersistResult(persisted.getId(), data.filename(), data.size()));
+            }
+            return saved;
+        });
+
+        // Après commit : déclencher l'OCR async par ID uniquement (jamais le MultipartFile).
+        results.forEach(r -> attachmentAsyncProcessor.processOcr(r.id()));
+
+        var attachments = results.stream()
+                .map(r -> new Attachment(r.id(), r.filename(), r.size(), AttachmentStatus.PENDING))
+                .toList();
         return new ConversationAttachments(convId, attachments);
+    }
+
+    /**
+     * Retourne le statut agrégé des pièces jointes d'une conversation, à destination de l'endpoint de polling.
+     */
+    public AttachmentUploadResponse getAttachmentsStatus(String conversationId, String userId) {
+        var attachments = attachmentRepository.findAllByConversationIdAndUserId(conversationId, userId)
+                .stream()
+                .map(entity -> new Attachment(entity.getId(), entity.getFilename(), entity.getFileSize(), entity.getStatus()))
+                .toList();
+        return AttachmentUploadResponse.fromAttachments(new ConversationAttachments(conversationId, attachments));
     }
 
     public UploadService.Doc getAttachment(String conversationId, Long attachmentId, String userUuid) {
@@ -192,7 +236,7 @@ public class ConversationService {
     public List<Attachment> getAttachmentsForConversation(String conversationId, String userId) {
         return attachmentRepository.findAllByConversationIdAndUserId(conversationId, userId)
                 .stream()
-                .map(entity -> new Attachment(entity.getId(), entity.getFilename(), entity.getFileSize()))
+                .map(entity -> new Attachment(entity.getId(), entity.getFilename(), entity.getFileSize(), entity.getStatus()))
                 .toList();
     }
 

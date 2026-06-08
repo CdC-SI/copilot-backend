@@ -5,6 +5,7 @@ import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
+import zas.admin.zec.backend.actions.converse.AttachmentStatus;
 import zas.admin.zec.backend.persistence.entity.AttachmentEntity;
 import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
 import zas.admin.zec.backend.rag.ChatStatus;
@@ -62,7 +63,7 @@ public class ConversationAttachmentTool {
 
         log.debug("Listing {} attachment(s) for conversation '{}'", attachments.size(), conversationId);
         return attachments.stream()
-                .map(AttachmentEntity::getFilename)
+                .map(a -> "%s [%s]".formatted(a.getFilename(), a.getStatus().getDescription()))
                 .collect(Collectors.joining("\n- ", "Fichiers attachés à cette conversation :\n- ", ""));
     }
 
@@ -137,6 +138,14 @@ public class ConversationAttachmentTool {
     }
 
     private static String formatContent(AttachmentEntity entity) {
+        if (entity.getStatus() == AttachmentStatus.PENDING) {
+            return "Le fichier « %s » est encore en cours de traitement OCR. Veuillez patienter et réessayer dans quelques instants."
+                    .formatted(entity.getFilename());
+        }
+        if (entity.getStatus() == AttachmentStatus.FAILED) {
+            return "Le traitement OCR du fichier « %s » a échoué. Le contenu n'est pas disponible."
+                    .formatted(entity.getFilename());
+        }
         return "<attachment filename=\"%s\">%n%s%n</attachment>".formatted(
                 entity.getFilename(), entity.getContent());
     }

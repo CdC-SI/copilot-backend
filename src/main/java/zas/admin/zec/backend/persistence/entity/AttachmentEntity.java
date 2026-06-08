@@ -3,6 +3,7 @@ package zas.admin.zec.backend.persistence.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import zas.admin.zec.backend.actions.converse.AttachmentStatus;
 
 @Getter
 @Setter
@@ -30,7 +31,11 @@ public class AttachmentEntity {
     @Column(name = "file_bytes", nullable = false)
     private byte[] fileBytes;
 
-    @Column(name = "content", nullable = false, columnDefinition = "text")
+    @Column(name = "content", columnDefinition = "text")
     private String content;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private AttachmentStatus status;
 
 }
