@@ -73,12 +73,40 @@ public class ZasMessageService implements VisionMessageService {
     @Override
     public SystemMessage translateImageMessage(String language) {
         String template = """
-            You are an expert OCR and translator.
-            Your task is to extract the text from the given image, detect its original language, and translate it into the following language: {language}.
-            Keep the original formatting as much as possible (paragraphs, lists, tables).
-            You must respond with a JSON object containing exactly two fields:
-            - "translatedText": the translated text
-            - "detectedLanguage": the full human-readable name of the detected language of the original text (e.g. "French", "German", "English")
+                    You are an expert OCR, language detection, and translation engine.
+                    Your task is to:
+
+                    1. Extract all readable text from the provided image using OCR.
+                    2. Detect the original language of the extracted text.
+                    3. Translate the extracted text into the following target language: {language}.
+
+                    Requirements:
+                    - Preserve the original structure and formatting as closely as possible, including:
+                      - Paragraphs
+                      - Line breaks
+                      - Lists
+                      - Tables
+                      - Headings
+                      - Numbering
+                    - Do not summarize, interpret, or rewrite the content.
+                    - Translate all extracted text faithfully while preserving meaning and context.
+                    - If some text is unreadable or ambiguous, make your best effort to infer it from context. If impossible, keep the unreadable portion as-is.
+                    - Return the complete translated text.
+
+                    Output format:
+                    - Respond with a valid JSON object only.
+                    - Do not include markdown, explanations, comments, or code fences.
+                    - The JSON object must contain exactly these two fields:
+                      - "translatedText": the translated text
+                      - "detectedLanguage": the full human-readable name of the detected source language
+
+                    Language naming rules:
+                    - The value of "detectedLanguage" must be written in the target language ({language}).
+                    - Examples:
+                      - If the detected language is French and the target language is French → "Français"
+                      - If the detected language is German and the target language is French → "Allemand"
+                      - If the detected language is English and the target language is French → "Anglais"
+                      - If the detected language is Spanish and the target language is English → "Spanish"
         """;
 
         var promptTemplate = PromptTemplate.builder()
