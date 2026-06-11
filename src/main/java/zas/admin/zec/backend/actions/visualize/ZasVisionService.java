@@ -30,6 +30,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 @Service
@@ -120,16 +121,34 @@ public class ZasVisionService implements VisionService {
                 throw new IllegalArgumentException("Unsupported file type: " + contentType);
             }
 
-            var systemMessage = visionMessageService.translateImageMessage(language);
+            String targetLanguage = toEnglishLanguageName(language);
+            var systemMessage = visionMessageService.translateImageMessage(targetLanguage);
             String jsonSchema = JsonSchemaGenerator.generateForType(TextTranslation.class);
             var options = OpenAiChatOptions.builder()
+                    .temperature(0.0)
                     .responseFormat(new ResponseFormat(ResponseFormat.Type.JSON_SCHEMA, jsonSchema))
                     .build();
             List<CompletableFuture<TextTranslation>> futures = pages.stream().map(pageBytes -> CompletableFuture.supplyAsync(() -> {
                 var userMessage = UserMessage.builder()
-                            .text("")
-                            .media(List.of(Media.builder().mimeType(MimeTypeUtils.IMAGE_PNG).data(new ByteArrayResource(pageBytes)).build()))
-                            .build();
+                        .text("""
+                                Task: Extract and translate all readable text from this image.
+                                
+                                Target language: %s
+                                
+                                Rules:
+                                - The output MUST be fully translated into %s.
+                                - The output MUST NOT contain text in the original language.
+                                - Do NOT return the original text unchanged.
+                                - Preserve formatting (line breaks, lists, tables).
+                                - Preserve numbers, dates, currency, and identifiers.
+                                - Set "targetLanguage" to "%s".
+                                
+                                Output:
+                                - Put the translated result in "translatedText".
+                                - Return valid JSON only.
+                                """.formatted(targetLanguage, targetLanguage, targetLanguage))
+                        .media(List.of(Media.builder().mimeType(MimeTypeUtils.IMAGE_PNG).data(new ByteArrayResource(pageBytes)).build()))
+                        .build();
                 var prompt = new Prompt(systemMessage, userMessage);
                 return visionChatClient.prompt(prompt).options(options).call().entity(TextTranslation.class);
             })).toList();
@@ -166,5 +185,21 @@ public class ZasVisionService implements VisionService {
             ImageIO.write(image, "png", baos);
             return baos.toByteArray();
         }
+    }
+
+    private static final Map<String, String> LANGUAGE_MAP = Map.of(
+            "en", "English",
+            "fr", "French",
+            "de", "German",
+            "it", "Italian"
+    );
+
+    private String toEnglishLanguageName(String language) {
+        if (language == null) {
+            return "English";
+        }
+
+        String normalized = language.trim().toLowerCase();
+        return LANGUAGE_MAP.getOrDefault(normalized, language);
     }
 }
