@@ -121,8 +121,7 @@ public class ZasVisionService implements VisionService {
                 throw new IllegalArgumentException("Unsupported file type: " + contentType);
             }
 
-            String targetLanguage = toEnglishLanguageName(language);
-            var systemMessage = visionMessageService.translateImageMessage(targetLanguage);
+            var systemMessage = visionMessageService.translateImageMessage(language);
             String jsonSchema = JsonSchemaGenerator.generateForType(TextTranslation.class);
             var options = OpenAiChatOptions.builder()
                     .temperature(0.0)
@@ -146,7 +145,7 @@ public class ZasVisionService implements VisionService {
                                 Output:
                                 - Put the translated result in "translatedText".
                                 - Return valid JSON only.
-                                """.formatted(targetLanguage, targetLanguage, targetLanguage))
+                                """.formatted(language, language, language))
                         .media(List.of(Media.builder().mimeType(MimeTypeUtils.IMAGE_PNG).data(new ByteArrayResource(pageBytes)).build()))
                         .build();
                 var prompt = new Prompt(systemMessage, userMessage);
@@ -185,21 +184,5 @@ public class ZasVisionService implements VisionService {
             ImageIO.write(image, "png", baos);
             return baos.toByteArray();
         }
-    }
-
-    private static final Map<String, String> LANGUAGE_MAP = Map.of(
-            "en", "English",
-            "fr", "French",
-            "de", "German",
-            "it", "Italian"
-    );
-
-    private String toEnglishLanguageName(String language) {
-        if (language == null || language.isBlank()) {
-            return "English";
-        }
-
-        String normalized = language.trim().toLowerCase();
-        return LANGUAGE_MAP.getOrDefault(normalized, "English");
     }
 }
