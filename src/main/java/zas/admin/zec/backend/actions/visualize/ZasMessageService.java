@@ -81,9 +81,9 @@ public class ZasMessageService implements VisionMessageService {
                 3. Translate text into: {language}
                 
                 Rules:
-                - Translate ALL text into {language}.
-                - Translation is mandatory if detectedLanguage != {language}.
-                - Translate detectedLanguage into {language}.
+                - Translate ALL extracted text into {language}.
+                - If the source language is already {language}, keep the text unchanged (but still return it as "translatedText").
+                - Translate the language name in "detectedLanguage" into {language}.
                 - Do NOT return original text unchanged.
                 - Do NOT infer, guess, or complete missing text.
                 - Do NOT summarize or explain.

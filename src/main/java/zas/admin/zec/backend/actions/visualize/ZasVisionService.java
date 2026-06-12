@@ -137,8 +137,8 @@ public class ZasVisionService implements VisionService {
                                 
                                 Rules:
                                 - The output MUST be fully translated into %s.
-                                - The output MUST NOT contain text in the original language.
-                                - Do NOT return the original text unchanged.
+                                - If the original language differs from the target language, the output MUST NOT contain text in the original language.
+                                - If the original language is already the target language, return the text unchanged.
                                 - Preserve formatting (line breaks, lists, tables).
                                 - Preserve numbers, dates, currency, and identifiers.
                                 - Set "targetLanguage" to "%s".
@@ -195,11 +195,11 @@ public class ZasVisionService implements VisionService {
     );
 
     private String toEnglishLanguageName(String language) {
-        if (language == null) {
+        if (language == null || language.isBlank()) {
             return "English";
         }
 
         String normalized = language.trim().toLowerCase();
-        return LANGUAGE_MAP.getOrDefault(normalized, language);
+        return LANGUAGE_MAP.getOrDefault(normalized, "English");
     }
 }
