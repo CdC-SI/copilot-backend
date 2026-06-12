@@ -48,7 +48,6 @@ import java.util.stream.Collectors;
 @Component
 public class RAGTool {
 
-
     private static final String DEFAULT_LANGUAGE = "fr";
 
     private static final String META_TITLE = "title";
@@ -58,6 +57,7 @@ public class RAGTool {
     private static final String META_USER_UUID = "user_uuid";
     private static final String STATE_PERSONAL_UPLOADS = "personal.uploads";
     private static final String ORG_ZAS = "ZAS";
+    private static final String NO_DOCS_FOUND = "Je ne peux pas répondre car cette question nécessite que je m’appuie sur des sources, je n’en ai pas trouvé de pertinentes. Essayez de reformuler la question.";
 
     private final ChatClient internalChatClient;
     private final VectorStore documentStore;
@@ -162,6 +162,10 @@ public class RAGTool {
     }
 
     private String formatDocuments(List<Document> documents) {
+        if (documents.isEmpty()) {
+            return NO_DOCS_FOUND;
+        }
+
         return documents.stream()
                 .map(Document::getText)
                 .map(text -> "<document>" + System.lineSeparator() + text + System.lineSeparator() + "</document>")

@@ -86,10 +86,6 @@ spring:
         observations:
           log-prompt: ${OB_CHAT_CLIENT_PROMPT:false}
           log-completion: ${OB_CHAT_CLIENT_COMPLETION:false}
-      public:
-        api-key: ${OPENAI_API_KEY}
-        chat-model: ${PUBLIC_CHAT_MODEL}
-        embedding-model: ${PUBLIC_EMBEDDING_MODEL}
       internal:
         api-key: ${OPENAI_API_KEY}
         chat-model: ${INTERNAL_CHAT_MODEL}
