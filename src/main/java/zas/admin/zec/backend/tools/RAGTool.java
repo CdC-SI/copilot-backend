@@ -57,7 +57,13 @@ public class RAGTool {
     private static final String META_USER_UUID = "user_uuid";
     private static final String STATE_PERSONAL_UPLOADS = "personal.uploads";
     private static final String ORG_ZAS = "ZAS";
-    private static final String NO_DOCS_FOUND = "Je ne peux pas répondre car cette question nécessite que je m’appuie sur des sources, je n’en ai pas trouvé de pertinentes. Essayez de reformuler la question.";
+    private static final String NO_DOCS_FOUND = """
+            <no_documentation_found>
+            The knowledge base search returned NO relevant documents for this query.
+            ABSOLUTE RULE: You MUST NOT answer this question — not from memory, not from general knowledge, not by inference.
+            Your only permitted response is to inform the user that no relevant documentation was found and that you cannot answer without it.
+            </no_documentation_found>
+            """;
 
     private final ChatClient internalChatClient;
     private final VectorStore documentStore;
