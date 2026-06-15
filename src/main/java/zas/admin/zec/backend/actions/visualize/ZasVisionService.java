@@ -123,13 +123,30 @@ public class ZasVisionService implements VisionService {
             var systemMessage = visionMessageService.translateImageMessage(language);
             String jsonSchema = JsonSchemaGenerator.generateForType(TextTranslation.class);
             var options = OpenAiChatOptions.builder()
+                    .temperature(0.0)
                     .responseFormat(new ResponseFormat(ResponseFormat.Type.JSON_SCHEMA, jsonSchema))
                     .build();
             List<CompletableFuture<TextTranslation>> futures = pages.stream().map(pageBytes -> CompletableFuture.supplyAsync(() -> {
                 var userMessage = UserMessage.builder()
-                            .text("")
-                            .media(List.of(Media.builder().mimeType(MimeTypeUtils.IMAGE_PNG).data(new ByteArrayResource(pageBytes)).build()))
-                            .build();
+                        .text("""
+                                Task: Extract and translate all readable text from this image.
+                                
+                                Target language: %s
+                                
+                                Rules:
+                                - The output MUST be fully translated into %s.
+                                - If the original language differs from the target language, the output MUST NOT contain text in the original language.
+                                - If the original language is already the target language, return the text unchanged.
+                                - Preserve formatting (line breaks, lists, tables).
+                                - Preserve numbers, dates, currency, and identifiers.
+                                - Set "targetLanguage" to "%s".
+                                
+                                Output:
+                                - Put the translated result in "translatedText".
+                                - Return valid JSON only.
+                                """.formatted(language, language, language))
+                        .media(List.of(Media.builder().mimeType(MimeTypeUtils.IMAGE_PNG).data(new ByteArrayResource(pageBytes)).build()))
+                        .build();
                 var prompt = new Prompt(systemMessage, userMessage);
                 return visionChatClient.prompt(prompt).options(options).call().entity(TextTranslation.class);
             })).toList();
