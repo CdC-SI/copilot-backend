@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Configuration;
 /**
  * Configuration de la documentation OpenAPI / Swagger UI.
  *
- * <p>Swagger UI : {@code /swagger-ui.html} — Spec JSON : {@code /v3/api-docs}.</p>
+ * <p>Swagger UI : {@code /api/public/swagger-ui.html} — Spec JSON : {@code /api/public/v3/api-docs}.</p>
  *
  * <p>Deux schémas d'authentification sont déclarés :</p>
  * <ul>
