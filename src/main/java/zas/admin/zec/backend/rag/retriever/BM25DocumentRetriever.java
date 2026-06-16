@@ -27,7 +27,9 @@ import java.util.function.Supplier;
  * (plus bas = meilleure correspondance) ; le score est inversé avant d'être affecté au document.
  * <p>
  * Le filtrage sur les métadonnées réutilise le {@link PgVectorFilterExpressionConverter}
- * de Spring AI pour générer les clauses jsonpath identiques à celles du VectorStore.
+ * de Spring AI, dont {@code convertExpression()} retourne <strong>déjà la clause SQL complète</strong>
+ * ({@code metadata::jsonb @@ '...'::jsonpath}) — identique à celle générée par le {@code PgVectorStore}.
+ * Il ne faut donc <em>pas</em> ré-emballer le résultat dans un nouveau littéral jsonpath.
  */
 @Slf4j
 public class BM25DocumentRetriever implements DocumentRetriever {
@@ -59,7 +61,9 @@ public class BM25DocumentRetriever implements DocumentRetriever {
 
         String jsonPathFilter = "";
         if (StringUtils.hasText(nativeFilterExpression)) {
-            jsonPathFilter = " AND metadata::jsonb @@ '" + nativeFilterExpression + "'::jsonpath ";
+            // PgVectorFilterExpressionConverter.convertExpression() retourne déjà la clause SQL complète
+            // ("metadata::jsonb @@ '...'::jsonpath") — ne pas ré-emballer dans un nouveau littéral jsonpath.
+            jsonPathFilter = " AND " + nativeFilterExpression + " ";
         }
 
         // Requête SQL utilisant l'opérateur <@> de pg_textsearch.

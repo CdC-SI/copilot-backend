@@ -5,10 +5,10 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.ByteArrayResource;
-import org.springframework.core.task.TaskExecutor;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import reactor.core.publisher.Flux;
@@ -16,8 +16,6 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import zas.admin.zec.backend.actions.summarize.LlmOcrService;
 import zas.admin.zec.backend.actions.upload.UploadService;
-import zas.admin.zec.backend.agent.Agent;
-import zas.admin.zec.backend.agent.AgentFactory;
 import zas.admin.zec.backend.config.properties.WorkspaceProperties;
 import zas.admin.zec.backend.persistence.entity.AttachmentEntity;
 import zas.admin.zec.backend.persistence.entity.ConversationTitleEntity;
@@ -25,14 +23,11 @@ import zas.admin.zec.backend.persistence.entity.MessageEntity;
 import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
 import zas.admin.zec.backend.persistence.repository.ConversationRepository;
 import zas.admin.zec.backend.persistence.repository.ConversationTitleRepository;
-import zas.admin.zec.backend.rag.ChatStatus;
 import zas.admin.zec.backend.rag.token.*;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 
 @Slf4j
 @Service
@@ -45,28 +40,32 @@ public class ConversationService {
     private final ConversationTitleRepository conversationTitleRepository;
     private final AttachmentRepository attachmentRepository;
     private final ChatClient chatClient;
-    private final AgentFactory agentFactory;
-    private final TaskExecutor taskExecutor;
+    private final RAGChatService ragChatService;
     private final LlmOcrService ocrService;
     private final WorkspaceProperties workspaceProperties;
+    private final AttachmentAsyncProcessor attachmentAsyncProcessor;
+    private final TransactionTemplate transactionTemplate;
 
 
     public ConversationService(ConversationRepository conversationRepository,
                                ConversationTitleRepository conversationTitleRepository,
                                AttachmentRepository attachmentRepository,
-                               AgentFactory agentFactory,
+                               RAGChatService ragChatService,
                                @Qualifier("internalChatModel") ChatModel chatModel,
-                               @Qualifier("asyncExecutor") TaskExecutor taskExecutor,
-                               LlmOcrService ocrService, WorkspaceProperties workspaceProperties) {
+                               LlmOcrService ocrService,
+                               WorkspaceProperties workspaceProperties,
+                               AttachmentAsyncProcessor attachmentAsyncProcessor,
+                               TransactionTemplate transactionTemplate) {
 
         this.conversationRepository = conversationRepository;
         this.conversationTitleRepository = conversationTitleRepository;
         this.attachmentRepository = attachmentRepository;
         this.chatClient = ChatClient.create(chatModel);
-        this.agentFactory = agentFactory;
-        this.taskExecutor = taskExecutor;
+        this.ragChatService = ragChatService;
         this.ocrService = ocrService;
         this.workspaceProperties = workspaceProperties;
+        this.attachmentAsyncProcessor = attachmentAsyncProcessor;
+        this.transactionTemplate = transactionTemplate;
     }
 
     public List<Source> getSourcesByMessageUuid(String conversationUuid, String messageUuid) {
@@ -169,26 +168,62 @@ public class ConversationService {
                 });
     }
 
-    @Transactional
+    /**
+     * Persiste immédiatement les pièces jointes (bytes + métadonnées) en statut {@link AttachmentStatus#PENDING},
+     * puis déclenche l'OCR de façon asynchrone via {@link AttachmentAsyncProcessor}.
+     *
+     * <p><strong>Cycle de vie MultipartFile :</strong> les bytes sont lus et commités en base <em>avant</em>
+     * le retour de cette méthode. L'async ne reçoit que l'ID de l'entité et ne touche jamais au
+     * {@code MultipartFile}, dont le stockage temporaire peut être libéré dès le 202.</p>
+     */
     public ConversationAttachments attachFilesToConversation(String conversationId, String userId, List<MultipartFile> files) throws IOException {
         var convId = conversationId == null ? UUID.randomUUID().toString() : conversationId;
 
-        List<Attachment> attachments = new ArrayList<>();
-        for (MultipartFile file : files) {
-            var bytes = file.getBytes();
-            var entity = new AttachmentEntity();
-            entity.setConversationId(convId);
-            entity.setUserId(userId);
-            entity.setFilename(file.getOriginalFilename());
-            entity.setFileSize(file.getSize());
-            entity.setFileBytes(bytes);
-            entity.setContent(ocrService.ocrFile(bytes));
-
-            var saved = attachmentRepository.save(entity);
-            attachments.add(new Attachment(saved.getId(), saved.getFilename(), saved.getFileSize()));
+        // Lire tous les bytes AVANT la transaction : échec rapide si un fichier est illisible,
+        // et garantit que le MultipartFile n'est plus accédé après le retour HTTP 202.
+        record FileData(String filename, long size, byte[] bytes) {}
+        var filesData = new ArrayList<FileData>(files.size());
+        for (var file : files) {
+            filesData.add(new FileData(file.getOriginalFilename(), file.getSize(), file.getBytes()));
         }
 
+        // Transaction : persister les entités PENDING — commit garanti avant le dispatch async.
+        record PersistResult(Long id, String filename, long size) {}
+        List<PersistResult> results = transactionTemplate.execute(status -> {
+            var saved = new ArrayList<PersistResult>(filesData.size());
+            for (var data : filesData) {
+                var entity = new AttachmentEntity();
+                entity.setConversationId(convId);
+                entity.setUserId(userId);
+                entity.setFilename(data.filename());
+                entity.setFileSize(data.size());
+                entity.setFileBytes(data.bytes());
+                entity.setStatus(AttachmentStatus.PENDING);
+                // content est null : sera renseigné par AttachmentAsyncProcessor après l'OCR
+                var persisted = attachmentRepository.save(entity);
+                saved.add(new PersistResult(persisted.getId(), data.filename(), data.size()));
+            }
+            return saved;
+        });
+
+        // Après commit : déclencher l'OCR async par ID uniquement (jamais le MultipartFile).
+        results.forEach(r -> attachmentAsyncProcessor.processOcr(r.id()));
+
+        var attachments = results.stream()
+                .map(r -> new Attachment(r.id(), r.filename(), r.size(), AttachmentStatus.PENDING))
+                .toList();
         return new ConversationAttachments(convId, attachments);
+    }
+
+    /**
+     * Retourne le statut agrégé des pièces jointes d'une conversation, à destination de l'endpoint de polling.
+     */
+    public AttachmentUploadResponse getAttachmentsStatus(String conversationId, String userId) {
+        var attachments = attachmentRepository.findAllByConversationIdAndUserId(conversationId, userId)
+                .stream()
+                .map(entity -> new Attachment(entity.getId(), entity.getFilename(), entity.getFileSize(), entity.getStatus()))
+                .toList();
+        return AttachmentUploadResponse.fromAttachments(new ConversationAttachments(conversationId, attachments));
     }
 
     public UploadService.Doc getAttachment(String conversationId, Long attachmentId, String userUuid) {
@@ -201,7 +236,7 @@ public class ConversationService {
     public List<Attachment> getAttachmentsForConversation(String conversationId, String userId) {
         return attachmentRepository.findAllByConversationIdAndUserId(conversationId, userId)
                 .stream()
-                .map(entity -> new Attachment(entity.getId(), entity.getFilename(), entity.getFileSize()))
+                .map(entity -> new Attachment(entity.getId(), entity.getFilename(), entity.getFileSize(), entity.getStatus()))
                 .toList();
     }
 
@@ -210,38 +245,9 @@ public class ConversationService {
     }
 
     private Flux<Token> getTokenStream(Question question, String userId) {
-        Token routingStatus = new StatusToken(ChatStatus.ROUTING, question.language());
-        return Flux.just(routingStatus)
-                .concatWith(getAgentAndHistoryStream(question, userId));
-    }
-
-    private Flux<Token> getAgentAndHistoryStream(Question question, String userId) {
-        var agentFuture = fetchAgentAsync(question);
-        var historyFuture = fetchConversationHistoryAsync(question, userId);
-        Mono<Token> handoffFuture = Mono.fromFuture(agentFuture).map(agent -> new StatusToken(ChatStatus.AGENT_HANDOFF, question.language(), agent.getName()));
-        var combined = agentFuture.thenCombine(historyFuture,
-                (agent, history) -> agent.processQuestion(question, userId, history));
-
-        // Return combined Flux
-        return handoffFuture.concatWith(Mono.fromFuture(combined).flatMapMany(Function.identity()));
-    }
-
-    private CompletableFuture<Agent> fetchAgentAsync(Question question) {
-        return CompletableFuture.supplyAsync(
-                () -> agentFactory.selectAppropriateAgent(question),
-                taskExecutor
-        );
-    }
-
-    private CompletableFuture<List<Message>> fetchConversationHistoryAsync(Question question, String userId) {
-        return CompletableFuture.supplyAsync(
-                () -> getConversationHistory(
-                        question.conversationId(),
-                        userId,
-                        Limit.unlimited()
-                ),
-                taskExecutor
-        );
+        return Mono.fromCallable(() -> getConversationHistory(question.conversationId(), userId, Limit.unlimited()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .flatMapMany(history -> ragChatService.answer(question, userId, history));
     }
 
     private void saveExchange(Question question, String userId, String assistantMessageId, String answer, Set<Source> sources,
