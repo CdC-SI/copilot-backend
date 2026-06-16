@@ -1,36 +1,20 @@
 workspace:
   default-workspace: GENERAL
   sources:
-    RH:
-      - rh_procedures
-      - rh_lpers
-      - rh_oopers
-      - rh_infopers_website
-      - faq_rh
-    OAIE:
-      - bilateral_agreements_mementos
-      - bilateral_agreements
-      - lpga
-      - lai
-      - rai
-      - ce_883_2004
-      - cibil
-      - cij
-      - cirai
-      - cmrm
-      - cmrpr
-      - cpai
-      - crfv
-      - dr
+    GENERAL:
+      - ahv_iv_mementos
+      - zas_website
+      - bsv_website
+      - faq_bsv
+      - user_pdf_upload
+      - user_edit
+      - knowledge_base
     AFAC:
       - afac
-    LOIS_AVS:
-      - lpga
-      - lavs
-      - ce_883_2004
-      - daa
-      - din
-      - dsd
+    EAK:
+      - eak_website
+      - eak_lernbaustein_2024
+      - eak_praxisleitfaden_fz_2024
     LOIS_AI:
       - lpga
       - lai
@@ -47,15 +31,31 @@ workspace:
       - daa
       - din
       - dsd
-    GENERAL:
-      - ahv_iv_mementos
-      - zas_website
-      - bsv_website
-      - faq_bsv
-      - user_pdf_upload
-      - user_edit
-      - knowledge_base
-    EAK:
-      - eak_website
-      - eak_lernbaustein_2024
-      - eak_praxisleitfaden_fz_2024
+    LOIS_AVS:
+      - lpga
+      - lavs
+      - ce_883_2004
+      - daa
+      - din
+      - dsd
+    OAIE:
+      - bilateral_agreements_mementos
+      - bilateral_agreements
+      - lpga
+      - lai
+      - rai
+      - ce_883_2004
+      - cibil
+      - cij
+      - cirai
+      - cmrm
+      - cmrpr
+      - cpai
+      - crfv
+      - dr
+    RH:
+      - rh_procedures
+      - rh_lpers
+      - rh_oopers
+      - rh_infopers_website
+      - faq_rh
