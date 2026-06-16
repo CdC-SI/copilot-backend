@@ -197,6 +197,7 @@ public class RAGTool {
         }
         return attachmentRepository.findAllByConversationIdAndUserId(conversationId, userId)
                 .stream()
+                .filter(a -> a.getContent() != null && !a.getContent().isBlank())
                 .map(attachmentEntity -> new Document(
                         attachmentEntity.getContent(),
                         Map.of(
