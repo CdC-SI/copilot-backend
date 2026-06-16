@@ -100,8 +100,10 @@ public class RAGChatService {
     }
 
     private Flux<Token> toTextToken(ChatResponse response) {
-        var result = response.getResult();
-        var text = result.getOutput().getText();
+        if (response == null || response.getResult() == null || response.getResult().getOutput() == null) {
+            return Flux.just(new TextToken(""));
+        }
+        var text = response.getResult().getOutput().getText();
         return Flux.just(new TextToken(text != null ? text : ""));
     }
 
