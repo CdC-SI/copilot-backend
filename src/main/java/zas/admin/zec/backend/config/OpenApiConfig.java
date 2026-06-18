@@ -25,12 +25,15 @@ public class OpenApiConfig {
     @Value("${spring.application.name:copilot-backend}")
     private String applicationName;
 
+    @Value("${application.version:unknown}")
+    private String applicationVersion;
+
     @Bean
     public OpenAPI copilotOpenAPI() {
         return new OpenAPI()
                 .info(new Info()
                         .title("ZIA Backend API")
-                        .version("2.2.0")
+                        .version(applicationVersion)
                         .description("""
                                 API du backend ZIA, \
                                 assistant pour les assurances sociales suisses."""))
