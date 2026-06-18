@@ -1,6 +1,7 @@
 application:
   name: @project.artifactId@
   version: @project.version@
+  environment: ${ENVIRONMENT:local}
 decorator:
   datasource:
     flexy-pool:
@@ -8,8 +9,22 @@ decorator:
         acquire: 1
         lease: 0
 spring:
+  profiles:
+    include: workspace
   application:
     name: copilot-backend
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+    url: ${FLYWAY_DS_URL:${DS_URL}}
+    user: ${FLYWAY_DS_USERNAME:}
+    password: ${FLYWAY_DS_PASSWORD:}
+    locations: classpath:db/migration
+    validate-on-migrate: true
+    baseline-on-migrate: true
+    lock-retry-count: 10
+    connect-retries: 5
+    connect-retries-interval: 5
+    baseline-version: 1
   datasource:
     url: ${DS_URL:jdbc:postgresql://localhost:5432/pg_db}
     username: ${DS_USERNAME}
@@ -22,15 +37,27 @@ spring:
       keepalive-time: ${DS_KEEPALIVE_TIME:45000}
       max-lifetime: ${DS_MAX_LIFETIME:300000}
       auto-commit: false
+  freemarker:
+    template-loader-path: classpath:/templates/
+    prefer-file-system-access: false
+    charset: UTF-8
   jpa:
-    hibernate:
-      ddl-auto: update
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: false
         show_sql: true
     open-in-view: false
+  activemq:
+    broker-url: ${ACTIVEMQ_BROKER_URL}
+    user: ${ACTIVEMQ_USER}
+    password: ${ACTIVEMQ_PASSWORD}
+    packages:
+      trust-all: true
+  jms:
+    pub-sub-domain: true
+    template:
+      default-destination: ${JMS_DEFAULT_TOPIC:gaime.webapp}
   h2:
     console:
       enabled: true
@@ -51,10 +78,14 @@ spring:
             type: PKCS12
   ai:
     chat:
-      public:
-        api-key: ${OPENAI_API_KEY}
-        chat-model: ${PUBLIC_CHAT_MODEL}
-        embedding-model: ${PUBLIC_EMBEDDING_MODEL}
+      observations:
+        log-prompt: ${OB_CHAT_PROMPT:false}
+        log-completion: ${OB_CHAT_COMPLETION:false}
+        include-error-logging: ${OB_CHAT_ERROR:false}
+      client:
+        observations:
+          log-prompt: ${OB_CHAT_CLIENT_PROMPT:false}
+          log-completion: ${OB_CHAT_CLIENT_COMPLETION:false}
       internal:
         api-key: ${OPENAI_API_KEY}
         chat-model: ${INTERNAL_CHAT_MODEL}
@@ -68,15 +99,30 @@ spring:
         reranker-base-url: ${RERANKER_BASE_URL}
 
     vectorstore:
+      observations:
+        log-query-response: ${OB_VS_QUERY_RESPONSE:false}
       pgvector:
         dimensions: ${PGVECTOR_DIMENSIONS:1024}
         distance-type: cosine_distance
         max-document-batch-size: 10000
         index-type: hnsw
         table-name: vector_store
-        initialize-schema: true
+        initialize-schema: ${PG_VECTOR_INIT:false}
+        schema-name: ${PG_VECTOR_SCHEMA:public}
+  mvc:
+    async:
+      request-timeout: 120000
+  task:
+    execution:
+      pool:
+        core-size: 8
+        max-size: 50
+        queue-capacity: 100
+      thread-name-prefix: async-exec-
 py-backend:
   baseUrl: http://copilot:8000
+embedding-service:
+  base-url: ${EMBEDDING_SERVICE_BASE_URL}
 identity-check:
   baseUrl: ${IDENTITY_CHECK_BASE_URL:https://api.int.adnovum-vips.ch}
   call-back-url: ${IDENTITY_CHECK_CALL_BACK_URL:http://localhost:4200/tools}
@@ -84,7 +130,8 @@ server:
   tomcat:
     max-swallow-size: -1
   servlet:
-    context-path: /copilot
+    context-path: /zia
+    register-default-servlet: false
 faq:
   search:
     min-result-before-semantic-search: ${FAQ_MIN_RESULT_BEFORE_SEMANTIC_SEARCH:5}
@@ -95,14 +142,33 @@ faq:
       limit: ${FAQ_SEMANTIC_MATCHING_LIMIT:10}
       metric: ${FAQ_SEMANTIC_MATCHING_METRIC:cosine_similarity}
 rag:
+  retrieving:
+    top-k: ${RAG_RETRIEVING_TOP_K:5}
+    query-expander:
+      enabled: ${RAG_RETRIEVING_QUERY_EXPANDER_ENABLED:true}
+      number-of-expansions: ${RAG_RETRIEVING_QUERY_EXPANDER_NUMBER_OF_EXPANSIONS:3}
+      include-original: ${RAG_RETRIEVING_QUERY_EXPANDER_INCLUDE_ORIGINAL:true}
+    query-compresser:
+      enabled: ${RAG_RETRIEVING_QUERY_COMPRESSER_ENABLED:true}
+    query-rewriter:
+      enabled: ${RAG_RETRIEVING_QUERY_REWRITER_ENABLED:true}
+    bm25:
+      enabled: ${RAG_RETRIEVING_BM25_ENABLED:false}
+      top-k: ${RAG_RETRIEVING_BM25_TOP_K:2}
+      text-search-config: ${RAG_RETRIEVING_BM25_TEXT_SEARCH_CONFIG:simple}
   reranking:
     cohere-api-key: ${COHERE_API_KEY:cohere_api_key}
     score-threshold: ${RERANKING_SCORE_THRESHOLD:0.5}
+    enabled: ${RERANKING_ENABLED:true}
+    truncate-prompt-tokens: ${RERANKING_TRUNCATE_PROMPT_TOKENS:16384}
+    top-k: ${RERANKING_TOP_K:5}
 logging:
   level:
     zas.admin.zec: DEBUG
     org:
+      apache.catalina.core: DEBUG
       springframework:
+        boot.web.servlet: TRACE
         ai: DEBUG
         security: DEBUG
 deepl:
@@ -121,3 +187,32 @@ proxy:
 ai:
   agent:
     ii-data-folder: ${II_DATA_FOLDER}
+
+nuxeo:
+  url: ${NUXEO_URL}
+  username: ${NUXEO_USERNAME}
+  password: ${NUXEO_PASSWORD}
+
+management:
+  observations:
+    enable:
+      default: true
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus
+  endpoint:
+    health:
+      show-details: ${HEALTH_DETAILS:never}
+
+springdoc:
+  api-docs:
+    enabled: ${SWAGGER_ENABLED:true}
+    path: /api/public/v3/api-docs
+  swagger-ui:
+    enabled: ${SWAGGER_ENABLED:true}
+    path: /api/public/swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+  packages-to-scan: zas.admin.zec.backend
+

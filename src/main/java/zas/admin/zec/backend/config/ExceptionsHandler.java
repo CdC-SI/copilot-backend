@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -16,6 +17,16 @@ import java.util.stream.Collectors;
 @Slf4j
 @RestControllerAdvice
 public class ExceptionsHandler {
+
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    @ExceptionHandler(AccessDeniedException.class)
+    public Map<String, Object> handleAccessDeniedException(HttpServletRequest request, AccessDeniedException exc) {
+        return Map.of(
+                "STATUS", HttpStatus.FORBIDDEN.value(),
+                "MESSAGE", "Access denied",
+                "PATH", request.getRequestURI()
+        );
+    }
 
     @ResponseStatus(HttpStatus.PAYLOAD_TOO_LARGE)
     @ExceptionHandler(MaxUploadSizeExceededException.class)

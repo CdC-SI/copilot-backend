@@ -3,11 +3,9 @@ package zas.admin.zec.backend.users;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import zas.admin.zec.backend.actions.authorize.Role;
 import zas.admin.zec.backend.actions.authorize.User;
 import zas.admin.zec.backend.actions.authorize.UserRegistration;
@@ -27,8 +25,6 @@ class UserServiceTest {
 
     @Mock
     private UserRepository userRepository;
-    @Mock
-    private PasswordEncoder passwordEncoder;
     @InjectMocks
     private UserService userService;
 
@@ -60,7 +56,6 @@ class UserServiceTest {
     @DisplayName("Register creates new user when username is unique")
     void register_createsNewUser_whenUsernameIsUnique() {
         when(userRepository.findByUsername("newUser")).thenReturn(Optional.empty());
-        when(passwordEncoder.encode("password")).thenReturn("encodedPassword");
 
         UserEntity savedUser = new UserEntity();
         savedUser.setUuid(UUID.randomUUID().toString());
@@ -87,27 +82,6 @@ class UserServiceTest {
 
         assertThrows(IllegalArgumentException.class,
             () -> userService.register("existingUser", userRegistration));
-    }
-
-    @Test
-    void register_ShouldCreateNewUser() {
-        // given
-        String username = "testuser";
-        List<String> organizations = List.of("testorg");
-
-        // when
-        String uuid = userService.register(username, new UserRegistration("", "", organizations));
-
-        // then
-        ArgumentCaptor<UserEntity> userEntityCaptor = ArgumentCaptor.forClass(UserEntity.class);
-        verify(userRepository).save(userEntityCaptor.capture());
-        UserEntity savedUser = userEntityCaptor.getValue();
-
-        assertEquals(username, savedUser.getUsername());
-        assertEquals(organizations, savedUser.getOrganizations());
-        assertEquals(List.of(Role.USER.name()), savedUser.getRoles());
-        assertNotNull(savedUser.getUuid());
-        assertEquals(uuid, savedUser.getUuid());
     }
 
     @Test

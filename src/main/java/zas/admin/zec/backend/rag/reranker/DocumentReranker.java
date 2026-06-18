@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import zas.admin.zec.backend.config.properties.InternalChatModelProperties;
+import zas.admin.zec.backend.config.properties.RerankingProperties;
 
 import java.util.List;
 import java.util.Map;
@@ -44,10 +45,15 @@ public class DocumentReranker {
     private static final String INSTRUCTION = "Given a user search query, determine whether the document can answer the query or not.";
 
     private final InternalChatModelProperties internalChatModelProperties;
+    private final RerankingProperties rerankingProperties;
     private final WebClient reranker;
 
-    public DocumentReranker(@Qualifier("clientBuilderForInternalCalls") WebClient.Builder clientBuilder, InternalChatModelProperties internalChatModelProperties) {
+    public DocumentReranker(@Qualifier("clientBuilderForInternalCalls") WebClient.Builder clientBuilder,
+                            InternalChatModelProperties internalChatModelProperties,
+                            RerankingProperties rerankingProperties) {
+
         this.internalChatModelProperties = internalChatModelProperties;
+        this.rerankingProperties = rerankingProperties;
         this.reranker = clientBuilder
                 .baseUrl(internalChatModelProperties.rerankerBaseUrl())
                 .build();
@@ -62,15 +68,20 @@ public class DocumentReranker {
      * @return the reranked list of documents
      */
     public List<Document> rerank(String query, List<Document> documents) {
+        if (!rerankingProperties.enabled()) {
+            log.info("Reranking is disabled, returning original documents");
+            return documents;
+        }
+
         debugBeforeReranking(documents);
         try {
             var response = reranker.post()
-                    .uri("/v1/score")
+                    .uri("/score")
                     .bodyValue(Map.of(
                             "model", internalChatModelProperties.rerankerModel(),
                             "text_1", singletonList(formatQuery(query)),
                             "text_2", formatDocuments(documents),
-                            "truncate_prompt_tokens", -1
+                            "truncate_prompt_tokens", rerankingProperties.truncatePromptTokens()
                     ))
                     .retrieve()
                     .bodyToMono(RerankResponse.class)
@@ -86,6 +97,18 @@ public class DocumentReranker {
             log.error("Error during document reranking, returning original documents", ex);
             return documents;
         }
+    }
+
+    public float getScoreThreshold() {
+        return rerankingProperties.scoreThreshold();
+    }
+
+    public int getTopK() {
+        return rerankingProperties.topK();
+    }
+
+    public boolean isEnabled() {
+        return rerankingProperties.enabled();
     }
 
     private void debugBeforeReranking(List<Document> documents) {

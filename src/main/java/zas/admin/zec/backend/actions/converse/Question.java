@@ -2,18 +2,14 @@ package zas.admin.zec.backend.actions.converse;
 
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
 import java.util.UUID;
 
 @Builder
 public record Question(
     @NotNull String query,
-    List<MultipartFile> attachments,
     String language,
-    List<String> tags,
-    List<String> sources,
+    String workspace,
     String responseStyle,
     String responseFormat,
     String conversationId) {
@@ -21,10 +17,8 @@ public record Question(
     public Question withDefaults() {
         return new Question(
             this.query(),
-            this.attachments() != null ? this.attachments() : List.of(),
             this.language() != null ? this.language() : "fr",
-            this.tags() != null ? this.tags() : List.of(),
-            this.sources() != null ? this.sources() : List.of(),
+            this.workspace() != null ? this.workspace() : "",
             this.responseStyle() != null ? this.responseStyle() : "DETAILED",
             this.responseFormat() != null ? this.responseFormat() : "COMPLETE",
             this.conversationId() != null ? this.conversationId() : UUID.randomUUID().toString()

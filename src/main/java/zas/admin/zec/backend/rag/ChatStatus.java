@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 public enum ChatStatus {
 
     RETRIEVAL("Recherche des documents pertinents", "Suche nach relevanten Dokumenten", "Ricerca di documenti rilevanti", "retrieval"),
+    ATTACHMENT("Récupération des pièces jointes", "Abrufen der Anhänge", "Recupero degli allegati", "attachments"),
     OCR("Parsing des pièces jointes", "Parsing von Anhängen", "Parsing degli allegati", "ocr"),
     II_TARIFFS("Récupération des informations des tarifs : %s", "Abrufen von Preisinformationen", "Recupero delle informazioni sui prezzi", "ii_tariffs"),
     II_TARIFFS_ANSWER("Génération de la réponse", "Antwortgenerierung", "Generazione della risposta", "ii_tariffs_answer"),

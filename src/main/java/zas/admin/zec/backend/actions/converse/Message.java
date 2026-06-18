@@ -4,12 +4,13 @@ import jakarta.annotation.Nullable;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 public record Message(
         @Nullable String messageId,
         @Nullable String userId,
         @Nullable String conversationId,
-        @Nullable Long faqItemId,
+        @Nullable UUID faqItemId,
         String language,
         String message,
         String role,

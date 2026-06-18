@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
-import org.springframework.http.client.ReactorNettyClientRequestFactory;
+import org.springframework.http.client.ReactorClientHttpRequestFactory;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.web.client.RestClient;
@@ -23,7 +23,7 @@ import zas.admin.zec.backend.config.properties.*;
 @EnableJpaAuditing
 @EnableConfigurationProperties({ApplicationProperties.class, FAQSearchProperties.class,
         RerankingProperties.class, DeepLProperties.class, ProxyProperties.class,
-        IdentityCheckProperties.class})
+        IdentityCheckProperties.class, RetrievingProperties.class, EmbeddingServiceProperties.class})
 public class WebClientConfig {
     private final ProxyProperties proxyProperties;
     private final IdentityCheckProperties identityCheckProperties;
@@ -39,7 +39,7 @@ public class WebClientConfig {
     @ConditionalOnProperty(name = "proxy.enabled", havingValue = "true")
     public RestClient.Builder proxyRestClientBuilder(final HttpClient httpClient) {
         return RestClient.builder()
-                .requestFactory(new ReactorNettyClientRequestFactory(httpClient));
+                .requestFactory(new ReactorClientHttpRequestFactory(httpClient));
     }
 
     @Bean
@@ -51,8 +51,9 @@ public class WebClientConfig {
     }
 
     @Bean(name = "clientBuilderForInternalCalls")
-    public WebClient.Builder noProxyWebClientBuilder() {
-        return WebClient.builder();
+    public WebClient.Builder noProxyWebClientBuilder(InternalChatModelProperties internalChatModelProperties) {
+        return WebClient.builder()
+                .defaultHeaders(headers -> headers.setBearerAuth(internalChatModelProperties.apiKey()));
     }
 
     @Bean

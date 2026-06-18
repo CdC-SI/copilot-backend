@@ -8,6 +8,7 @@ import lombok.Setter;
 import org.hibernate.annotations.Type;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Setter
 @Getter
@@ -50,7 +51,7 @@ public class MessageEntity {
     private String[] suggestions;
 
     @Column(name = "faq_id")
-    private Long faqId;
+    private UUID faqId;
 
     @Type(IntArrayType.class)
     @Column(name = "retrieved_docs", columnDefinition = "integer[]")

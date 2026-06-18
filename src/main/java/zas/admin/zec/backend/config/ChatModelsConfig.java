@@ -8,13 +8,10 @@ import org.springframework.ai.openai.OpenAiEmbeddingModel;
 import org.springframework.ai.openai.OpenAiEmbeddingOptions;
 import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.ai.retry.RetryUtils;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.reactive.function.client.WebClient;
 import zas.admin.zec.backend.config.properties.InternalChatModelProperties;
 import zas.admin.zec.backend.config.properties.PublicChatModelProperties;
 
@@ -22,11 +19,9 @@ import zas.admin.zec.backend.config.properties.PublicChatModelProperties;
 @EnableConfigurationProperties({PublicChatModelProperties.class, InternalChatModelProperties.class})
 public class ChatModelsConfig {
 
-    private final PublicChatModelProperties publicChatModelProperties;
     private final InternalChatModelProperties internalChatModelProperties;
 
-    public ChatModelsConfig(PublicChatModelProperties publicChatModelProperties, InternalChatModelProperties internalChatModelProperties) {
-        this.publicChatModelProperties = publicChatModelProperties;
+    public ChatModelsConfig(InternalChatModelProperties internalChatModelProperties) {
         this.internalChatModelProperties = internalChatModelProperties;
     }
 
@@ -41,6 +36,7 @@ public class ChatModelsConfig {
                 .model(internalChatModelProperties.chatModel())
                 .temperature(0.0)
                 .maxTokens(16384)
+                .reasoningEffort("low")
                 .build();
 
         return OpenAiChatModel.builder()
@@ -59,33 +55,12 @@ public class ChatModelsConfig {
         var options = OpenAiChatOptions.builder()
                 .model(internalChatModelProperties.visionModel())
                 .temperature(0.0)
-                .maxTokens(16384)
+                .maxTokens(15360)
                 .build();
 
         return OpenAiChatModel.builder()
                 .openAiApi(api)
                 .defaultOptions(options)
-                .build();
-    }
-
-    @Bean(name = "publicChatModel")
-    public ChatModel publicChatModel(ObjectProvider<RestClient.Builder> restClientBuilderProvider,
-                                     ObjectProvider<WebClient.Builder> webClientBuilderProvider) {
-        var openAiApi = OpenAiApi.builder()
-                .apiKey(publicChatModelProperties.apiKey())
-                .restClientBuilder(restClientBuilderProvider.getIfAvailable(RestClient::builder))
-                .webClientBuilder(webClientBuilderProvider.getIfAvailable(WebClient::builder))
-                .build();
-
-        var openAiChatOptions = OpenAiChatOptions.builder()
-                .model(publicChatModelProperties.chatModel())
-                .temperature(0.7)
-                .maxTokens(4096)
-                .build();
-
-        return OpenAiChatModel.builder()
-                .openAiApi(openAiApi)
-                .defaultOptions(openAiChatOptions)
                 .build();
     }
 
@@ -103,22 +78,6 @@ public class ChatModelsConfig {
                 OpenAiEmbeddingOptions.builder()
                         .model(internalChatModelProperties.embeddingModel())
                         //.dimensions(internalChatModelProperties.embeddingDimensions())
-                        .build(),
-                RetryUtils.DEFAULT_RETRY_TEMPLATE);
-    }
-
-    @Bean(name = "publicEmbeddingModel")
-    public OpenAiEmbeddingModel publicEmbeddingModel(ObjectProvider<RestClient.Builder> restClientBuilderProvider) {
-        var openAiApi = OpenAiApi.builder()
-                .apiKey(publicChatModelProperties.apiKey())
-                .restClientBuilder(restClientBuilderProvider.getIfAvailable(RestClient::builder))
-                .build();
-
-        return new OpenAiEmbeddingModel(
-                openAiApi,
-                MetadataMode.EMBED,
-                OpenAiEmbeddingOptions.builder()
-                        .model(publicChatModelProperties.embeddingModel())
                         .build(),
                 RetryUtils.DEFAULT_RETRY_TEMPLATE);
     }

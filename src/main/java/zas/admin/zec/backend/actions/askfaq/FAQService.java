@@ -17,6 +17,14 @@ import java.util.stream.Stream;
 @Service
 public class FAQService {
 
+    private static final String METADATA_ANSWER_ID = "answer_id";
+    private static final String METADATA_SOURCE = "source";
+    private static final String METADATA_URL = "url";
+    private static final String METADATA_LANGUAGE = "language";
+    private static final String METADATA_TAGS = "tags";
+    private static final String SOURCE_KNOWLEDGE_BASE = "knowledge_base";
+
+
     private final DocumentRepository documentRepository;
     private final QuestionRepository questionRepository;
     private final FAQSearchProperties faqSearchProperties;
@@ -71,11 +79,11 @@ public class FAQService {
         answer.setContent(faqItemLight.answer());
         answer.setEmbedding(embeddingModel.embed(faqItemLight.answer()));
         answer.setMetadata(Map.of(
-                "answer_id", answerId,
-                "source", "knowledge_base",
-                "url", faqItemLight.url(),
-                "language", faqItemLight.language(),
-                "tags", tags
+                METADATA_ANSWER_ID, answerId,
+                METADATA_SOURCE, SOURCE_KNOWLEDGE_BASE,
+                METADATA_URL, faqItemLight.url(),
+                METADATA_LANGUAGE, faqItemLight.language(),
+                METADATA_TAGS, tags
         ));
 
 
@@ -83,11 +91,11 @@ public class FAQService {
         question.setContent(faqItemLight.text());
         question.setEmbedding(embeddingModel.embed(faqItemLight.text()));
         question.setMetadata(Map.of(
-                "answer_id", answerId,
-                "source", "knowledge_base",
-                "url", faqItemLight.url(),
-                "language", faqItemLight.language(),
-                "tags", tags
+                METADATA_ANSWER_ID, answerId,
+                METADATA_SOURCE, SOURCE_KNOWLEDGE_BASE,
+                METADATA_URL, faqItemLight.url(),
+                METADATA_LANGUAGE, faqItemLight.language(),
+                METADATA_TAGS, tags
         ));
 
         return EntityMapper.map(questionRepository.save(question), documentRepository.save(answer));
@@ -100,26 +108,26 @@ public class FAQService {
 
         QuestionEntity question = questionRepository.findById(Objects.requireNonNull(faqItemLight.id()))
                 .orElseThrow(() -> new IllegalArgumentException("No FAQItem found for id : " + faqItemLight.id()));
-        var answerId = question.getMetadata().get("answer_id");
+        var answerId = question.getMetadata().get(METADATA_ANSWER_ID);
         question.setContent(faqItemLight.text());
         question.setEmbedding(embeddingModel.embed(faqItemLight.text()));
         question.setMetadata(Map.of(
-                "answer_id", answerId,
-                "source", "knowledge_base",
-                "url", faqItemLight.url(),
-                "language", faqItemLight.language(),
-                "tags", tags
+                METADATA_ANSWER_ID, answerId,
+                METADATA_SOURCE, SOURCE_KNOWLEDGE_BASE,
+                METADATA_URL, faqItemLight.url(),
+                METADATA_LANGUAGE, faqItemLight.language(),
+                METADATA_TAGS, tags
         ));
 
         DocumentEntity answer = documentRepository.findByAnswerId(answerId);
         answer.setContent(faqItemLight.answer());
         answer.setEmbedding(embeddingModel.embed(faqItemLight.answer()));
         answer.setMetadata(Map.of(
-                "answer_id", answerId,
-                "source", "knowledge_base",
-                "url", faqItemLight.url(),
-                "language", faqItemLight.language(),
-                "tags", tags
+                METADATA_ANSWER_ID, answerId,
+                METADATA_SOURCE, SOURCE_KNOWLEDGE_BASE,
+                METADATA_URL, faqItemLight.url(),
+                METADATA_LANGUAGE, faqItemLight.language(),
+                METADATA_TAGS, tags
         ));
 
         return EntityMapper.map(questionRepository.save(question), documentRepository.save(answer));
@@ -145,7 +153,7 @@ public class FAQService {
     private List<FAQItem> questionsToFAQItems(List<QuestionEntity> questions) {
         return questions.stream()
                 .map(question -> {
-                    var answerId = question.getMetadata().get("answer_id");
+                    var answerId = question.getMetadata().get(METADATA_ANSWER_ID);
                     var answer = documentRepository.findByAnswerId(answerId);
                     if (answer == null) {
                         return null;
