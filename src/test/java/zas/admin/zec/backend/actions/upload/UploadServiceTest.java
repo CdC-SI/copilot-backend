@@ -7,10 +7,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.web.multipart.MultipartFile;
 import zas.admin.zec.backend.actions.upload.model.DocumentToUpload;
 import zas.admin.zec.backend.actions.upload.model.EmbeddingStatus;
 import zas.admin.zec.backend.actions.upload.model.PersonalDoc;
+import zas.admin.zec.backend.actions.upload.model.PersonalDocumentUploadedEvent;
 import zas.admin.zec.backend.actions.upload.strategy.AdminDocUploadStrategyFactory;
 import zas.admin.zec.backend.persistence.entity.TempSourceDocumentEntity;
 import zas.admin.zec.backend.persistence.repository.TempSourceDocumentRepository;
@@ -34,13 +36,13 @@ class UploadServiceTest {
     @Mock
     private VectorStore vectorStore;
     @Mock
-    private UploadAsyncProcessor uploadAsyncProcessor;
+    private ApplicationEventPublisher eventPublisher;
 
     private UploadService uploadService;
 
     @BeforeEach
     void setUp() {
-        uploadService = new UploadService(adminDocUploadStrategyFactory, tempSourceDocumentRepository, vectorStore, tempSourceDocumentRepository, uploadAsyncProcessor);
+        uploadService = new UploadService(adminDocUploadStrategyFactory, tempSourceDocumentRepository, vectorStore, tempSourceDocumentRepository, eventPublisher);
     }
 
     @Test
@@ -82,7 +84,7 @@ class UploadServiceTest {
 
         uploadService.uploadPersonalDocument(document, "user-uuid");
 
-        verify(uploadAsyncProcessor).processEmbedding(5L);
+        verify(eventPublisher).publishEvent(new PersonalDocumentUploadedEvent(5L));
     }
 
     @Test

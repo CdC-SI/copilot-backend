@@ -3,10 +3,13 @@ package zas.admin.zec.backend.actions.upload;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.transaction.support.TransactionTemplate;
 import zas.admin.zec.backend.actions.upload.model.EmbeddingChunkResponse;
 import zas.admin.zec.backend.actions.upload.model.EmbeddingRequest;
 import zas.admin.zec.backend.actions.upload.model.EmbeddingStatus;
+import zas.admin.zec.backend.actions.upload.model.PersonalDocumentUploadedEvent;
 import zas.admin.zec.backend.actions.upload.strategy.EmbeddedDocUploadStrategy;
 import zas.admin.zec.backend.persistence.entity.DocumentEntity;
 import zas.admin.zec.backend.persistence.repository.DocumentRepository;
@@ -55,11 +58,15 @@ public class UploadAsyncProcessor {
      *   <li>Transaction 2 : persiste les chunks dans le vector store et met à jour le statut à TERMINEE</li>
      *   <li>En cas d'erreur : transaction indépendante pour passer le statut à ERREUR</li>
      * </ol>
-     *
-     * @param tempDocId l'ID du TempSourceDocumentEntity à traiter
      */
     @Async("asyncExecutor")
-    public void processEmbedding(Long tempDocId) {
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onPersonalDocumentUploaded(PersonalDocumentUploadedEvent event) {
+        log.info("Received PersonalDocumentUploadedEvent for tempDocId {}", event.tempDocId());
+        processEmbedding(event.tempDocId());
+    }
+
+    private void processEmbedding(Long tempDocId) {
         log.info("Démarrage du traitement asynchrone d'embedding pour le document ID: {}", tempDocId);
 
         try {
