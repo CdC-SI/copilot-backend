@@ -4,12 +4,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.ai.vectorstore.filter.Filter;
 import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import zas.admin.zec.backend.actions.upload.model.DocumentToUpload;
 import zas.admin.zec.backend.actions.upload.model.EmbeddingStatus;
 import zas.admin.zec.backend.actions.upload.model.PersonalDoc;
+import zas.admin.zec.backend.actions.upload.model.PersonalDocumentUploadedEvent;
 import zas.admin.zec.backend.actions.upload.strategy.AdminDocUploadStrategyFactory;
 import zas.admin.zec.backend.actions.upload.validation.UploadException;
 import zas.admin.zec.backend.persistence.entity.TempSourceDocumentEntity;
@@ -27,19 +29,19 @@ public class UploadService {
     private final TempSourceDocumentRepository sourceDocumentRepository;
     private final VectorStore vectorStore;
     private final TempSourceDocumentRepository tempSourceDocumentRepository;
-    private final UploadAsyncProcessor uploadAsyncProcessor;
+    private final ApplicationEventPublisher eventPublisher;
 
     public UploadService(AdminDocUploadStrategyFactory adminDocUploadStrategyFactory,
                          TempSourceDocumentRepository sourceDocumentRepository,
                          VectorStore vectorStore,
                          TempSourceDocumentRepository tempSourceDocumentRepository,
-                         UploadAsyncProcessor uploadAsyncProcessor) {
+                         ApplicationEventPublisher eventPublisher) {
 
         this.adminDocUploadStrategyFactory = adminDocUploadStrategyFactory;
         this.sourceDocumentRepository = sourceDocumentRepository;
         this.vectorStore = vectorStore;
         this.tempSourceDocumentRepository = tempSourceDocumentRepository;
-        this.uploadAsyncProcessor = uploadAsyncProcessor;
+        this.eventPublisher = eventPublisher;
     }
 
     public record Doc(String filename, ByteArrayResource content) {}
@@ -62,10 +64,10 @@ public class UploadService {
 
             var savedDoc = tempSourceDocumentRepository.save(personalDoc);
 
-            log.info("Document personnel {} persisté, lancement du traitement d'embedding asynchrone",
+            log.info("Document personnel {} persisté, embedding asynchrone déclenché après commit",
                     document.file().getOriginalFilename());
 
-            uploadAsyncProcessor.processEmbedding(savedDoc.getId());
+            eventPublisher.publishEvent(new PersonalDocumentUploadedEvent(savedDoc.getId()));
         } catch (IOException e) {
             throw new UploadException(document.file().getOriginalFilename(),
                     "Error while uploading personal document", e);
