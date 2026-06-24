@@ -11,6 +11,8 @@ workspace:
       - knowledge_base
     AFAC:
       - afac
+    CSC:
+      - csc
     EAK:
       - eak_website
       - eak_lernbaustein_2024
