@@ -68,14 +68,6 @@ spring:
       max-file-size: 20MB
       max-request-size: 20MB
       file-size-threshold: 2KB
-  ssl:
-    bundle:
-      jks:
-        identity-check-client:
-          keystore:
-            location: ${IDENTITY_CHECK_KEYSTORE_LOC}
-            password: ${IDENTITY_CHECK_KEYSTORE_PASS}
-            type: PKCS12
   ai:
     chat:
       observations:
