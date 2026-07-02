@@ -83,7 +83,8 @@ public class WebClientConfig {
     public RestClient identityCheckRestClient(RestClient.Builder builder, RestClientSsl ssl) {
         RestClient.Builder clientBuilder = builder.baseUrl(identityCheckProperties.baseUrl());
         try {
-            clientBuilder.apply(ssl.fromBundle("identity-check-client"));
+            //TODO keystore broken
+            //clientBuilder.apply(ssl.fromBundle("identity-check-client"));
         } catch (Exception ex) {
             log.error(ex.getMessage(), ex);
         }

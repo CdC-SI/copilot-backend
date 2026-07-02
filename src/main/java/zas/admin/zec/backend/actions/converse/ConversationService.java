@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
@@ -43,7 +44,7 @@ public class ConversationService {
     private final RAGChatService ragChatService;
     private final LlmOcrService ocrService;
     private final WorkspaceProperties workspaceProperties;
-    private final AttachmentAsyncProcessor attachmentAsyncProcessor;
+    private final ApplicationEventPublisher eventPublisher;
     private final TransactionTemplate transactionTemplate;
 
 
@@ -54,7 +55,7 @@ public class ConversationService {
                                @Qualifier("internalChatModel") ChatModel chatModel,
                                LlmOcrService ocrService,
                                WorkspaceProperties workspaceProperties,
-                               AttachmentAsyncProcessor attachmentAsyncProcessor,
+                               ApplicationEventPublisher eventPublisher,
                                TransactionTemplate transactionTemplate) {
 
         this.conversationRepository = conversationRepository;
@@ -64,7 +65,7 @@ public class ConversationService {
         this.ragChatService = ragChatService;
         this.ocrService = ocrService;
         this.workspaceProperties = workspaceProperties;
-        this.attachmentAsyncProcessor = attachmentAsyncProcessor;
+        this.eventPublisher = eventPublisher;
         this.transactionTemplate = transactionTemplate;
     }
 
@@ -170,7 +171,8 @@ public class ConversationService {
 
     /**
      * Persiste immédiatement les pièces jointes (bytes + métadonnées) en statut {@link AttachmentStatus#PENDING},
-     * puis déclenche l'OCR de façon asynchrone via {@link AttachmentAsyncProcessor}.
+     * puis déclenche l'OCR de façon asynchrone via un {@link AttachmentUploadedEvent} traité
+     * après commit par {@link AttachmentAsyncProcessor}.
      *
      * <p><strong>Cycle de vie MultipartFile :</strong> les bytes sont lus et commités en base <em>avant</em>
      * le retour de cette méthode. L'async ne reçoit que l'ID de l'entité et ne touche jamais au
@@ -206,8 +208,9 @@ public class ConversationService {
             return saved;
         });
 
-        // Après commit : déclencher l'OCR async par ID uniquement (jamais le MultipartFile).
-        results.forEach(r -> attachmentAsyncProcessor.processOcr(r.id()));
+        // Publier un événement par pièce jointe : l'OCR async est déclenché AFTER_COMMIT
+        // (jamais le MultipartFile, uniquement l'ID), garantissant la visibilité de la ligne.
+        results.forEach(r -> eventPublisher.publishEvent(new AttachmentUploadedEvent(r.id())));
 
         var attachments = results.stream()
                 .map(r -> new Attachment(r.id(), r.filename(), r.size(), AttachmentStatus.PENDING))

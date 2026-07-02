@@ -3,6 +3,8 @@ package zas.admin.zec.backend.actions.converse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.transaction.support.TransactionTemplate;
 import zas.admin.zec.backend.actions.summarize.LlmOcrService;
 import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
@@ -40,7 +42,18 @@ public class AttachmentAsyncProcessor {
     }
 
     /**
-     * Exécute l'OCR d'une pièce jointe de manière asynchrone.
+     * Listener déclenché après le commit de la transaction d'attache des pièces jointes.
+     * Garantit que l'entité {@code PENDING} est visible en base avant le traitement async,
+     * et évite tout OCR orphelin si la transaction a été rollback.
+     */
+    @Async("asyncExecutor")
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onAttachmentUploaded(AttachmentUploadedEvent event) {
+        processOcr(event.attachmentId());
+    }
+
+    /**
+     * Exécute l'OCR d'une pièce jointe.
      * <ol>
      *   <li>Transaction 1 : charge les bytes depuis la base (le MultipartFile a déjà été libéré)</li>
      *   <li>Hors transaction : appel OCR LLM (pas de connexion DB maintenue)</li>
@@ -50,7 +63,6 @@ public class AttachmentAsyncProcessor {
      *
      * @param attachmentId l'ID de l'entité {@code AttachmentEntity} à traiter
      */
-    @Async("asyncExecutor")
     public void processOcr(Long attachmentId) {
         log.info("Démarrage du traitement OCR asynchrone pour la pièce jointe ID: {}", attachmentId);
 
