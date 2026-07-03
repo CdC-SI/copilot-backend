@@ -17,7 +17,7 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import zas.admin.zec.backend.actions.summarize.LlmOcrService;
 import zas.admin.zec.backend.actions.upload.UploadService;
-import zas.admin.zec.backend.config.properties.WorkspaceProperties;
+import zas.admin.zec.backend.actions.workspace.WorkspaceService;
 import zas.admin.zec.backend.persistence.entity.AttachmentEntity;
 import zas.admin.zec.backend.persistence.entity.ConversationTitleEntity;
 import zas.admin.zec.backend.persistence.entity.MessageEntity;
@@ -43,7 +43,7 @@ public class ConversationService {
     private final ChatClient chatClient;
     private final RAGChatService ragChatService;
     private final LlmOcrService ocrService;
-    private final WorkspaceProperties workspaceProperties;
+    private final WorkspaceService workspaceService;
     private final ApplicationEventPublisher eventPublisher;
     private final TransactionTemplate transactionTemplate;
 
@@ -54,7 +54,7 @@ public class ConversationService {
                                RAGChatService ragChatService,
                                @Qualifier("internalChatModel") ChatModel chatModel,
                                LlmOcrService ocrService,
-                               WorkspaceProperties workspaceProperties,
+                               WorkspaceService workspaceService,
                                ApplicationEventPublisher eventPublisher,
                                TransactionTemplate transactionTemplate) {
 
@@ -64,7 +64,7 @@ public class ConversationService {
         this.chatClient = ChatClient.create(chatModel);
         this.ragChatService = ragChatService;
         this.ocrService = ocrService;
-        this.workspaceProperties = workspaceProperties;
+        this.workspaceService = workspaceService;
         this.eventPublisher = eventPublisher;
         this.transactionTemplate = transactionTemplate;
     }
@@ -97,10 +97,7 @@ public class ConversationService {
             save(message, userId, conversationId);
         }
 
-        var workspace = workspaceProperties.getSources().entrySet().stream()
-                .filter(entry -> entry.getValue().contains(messages.getFirst().source()))
-                .map(Map.Entry::getKey)
-                .findFirst()
+        var workspace = workspaceService.findWorkspaceBySource(messages.getFirst().source())
                 .orElse("");
 
         generateConversationTitle(messages.get(0).message(), messages.get(1).message(), userId, conversationId, messages.get(0).lang(), workspace);
@@ -400,13 +397,13 @@ public class ConversationService {
             entity.setConversationId(conversationId);
             entity.setTitle(title);
             entity.setTimestamp(LocalDateTime.now());
-            entity.setWorkspace(StringUtils.hasLength(workspace) ? workspace : workspaceProperties.getDefaultWorkspace());
+            entity.setWorkspace(StringUtils.hasLength(workspace) ? workspace : workspaceService.getDefaultWorkspace());
 
             conversationTitleRepository.save(entity);
         }
     }
 
     public List<String> getWorkspaces() {
-        return List.copyOf(workspaceProperties.getSources().keySet());
+        return workspaceService.getAllNames();
     }
 }
