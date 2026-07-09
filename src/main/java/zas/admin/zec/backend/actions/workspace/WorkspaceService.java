@@ -11,7 +11,6 @@ import zas.admin.zec.backend.persistence.repository.WorkspaceRepository;
 
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -107,16 +106,6 @@ public class WorkspaceService {
         return workspaceRepository.findAllByOrderByNameAsc().stream()
                 .map(WorkspaceEntity::getName)
                 .toList();
-    }
-
-    /**
-     * Retourne le premier workspace contenant la source donnée, s'il existe.
-     */
-    public Optional<String> findWorkspaceBySource(String sourceName) {
-        if (sourceName == null || sourceName.isBlank()) {
-            return Optional.empty();
-        }
-        return workspaceRepository.findWorkspaceNamesBySourceName(sourceName).stream().findFirst();
     }
 
     /**

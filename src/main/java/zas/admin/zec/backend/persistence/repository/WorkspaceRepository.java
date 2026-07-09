@@ -22,11 +22,4 @@ public interface WorkspaceRepository extends JpaRepository<WorkspaceEntity, Long
             WHERE w.name = :workspaceName
             """)
     List<String> findSourceNamesByWorkspaceName(@Param("workspaceName") String workspaceName);
-
-    @Query("""
-            SELECT w.name FROM WorkspaceEntity w
-            JOIN w.sources s
-            WHERE s.name = :sourceName
-            """)
-    List<String> findWorkspaceNamesBySourceName(@Param("sourceName") String sourceName);
 }
