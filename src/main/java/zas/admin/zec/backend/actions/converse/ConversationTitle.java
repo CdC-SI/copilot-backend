@@ -8,5 +8,4 @@ public record ConversationTitle(
         @JsonAlias("chat_title") String title,
         @JsonAlias("user_uuid") String userId,
         @JsonAlias("conversation_uuid") String conversationId,
-        LocalDateTime timestamp,
-        String workspace) {}
+        LocalDateTime timestamp) {}

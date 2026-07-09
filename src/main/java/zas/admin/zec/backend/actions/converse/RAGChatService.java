@@ -15,6 +15,7 @@ import zas.admin.zec.backend.rag.RAGPrompts;
 import zas.admin.zec.backend.rag.token.SourceToken;
 import zas.admin.zec.backend.rag.token.TextToken;
 import zas.admin.zec.backend.rag.token.Token;
+import zas.admin.zec.backend.rag.token.WorkspaceToken;
 import zas.admin.zec.backend.tools.ConversationAttachmentTool;
 import zas.admin.zec.backend.tools.RAGTool;
 import zas.admin.zec.backend.tools.ToolContextKeys;
@@ -23,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Service de conversation "agentique" : un unique {@link ChatClient} auquel sont attribués le tool
@@ -64,6 +66,10 @@ public class RAGChatService {
         // avant/pendant leur traitement, pour notifier le frontend en temps réel.
         Sinks.Many<Token> statusSink = Sinks.many().unicast().onBackpressureBuffer();
 
+        // Référence partagée dans laquelle RAGTool dépose le workspace effectivement utilisé
+        // (connu dès le départ, ou inféré s'il était absent du contexte).
+        AtomicReference<String> resolvedWorkspace = new AtomicReference<>();
+
         Map<String, Object> toolContext = new HashMap<>();
         toolContext.put(ToolContextKeys.CTX_USER_ID, userId);
         toolContext.put(ToolContextKeys.CTX_LANGUAGE, question.language());
@@ -71,6 +77,7 @@ public class RAGChatService {
         toolContext.put(ToolContextKeys.CTX_CONVERSATION_ID, question.conversationId());
         toolContext.put(ToolContextKeys.CTX_RETRIEVED_DOCUMENTS, retrievedDocuments);
         toolContext.put(ToolContextKeys.CTX_STATUS_SINK, statusSink);
+        toolContext.put(ToolContextKeys.CTX_RESOLVED_WORKSPACE, resolvedWorkspace);
 
         Flux<Token> textTokens = internalChatClient
                 .prompt()
@@ -87,9 +94,14 @@ public class RAGChatService {
         // Les sources ne sont connues qu'après la génération (si le tool a été appelé).
         Flux<Token> sourceTokens = Flux.defer(() -> toSourceTokens(retrievedDocuments));
 
+        // De même pour le workspace résolu par RAGTool, s'il a été appelé.
+        Flux<Token> workspaceToken = Flux.defer(() -> resolvedWorkspace.get() != null
+                ? Flux.just(new WorkspaceToken(resolvedWorkspace.get()))
+                : Flux.empty());
+
         // statusSink.asFlux() émet les StatusToken produits pendant le tool-calling,
         // avant et pendant que textTokens streame la réponse du LLM.
-        return statusSink.asFlux().mergeWith(textTokens).concatWith(sourceTokens);
+        return statusSink.asFlux().mergeWith(textTokens).concatWith(sourceTokens).concatWith(workspaceToken);
     }
 
     private String agenticSystemPrompt(Question question) {

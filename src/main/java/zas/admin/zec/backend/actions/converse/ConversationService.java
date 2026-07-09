@@ -29,6 +29,7 @@ import zas.admin.zec.backend.rag.token.*;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
 @Service
@@ -82,7 +83,7 @@ public class ConversationService {
     public List<ConversationTitle> getTitlesByUserId(String userId) {
         return conversationTitleRepository.findByUserIdOrderByTimestamp(userId)
                 .stream()
-                .map(title -> new ConversationTitle(title.getTitle(), title.getUserId(), title.getConversationId(), title.getTimestamp(), title.getWorkspace()))
+                .map(title -> new ConversationTitle(title.getTitle(), title.getUserId(), title.getConversationId(), title.getTimestamp()))
                 .toList();
     }
 
@@ -133,8 +134,16 @@ public class ConversationService {
         StringBuilder assistantMessage = new StringBuilder();
         Set<Source> sources = new HashSet<>();
         Set<String> suggestions = new HashSet<>();
+        AtomicReference<String> resolvedWorkspace = new AtomicReference<>();
 
-        return getTokenStream(question, userId)
+        // Le workspace choisi lors d'un tour précédent de la même conversation est réutilisé
+        // (mémorisé sur ConversationTitleEntity) afin d'éviter de relancer une inférence LLM à
+        // chaque message ; sinon RAGTool infère lui-même le workspace le plus pertinent.
+        var effectiveQuestion = question.workspace() != null && !question.workspace().isBlank()
+                ? question
+                : question.toBuilder().workspace(findStoredWorkspace(userId, question.conversationId())).build();
+
+        return getTokenStream(effectiveQuestion, userId)
                 .flatMap(token -> switch (token) {
                     case StatusToken statusToken -> Flux.just(statusToken.content());
                     case SuggestionToken suggestionToken -> {
@@ -149,6 +158,10 @@ public class ConversationService {
                         }
                         yield Flux.empty();
                     }
+                    case WorkspaceToken workspaceToken -> {
+                        resolvedWorkspace.set(workspaceToken.name());
+                        yield Flux.just(workspaceToken.content());
+                    }
                     case TextToken textToken -> {
                         assistantMessage.append(textToken.content());
                         yield Flux.just(textToken.content());
@@ -156,14 +169,26 @@ public class ConversationService {
                 })
                 .concatWithValues("<message_uuid>%s</message_uuid>".formatted(assistantMessageId))
                 .concatWith(
-                        Mono.fromRunnable(() -> saveExchange(question, userId, assistantMessageId, assistantMessage.toString(),
-                                        sources, suggestions, timestamp))
+                        Mono.fromRunnable(() -> saveExchange(effectiveQuestion, userId, assistantMessageId, assistantMessage.toString(),
+                                        sources, suggestions, timestamp, resolvedWorkspace.get()))
                                 .subscribeOn(Schedulers.boundedElastic())
                                 .then(Mono.empty()))
                 .onErrorResume(err -> {
                     log.error(err.getMessage(), err);
                     return Flux.just("<error>%s</error>".formatted(err.getMessage()));
                 });
+    }
+
+    /**
+     * Recherche le workspace mémorisé pour une conversation existante (tour précédent), afin que
+     * {@link RAGTool} n'ait pas à réinférer le workspace à chaque message. Retourne une chaîne vide
+     * si la conversation est nouvelle ou n'a pas encore de workspace résolu.
+     */
+    private String findStoredWorkspace(String userId, String conversationId) {
+        return conversationTitleRepository.findByUserIdAndConversationId(userId, conversationId)
+                .map(ConversationTitleEntity::getWorkspace)
+                .filter(StringUtils::hasLength)
+                .orElse("");
     }
 
     /**
@@ -251,7 +276,7 @@ public class ConversationService {
     }
 
     private void saveExchange(Question question, String userId, String assistantMessageId, String answer, Set<Source> sources,
-                              Set<String> suggestions, LocalDateTime userMessageTimestamp) {
+                              Set<String> suggestions, LocalDateTime userMessageTimestamp, String resolvedWorkspace) {
 
         var userMessage = new Message(UUID.randomUUID().toString(), userId, question.conversationId(), null,
                 question.language(), question.query(), "USER", null, null, userMessageTimestamp);
@@ -260,7 +285,8 @@ public class ConversationService {
 
         save(userMessage, userId, question.conversationId());
         save(assistantMessage, userId, question.conversationId());
-        generateConversationTitle(question.query(), answer, userId, question.conversationId(), question.language(), question.workspace());
+        generateConversationTitle(question.query(), answer, userId, question.conversationId(), question.language(), resolvedWorkspace);
+        syncConversationWorkspace(userId, question.conversationId(), resolvedWorkspace);
     }
 
     private List<Message> getConversationHistory(String conversationId, String userId, Limit limit) {
@@ -401,6 +427,25 @@ public class ConversationService {
 
             conversationTitleRepository.save(entity);
         }
+    }
+
+    /**
+     * Met à jour le workspace mémorisé d'une conversation déjà existante si le workspace résolu
+     * pour ce tour diffère de celui enregistré (ex. première inférence effectuée après la création
+     * du titre, ou correction d'une inférence précédente). Sans effet si aucun titre n'existe
+     * encore (il sera créé avec le bon workspace par {@link #generateConversationTitle}) ou si
+     * aucun workspace n'a été résolu pour ce tour.
+     */
+    private void syncConversationWorkspace(String userId, String conversationId, String resolvedWorkspace) {
+        if (!StringUtils.hasLength(resolvedWorkspace)) {
+            return;
+        }
+        conversationTitleRepository.findByUserIdAndConversationId(userId, conversationId)
+                .filter(entity -> !resolvedWorkspace.equals(entity.getWorkspace()))
+                .ifPresent(entity -> {
+                    entity.setWorkspace(resolvedWorkspace);
+                    conversationTitleRepository.save(entity);
+                });
     }
 
     public List<String> getWorkspaces() {

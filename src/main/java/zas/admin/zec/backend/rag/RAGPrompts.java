@@ -583,6 +583,56 @@ public final class RAGPrompts {
             </formato_di_risposta>
             """;
 
+    private static final String WORKSPACE_INFERENCE_FR = """
+            Tu es un classificateur dont le seul rôle est d'identifier, parmi une liste de "workspaces" \
+            (espaces documentaires thématiques), celui qui correspond le mieux à la question posée par \
+            l'utilisateur.
+
+            Voici la liste des workspaces disponibles, chacun avec son nom, sa description et des exemples \
+            de questions auxquelles il permet de répondre :
+            %s
+
+            Règles strictes :
+            - Réponds UNIQUEMENT avec le nom exact d'un des workspaces listés ci-dessus, sans aucune \
+            explication, ponctuation ou texte additionnel.
+            - Si la question correspond clairement à la thématique d'un workspace, réponds avec son nom.
+            - Si la question est trop générale, ambiguë, transverse, ou ne correspond clairement à aucun \
+            workspace thématique spécifique, réponds exactement : %s
+            """;
+
+    private static final String WORKSPACE_INFERENCE_DE = """
+            Du bist ein Klassifikator, dessen einzige Aufgabe darin besteht, unter einer Liste von \
+            "Workspaces" (thematischen Dokumentenbereichen) denjenigen zu identifizieren, der am besten \
+            zur Frage des Benutzers passt.
+
+            Hier ist die Liste der verfügbaren Workspaces, jeweils mit Name, Beschreibung und \
+            Beispielfragen, die er beantworten kann:
+            %s
+
+            Strikte Regeln:
+            - Antworte NUR mit dem exakten Namen eines der oben aufgeführten Workspaces, ohne jegliche \
+            Erklärung, Interpunktion oder zusätzlichen Text.
+            - Wenn die Frage eindeutig zum Thema eines Workspace passt, antworte mit dessen Namen.
+            - Wenn die Frage zu allgemein, mehrdeutig, themenübergreifend ist oder eindeutig zu keinem \
+            spezifischen thematischen Workspace passt, antworte exakt: %s
+            """;
+
+    private static final String WORKSPACE_INFERENCE_IT = """
+            Sei un classificatore il cui unico compito è identificare, tra un elenco di "workspace" \
+            (spazi documentali tematici), quello che meglio corrisponde alla domanda posta dall'utente.
+
+            Ecco l'elenco degli workspace disponibili, ciascuno con nome, descrizione ed esempi di \
+            domande a cui permette di rispondere:
+            %s
+
+            Regole rigorose:
+            - Rispondi SOLO con il nome esatto di uno degli workspace elencati sopra, senza alcuna \
+            spiegazione, punteggiatura o testo aggiuntivo.
+            - Se la domanda corrisponde chiaramente al tema di un workspace, rispondi con il suo nome.
+            - Se la domanda è troppo generale, ambigua, trasversale, o non corrisponde chiaramente a \
+            nessun workspace tematico specifico, rispondi esattamente: %s
+            """;
+
     private RAGPrompts() {
     }
 
@@ -623,6 +673,14 @@ public final class RAGPrompts {
             case "fr" -> RAG_QUERY_EXPANDER_FR;
             case "it" -> RAG_QUERY_EXPANDER_IT;
             default -> RAG_QUERY_EXPANDER_DE;
+        };
+    }
+
+    public static String getWorkspaceInferenceTemplate(String lang) {
+        return switch (lang) {
+            case "fr" -> WORKSPACE_INFERENCE_FR;
+            case "it" -> WORKSPACE_INFERENCE_IT;
+            default -> WORKSPACE_INFERENCE_DE;
         };
     }
 }

@@ -49,6 +49,15 @@ public final class ToolContextKeys {
     public static final String CTX_RETRIEVED_DOCUMENTS = "retrievedDocuments";
 
     /**
+     * Clé d'un {@link java.util.concurrent.atomic.AtomicReference}{@code <}{@link String}{@code >}
+     * fourni par l'appelant. {@link zas.admin.zec.backend.tools.RAGTool} y dépose le nom du
+     * workspace effectivement utilisé (connu dès le départ, ou inféré s'il était absent du
+     * contexte), afin que l'appelant puisse reconstruire un
+     * {@link zas.admin.zec.backend.rag.token.WorkspaceToken} une fois la génération terminée.
+     */
+    public static final String CTX_RESOLVED_WORKSPACE = "resolvedWorkspace";
+
+    /**
      * Clé d'un {@link Sinks.Many}{@code <}{@link Token}{@code >} fourni par l'appelant.
      * Les tools y émettent des {@link StatusToken} <em>avant</em> leur traitement afin de
      * notifier le frontend en temps réel (retrieval, OCR, tool-calling…) via le flux SSE.
