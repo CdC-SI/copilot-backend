@@ -28,6 +28,7 @@ import zas.admin.zec.backend.rag.token.*;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
 @Service
@@ -130,10 +131,13 @@ public class ConversationService {
         Set<Source> sources = new HashSet<>();
         Set<String> suggestions = new HashSet<>();
 
-        // Le workspace ne provient que de la Question elle-même si elle en porte un ; une
-        // conversation n'est pas figée sur un seul workspace (une question suivante peut viser un
-        // tout autre workspace). À défaut, RAGTool infère lui-même le workspace le plus pertinent
-        // pour cette question précise, à chaque appel.
+        // Le workspace de ce message : celui fourni explicitement par l'utilisateur s'il y en a
+        // un, sinon celui inféré par RAGTool (WorkspaceToken) s'il a été invoqué, sinon null (le
+        // tool de recherche documentaire n'a pas été appelé pour ce message). La question et la
+        // réponse d'un même échange partagent toujours le même workspace.
+        AtomicReference<String> workspace = new AtomicReference<>(
+                question.workspace() != null && !question.workspace().isBlank() ? question.workspace() : null);
+
         return getTokenStream(question, userId)
                 .flatMap(token -> switch (token) {
                     case StatusToken statusToken -> Flux.just(statusToken.content());
@@ -149,7 +153,10 @@ public class ConversationService {
                         }
                         yield Flux.empty();
                     }
-                    case WorkspaceToken workspaceToken -> Flux.just(workspaceToken.content());
+                    case WorkspaceToken workspaceToken -> {
+                        workspace.set(workspaceToken.name());
+                        yield Flux.just(workspaceToken.content());
+                    }
                     case TextToken textToken -> {
                         assistantMessage.append(textToken.content());
                         yield Flux.just(textToken.content());
@@ -158,7 +165,7 @@ public class ConversationService {
                 .concatWithValues("<message_uuid>%s</message_uuid>".formatted(assistantMessageId))
                 .concatWith(
                         Mono.fromRunnable(() -> saveExchange(question, userId, assistantMessageId, assistantMessage.toString(),
-                                        sources, suggestions, timestamp))
+                                        sources, suggestions, timestamp, workspace.get()))
                                 .subscribeOn(Schedulers.boundedElastic())
                                 .then(Mono.empty()))
                 .onErrorResume(err -> {
@@ -252,12 +259,12 @@ public class ConversationService {
     }
 
     private void saveExchange(Question question, String userId, String assistantMessageId, String answer, Set<Source> sources,
-                              Set<String> suggestions, LocalDateTime userMessageTimestamp) {
+                              Set<String> suggestions, LocalDateTime userMessageTimestamp, String resolvedWorkspace) {
 
         var userMessage = new Message(UUID.randomUUID().toString(), userId, question.conversationId(), null,
-                question.language(), question.query(), "USER", null, null, userMessageTimestamp);
+                question.language(), question.query(), "USER", null, null, userMessageTimestamp, resolvedWorkspace);
         var assistantMessage = new Message(assistantMessageId, userId, question.conversationId(), null,
-                question.language(), answer, "LLM", sources.stream().toList(), suggestions.stream().toList(), LocalDateTime.now());
+                question.language(), answer, "LLM", sources.stream().toList(), suggestions.stream().toList(), LocalDateTime.now(), resolvedWorkspace);
 
         save(userMessage, userId, question.conversationId());
         save(assistantMessage, userId, question.conversationId());
@@ -279,7 +286,8 @@ public class ConversationService {
                                 .map(this::fromSourceString)
                                 .toList(),
                         List.of(message.getSuggestions()),
-                        message.getTimestamp()
+                        message.getTimestamp(),
+                        message.getWorkspace()
                 ))
                 .toList();
     }
@@ -331,6 +339,7 @@ public class ConversationService {
         entity.setSuggestions(Objects.isNull(message.suggestions())
                 ? new String[0]
                 : message.suggestions().toArray(String[]::new));
+        entity.setWorkspace(message.workspace());
 
         conversationRepository.save(entity);
     }

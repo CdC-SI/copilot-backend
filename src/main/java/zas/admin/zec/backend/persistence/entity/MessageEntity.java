@@ -56,4 +56,12 @@ public class MessageEntity {
     @Type(IntArrayType.class)
     @Column(name = "retrieved_docs", columnDefinition = "integer[]")
     private int[] retrievedDocs;
+
+    /**
+     * Workspace utilisé pour répondre à ce message : fourni explicitement dans la {@code Question},
+     * inféré par {@code RAGTool}, ou {@code null} si aucun n'a été résolu (ex. le tool de recherche
+     * documentaire n'a pas été invoqué pour ce message).
+     */
+    @Column(name = "workspace")
+    private String workspace;
 }
