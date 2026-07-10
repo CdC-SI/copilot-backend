@@ -12,7 +12,8 @@ public record Question(
     String workspace,
     String responseStyle,
     String responseFormat,
-    String conversationId) {
+    String conversationId,
+    Boolean ragEnabled) {
 
     public Question withDefaults() {
         return new Question(
@@ -21,7 +22,9 @@ public record Question(
             this.workspace() != null ? this.workspace() : "",
             this.responseStyle() != null ? this.responseStyle() : "DETAILED",
             this.responseFormat() != null ? this.responseFormat() : "COMPLETE",
-            this.conversationId() != null ? this.conversationId() : UUID.randomUUID().toString()
+            this.conversationId() != null ? this.conversationId() : UUID.randomUUID().toString(),
+            // Rétrocompatibilité : si absent, toutes les fonctionnalités (RAG + Attachment) sont actives.
+            this.ragEnabled() != null ? this.ragEnabled() : Boolean.TRUE
         );
     }
 }
