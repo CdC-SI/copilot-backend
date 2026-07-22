@@ -23,7 +23,7 @@ workspace:
       - ofas_wel
       - ofas_ks_adope
       - ofas_wl_famzreg
-      - ofas_flg_erläuterungen
+      - ofas_flg_erlauterungen
       - fedlex_ahvv
       - fedlex_famzg
       - fedlex_famzv
