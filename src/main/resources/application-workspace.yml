@@ -14,17 +14,20 @@ workspace:
     CSC:
       - csc
     EAK:
+      - ahv_iv_mementos
       - eak_website
       - eak_lernbaustein_2024
       - eak_praxisleitfaden_fz_2024
       - ofas_famzwl
       - ofas_wsn
-      - ofas_famzg
-      - ofas_ahvv
       - ofas_wel
       - ofas_ks_adope
-      - ofas_famzv
-      - ofas_eog
+      - ofas_wl_famzreg
+      - ofas_flg_erläuterungen
+      - fedlex_ahvv
+      - fedlex_famzg
+      - fedlex_famzv
+      - fedlex_eog
     LOIS_AI:
       - lpga
       - lai
