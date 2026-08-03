@@ -8,16 +8,14 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import zas.admin.zec.backend.actions.upload.model.DocumentToUpload;
-import zas.admin.zec.backend.actions.upload.model.EmbeddingStatus;
-import zas.admin.zec.backend.actions.upload.model.PersonalDoc;
-import zas.admin.zec.backend.actions.upload.model.PersonalDocumentUploadedEvent;
+import zas.admin.zec.backend.actions.upload.model.*;
 import zas.admin.zec.backend.actions.upload.strategy.AdminDocUploadStrategyFactory;
 import zas.admin.zec.backend.actions.upload.validation.UploadException;
 import zas.admin.zec.backend.persistence.entity.TempSourceDocumentEntity;
 import zas.admin.zec.backend.persistence.repository.TempSourceDocumentRepository;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -30,18 +28,21 @@ public class UploadService {
     private final VectorStore vectorStore;
     private final TempSourceDocumentRepository tempSourceDocumentRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final DocumentRetentionConfigService retentionConfigService;
 
     public UploadService(AdminDocUploadStrategyFactory adminDocUploadStrategyFactory,
                          TempSourceDocumentRepository sourceDocumentRepository,
                          VectorStore vectorStore,
                          TempSourceDocumentRepository tempSourceDocumentRepository,
-                         ApplicationEventPublisher eventPublisher) {
+                         ApplicationEventPublisher eventPublisher,
+                         DocumentRetentionConfigService retentionConfigService) {
 
         this.adminDocUploadStrategyFactory = adminDocUploadStrategyFactory;
         this.sourceDocumentRepository = sourceDocumentRepository;
         this.vectorStore = vectorStore;
         this.tempSourceDocumentRepository = tempSourceDocumentRepository;
         this.eventPublisher = eventPublisher;
+        this.retentionConfigService = retentionConfigService;
     }
 
     public record Doc(String filename, ByteArrayResource content) {}
@@ -61,6 +62,7 @@ public class UploadService {
             personalDoc.setUserUuid(userUuid);
             personalDoc.setUploadedAt(LocalDateTime.now());
             personalDoc.setStatus(EmbeddingStatus.PENDING);
+            personalDoc.setAvailabilityStatus(AvailabilityStatus.ACTIVE);
 
             var savedDoc = tempSourceDocumentRepository.save(personalDoc);
 
@@ -75,10 +77,61 @@ public class UploadService {
     }
 
     public List<PersonalDoc> getUserPersonalDocs(String userUuid) {
+        var retentionConfig = retentionConfigService.get();
         return tempSourceDocumentRepository.findAllByUserUuid(userUuid)
                 .stream()
-                .map(doc -> new PersonalDoc(doc.getFileName(), doc.getUploadedAt(), doc.getStatus()))
+                .map(doc -> new PersonalDoc(
+                        doc.getFileName(),
+                        doc.getUploadedAt(),
+                        doc.getStatus(),
+                        doc.getAvailabilityStatus(),
+                        computeTimeToLiveInDays(doc, retentionConfig)))
                 .toList();
+    }
+
+    /**
+     * Calcule le nombre de jours restants avant la suppression physique du document.
+     * <ul>
+     *   <li>ACTIF : {@code uploadedAt + joursAvantArchivage + joursAvantSuppression - now}</li>
+     *   <li>ARCHIVÉ : {@code archivedAt + joursAvantSuppression - now}</li>
+     * </ul>
+     * La valeur est bornée à 0 (jamais négative).
+     */
+    private Long computeTimeToLiveInDays(TempSourceDocumentEntity doc, DocumentRetentionConfig config) {
+        LocalDateTime deletionDate = switch (doc.getAvailabilityStatus()) {
+            case ARCHIVED -> doc.getArchivedAt() != null
+                    ? doc.getArchivedAt().plusDays(config.daysBeforeDeletion())
+                    : null;
+            case ACTIVE -> doc.getUploadedAt() != null
+                    ? doc.getUploadedAt()
+                        .plusDays(config.daysBeforeArchival())
+                        .plusDays(config.daysBeforeDeletion())
+                    : null;
+        };
+
+        if (deletionDate == null) {
+            return null;
+        }
+
+        long days = Duration.between(LocalDateTime.now(), deletionDate).toDays();
+        return Math.max(0, days);
+    }
+
+    @Transactional
+    public void reactivatePersonalDocument(String filename, String userUuid) {
+        var docEntity = tempSourceDocumentRepository.findByFileNameAndUserUuid(filename, userUuid)
+                .orElseThrow(() -> new IllegalArgumentException(String.format("Document %s not found", filename)));
+
+        if (docEntity.getAvailabilityStatus() == AvailabilityStatus.ACTIVE) {
+            throw new IllegalStateException(String.format("Document %s is already active", filename));
+        }
+
+        docEntity.setAvailabilityStatus(AvailabilityStatus.ACTIVE);
+        docEntity.setArchivedAt(null);
+        docEntity.setUploadedAt(LocalDateTime.now());
+        tempSourceDocumentRepository.save(docEntity);
+
+        log.info("Document personnel {} réactivé pour l'utilisateur {}", filename, userUuid);
     }
 
     @Transactional
