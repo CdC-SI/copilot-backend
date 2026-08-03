@@ -103,9 +103,30 @@ class UploadServiceTest {
         assertEquals(1, result.size());
         assertEquals("file.pdf", result.get(0).title());
         assertEquals(AvailabilityStatus.ACTIVE, result.get(0).availabilityStatus());
-        // Actif : uploadé maintenant -> ~60 jours restants avant suppression (30 + 30).
+        // Actif : uploadé maintenant -> ~30 jours restants avant archivage.
         assertNotNull(result.get(0).timeToLiveInDays());
-        assertTrue(result.get(0).timeToLiveInDays() <= 60 && result.get(0).timeToLiveInDays() >= 58);
+        assertTrue(result.get(0).timeToLiveInDays() <= 30 && result.get(0).timeToLiveInDays() >= 28);
+    }
+
+    @Test
+    @DisplayName("getUserPersonalDocs returns days before deletion for archived docs")
+    void getUserPersonalDocs_returnsDaysBeforeDeletion_forArchivedDocs() {
+        TempSourceDocumentEntity doc = new TempSourceDocumentEntity();
+        doc.setFileName("archived.pdf");
+        doc.setUploadedAt(LocalDateTime.now().minusDays(40));
+        doc.setStatus(EmbeddingStatus.PROCESSED);
+        doc.setAvailabilityStatus(AvailabilityStatus.ARCHIVED);
+        doc.setArchivedAt(LocalDateTime.now().minusDays(5));
+
+        when(tempSourceDocumentRepository.findAllByUserUuid("uuid")).thenReturn(List.of(doc));
+        when(retentionConfigService.get()).thenReturn(new DocumentRetentionConfig(30, 30));
+
+        List<PersonalDoc> result = uploadService.getUserPersonalDocs("uuid");
+
+        assertEquals(AvailabilityStatus.ARCHIVED, result.get(0).availabilityStatus());
+        // Archivé depuis 5 jours -> ~25 jours restants avant suppression (30 - 5).
+        assertNotNull(result.get(0).timeToLiveInDays());
+        assertTrue(result.get(0).timeToLiveInDays() <= 25 && result.get(0).timeToLiveInDays() >= 23);
     }
 
     @Test

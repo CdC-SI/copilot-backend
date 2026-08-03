@@ -90,30 +90,28 @@ public class UploadService {
     }
 
     /**
-     * Calcule le nombre de jours restants avant la suppression physique du document.
+     * Calcule le nombre de jours restants avant le prochain changement d'état du document.
      * <ul>
-     *   <li>ACTIF : {@code uploadedAt + joursAvantArchivage + joursAvantSuppression - now}</li>
-     *   <li>ARCHIVÉ : {@code archivedAt + joursAvantSuppression - now}</li>
+     *   <li>ACTIF : jours avant archivage ({@code uploadedAt + joursAvantArchivage - now})</li>
+     *   <li>ARCHIVÉ : jours avant suppression ({@code archivedAt + joursAvantSuppression - now})</li>
      * </ul>
      * La valeur est bornée à 0 (jamais négative).
      */
     private Long computeTimeToLiveInDays(TempSourceDocumentEntity doc, DocumentRetentionConfig config) {
-        LocalDateTime deletionDate = switch (doc.getAvailabilityStatus()) {
+        LocalDateTime nextTransitionDate = switch (doc.getAvailabilityStatus()) {
+            case ACTIVE -> doc.getUploadedAt() != null
+                    ? doc.getUploadedAt().plusDays(config.daysBeforeArchival())
+                    : null;
             case ARCHIVED -> doc.getArchivedAt() != null
                     ? doc.getArchivedAt().plusDays(config.daysBeforeDeletion())
                     : null;
-            case ACTIVE -> doc.getUploadedAt() != null
-                    ? doc.getUploadedAt()
-                        .plusDays(config.daysBeforeArchival())
-                        .plusDays(config.daysBeforeDeletion())
-                    : null;
         };
 
-        if (deletionDate == null) {
+        if (nextTransitionDate == null) {
             return null;
         }
 
-        long days = Duration.between(LocalDateTime.now(), deletionDate).toDays();
+        long days = Duration.between(LocalDateTime.now(), nextTransitionDate).toDays();
         return Math.max(0, days);
     }
 
