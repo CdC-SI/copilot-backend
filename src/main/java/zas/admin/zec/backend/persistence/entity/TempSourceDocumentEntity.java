@@ -36,7 +36,7 @@ public class TempSourceDocumentEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "availability_status", nullable = false)
-    private AvailabilityStatus availabilityStatus;
+    private AvailabilityStatus availabilityStatus = AvailabilityStatus.ACTIVE;
 
     @Column(name = "archived_at")
     private LocalDateTime archivedAt;
