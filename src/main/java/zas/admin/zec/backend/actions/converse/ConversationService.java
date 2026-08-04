@@ -10,14 +10,13 @@ import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
-import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import zas.admin.zec.backend.actions.summarize.LlmOcrService;
 import zas.admin.zec.backend.actions.upload.UploadService;
-import zas.admin.zec.backend.config.properties.WorkspaceProperties;
+import zas.admin.zec.backend.actions.workspace.WorkspaceService;
 import zas.admin.zec.backend.persistence.entity.AttachmentEntity;
 import zas.admin.zec.backend.persistence.entity.ConversationTitleEntity;
 import zas.admin.zec.backend.persistence.entity.MessageEntity;
@@ -29,6 +28,7 @@ import zas.admin.zec.backend.rag.token.*;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
 @Service
@@ -41,9 +41,9 @@ public class ConversationService {
     private final ConversationTitleRepository conversationTitleRepository;
     private final AttachmentRepository attachmentRepository;
     private final ChatClient chatClient;
-    private final RAGChatService ragChatService;
+    private final ChatServiceFactory chatServiceFactory;
     private final LlmOcrService ocrService;
-    private final WorkspaceProperties workspaceProperties;
+    private final WorkspaceService workspaceService;
     private final ApplicationEventPublisher eventPublisher;
     private final TransactionTemplate transactionTemplate;
 
@@ -51,10 +51,10 @@ public class ConversationService {
     public ConversationService(ConversationRepository conversationRepository,
                                ConversationTitleRepository conversationTitleRepository,
                                AttachmentRepository attachmentRepository,
-                               RAGChatService ragChatService,
+                               ChatServiceFactory chatServiceFactory,
                                @Qualifier("internalChatModel") ChatModel chatModel,
                                LlmOcrService ocrService,
-                               WorkspaceProperties workspaceProperties,
+                               WorkspaceService workspaceService,
                                ApplicationEventPublisher eventPublisher,
                                TransactionTemplate transactionTemplate) {
 
@@ -62,9 +62,9 @@ public class ConversationService {
         this.conversationTitleRepository = conversationTitleRepository;
         this.attachmentRepository = attachmentRepository;
         this.chatClient = ChatClient.create(chatModel);
-        this.ragChatService = ragChatService;
+        this.chatServiceFactory = chatServiceFactory;
         this.ocrService = ocrService;
-        this.workspaceProperties = workspaceProperties;
+        this.workspaceService = workspaceService;
         this.eventPublisher = eventPublisher;
         this.transactionTemplate = transactionTemplate;
     }
@@ -82,7 +82,7 @@ public class ConversationService {
     public List<ConversationTitle> getTitlesByUserId(String userId) {
         return conversationTitleRepository.findByUserIdOrderByTimestamp(userId)
                 .stream()
-                .map(title -> new ConversationTitle(title.getTitle(), title.getUserId(), title.getConversationId(), title.getTimestamp(), title.getWorkspace()))
+                .map(title -> new ConversationTitle(title.getTitle(), title.getUserId(), title.getConversationId(), title.getConversationType(), title.getTimestamp()))
                 .toList();
     }
 
@@ -97,13 +97,9 @@ public class ConversationService {
             save(message, userId, conversationId);
         }
 
-        var workspace = workspaceProperties.getSources().entrySet().stream()
-                .filter(entry -> entry.getValue().contains(messages.getFirst().source()))
-                .map(Map.Entry::getKey)
-                .findFirst()
-                .orElse("");
-
-        generateConversationTitle(messages.get(0).message(), messages.get(1).message(), userId, conversationId, messages.get(0).lang(), workspace);
+        // Flux FAQ : pas de notion de ragEnabled, conversation toujours de type COMPLETE.
+        generateConversationTitle(messages.get(0).message(), messages.get(1).message(), userId, conversationId,
+                messages.get(0).lang(), ConversationType.COMPLETE);
     }
 
     public void update(String userUuid, String conversationId, List<FAQMessage> messages) {
@@ -137,7 +133,19 @@ public class ConversationService {
         Set<Source> sources = new HashSet<>();
         Set<String> suggestions = new HashSet<>();
 
-        return getTokenStream(question, userId)
+        // Type de la conversation : figé à sa création (1re question), immuable ensuite.
+        // Pour une conversation existante, on réutilise le type persisté ; pour une nouvelle
+        // conversation, on conserve l'usage actuel du flag ragEnabled.
+        ConversationType conversationType = resolveConversationType(question, userId);
+
+        // Le workspace de ce message : celui fourni explicitement par l'utilisateur s'il y en a
+        // un, sinon celui inféré par RAGTool (WorkspaceToken) s'il a été invoqué, sinon null (le
+        // tool de recherche documentaire n'a pas été appelé pour ce message). La question et la
+        // réponse d'un même échange partagent toujours le même workspace.
+        AtomicReference<String> workspace = new AtomicReference<>(
+                question.workspace() != null && !question.workspace().isBlank() ? question.workspace() : null);
+
+        return getTokenStream(question, userId, conversationType)
                 .flatMap(token -> switch (token) {
                     case StatusToken statusToken -> Flux.just(statusToken.content());
                     case SuggestionToken suggestionToken -> {
@@ -152,6 +160,10 @@ public class ConversationService {
                         }
                         yield Flux.empty();
                     }
+                    case WorkspaceToken workspaceToken -> {
+                        workspace.set(workspaceToken.name());
+                        yield Flux.just(workspaceToken.content());
+                    }
                     case TextToken textToken -> {
                         assistantMessage.append(textToken.content());
                         yield Flux.just(textToken.content());
@@ -160,13 +172,27 @@ public class ConversationService {
                 .concatWithValues("<message_uuid>%s</message_uuid>".formatted(assistantMessageId))
                 .concatWith(
                         Mono.fromRunnable(() -> saveExchange(question, userId, assistantMessageId, assistantMessage.toString(),
-                                        sources, suggestions, timestamp))
+                                        sources, suggestions, timestamp, workspace.get(), conversationType))
                                 .subscribeOn(Schedulers.boundedElastic())
                                 .then(Mono.empty()))
                 .onErrorResume(err -> {
                     log.error(err.getMessage(), err);
                     return Flux.just("<error>%s</error>".formatted(err.getMessage()));
                 });
+    }
+
+    /**
+     * Détermine le {@link ConversationType} applicable à la question courante : si la
+     * conversation existe déjà (ligne {@code chat_title} présente), son type persisté est
+     * réutilisé tel quel (immutable) ; sinon (nouvelle conversation), le type est dérivé du
+     * flag {@link Question#ragEnabled()} fourni par le client, comme actuellement.
+     */
+    private ConversationType resolveConversationType(Question question, String userId) {
+        return conversationTitleRepository.findByUserIdAndConversationId(userId, question.conversationId())
+                .map(ConversationTitleEntity::getConversationType)
+                .orElseGet(() -> question.ragEnabled() != null && !question.ragEnabled()
+                        ? ConversationType.NO_RAG
+                        : ConversationType.COMPLETE);
     }
 
     /**
@@ -247,23 +273,24 @@ public class ConversationService {
         attachmentRepository.deleteByIdAndUserId(attachmentId, userId);
     }
 
-    private Flux<Token> getTokenStream(Question question, String userId) {
+    private Flux<Token> getTokenStream(Question question, String userId, ConversationType conversationType) {
         return Mono.fromCallable(() -> getConversationHistory(question.conversationId(), userId, Limit.unlimited()))
                 .subscribeOn(Schedulers.boundedElastic())
-                .flatMapMany(history -> ragChatService.answer(question, userId, history));
+                .flatMapMany(history -> chatServiceFactory.resolve(conversationType).answer(question, userId, history));
     }
 
     private void saveExchange(Question question, String userId, String assistantMessageId, String answer, Set<Source> sources,
-                              Set<String> suggestions, LocalDateTime userMessageTimestamp) {
+                              Set<String> suggestions, LocalDateTime userMessageTimestamp, String resolvedWorkspace,
+                              ConversationType conversationType) {
 
         var userMessage = new Message(UUID.randomUUID().toString(), userId, question.conversationId(), null,
-                question.language(), question.query(), "USER", null, null, userMessageTimestamp);
+                question.language(), question.query(), "USER", null, null, userMessageTimestamp, resolvedWorkspace);
         var assistantMessage = new Message(assistantMessageId, userId, question.conversationId(), null,
-                question.language(), answer, "LLM", sources.stream().toList(), suggestions.stream().toList(), LocalDateTime.now());
+                question.language(), answer, "LLM", sources.stream().toList(), suggestions.stream().toList(), LocalDateTime.now(), resolvedWorkspace);
 
         save(userMessage, userId, question.conversationId());
         save(assistantMessage, userId, question.conversationId());
-        generateConversationTitle(question.query(), answer, userId, question.conversationId(), question.language(), question.workspace());
+        generateConversationTitle(question.query(), answer, userId, question.conversationId(), question.language(), conversationType);
     }
 
     private List<Message> getConversationHistory(String conversationId, String userId, Limit limit) {
@@ -281,7 +308,8 @@ public class ConversationService {
                                 .map(this::fromSourceString)
                                 .toList(),
                         List.of(message.getSuggestions()),
-                        message.getTimestamp()
+                        message.getTimestamp(),
+                        message.getWorkspace()
                 ))
                 .toList();
     }
@@ -333,6 +361,7 @@ public class ConversationService {
         entity.setSuggestions(Objects.isNull(message.suggestions())
                 ? new String[0]
                 : message.suggestions().toArray(String[]::new));
+        entity.setWorkspace(message.workspace());
 
         conversationRepository.save(entity);
     }
@@ -386,7 +415,8 @@ public class ConversationService {
         return String.join("#", Arrays.stream(sourceParts).filter(part -> part != null && !part.isEmpty()).toList());
     }
 
-    private void generateConversationTitle(String initialQuery, String initialResponse, String userId, String conversationId, String language, String workspace) {
+    private void generateConversationTitle(String initialQuery, String initialResponse, String userId, String conversationId,
+                                            String language, ConversationType conversationType) {
         if (conversationTitleRepository.findByUserIdAndConversationId(userId, conversationId).isEmpty()) {
             var title = chatClient.prompt()
                     .system(ConversationPrompts.getConversationTitlePrompt(language)
@@ -400,13 +430,14 @@ public class ConversationService {
             entity.setConversationId(conversationId);
             entity.setTitle(title);
             entity.setTimestamp(LocalDateTime.now());
-            entity.setWorkspace(StringUtils.hasLength(workspace) ? workspace : workspaceProperties.getDefaultWorkspace());
+            // Type figé à la création de la conversation : immuable pour toute question suivante.
+            entity.setConversationType(conversationType);
 
             conversationTitleRepository.save(entity);
         }
     }
 
     public List<String> getWorkspaces() {
-        return List.copyOf(workspaceProperties.getSources().keySet());
+        return workspaceService.getAllNames();
     }
 }

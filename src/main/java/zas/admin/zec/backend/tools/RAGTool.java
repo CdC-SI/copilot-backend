@@ -23,6 +23,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import zas.admin.zec.backend.actions.authorize.UserService;
+import zas.admin.zec.backend.actions.workspace.WorkspaceDto;
+import zas.admin.zec.backend.actions.workspace.WorkspaceService;
 import zas.admin.zec.backend.config.properties.RetrievingProperties;
 import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
 import zas.admin.zec.backend.rag.ChatStatus;
@@ -33,6 +35,7 @@ import zas.admin.zec.backend.rag.retriever.BM25DocumentRetriever;
 import zas.admin.zec.backend.rag.retriever.HybridDocumentRetriever;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -41,8 +44,10 @@ import java.util.stream.Collectors;
  * sociales suisses. Le LLM agentique décide lui-même d'invoquer ce tool via tool-calling.
  *
  * <p>La requête de recherche est fournie par le LLM. Les données contextuelles non fournies par le
- * LLM (identité de l'utilisateur, langue, workspace, conversation) transitent par le
- * {@link ToolContext} ; les clés sont définies dans {@link ToolContextKeys}.</p>
+ * LLM (identité de l'utilisateur, langue, conversation) transitent par le {@link ToolContext} ; les
+ * clés sont définies dans {@link ToolContextKeys}. Le workspace peut être fourni via le contexte
+ * (mémorisé depuis un tour précédent de la conversation) ou, à défaut, est inféré ici à partir de
+ * la question et de la liste des workspaces disponibles.</p>
  */
 @Slf4j
 @Component
@@ -73,6 +78,7 @@ public class RAGTool {
     private final AttachmentRepository attachmentRepository;
     private final JdbcTemplate jdbcTemplate;
     private final SourceResolver sourceResolver;
+    private final WorkspaceService workspaceService;
 
     public RAGTool(
             @Qualifier("internalChatModel") ChatModel internalChatModel,
@@ -82,7 +88,8 @@ public class RAGTool {
             RetrievingProperties retrievingProperties,
             AttachmentRepository attachmentRepository,
             JdbcTemplate jdbcTemplate,
-            SourceResolver sourceResolver) {
+            SourceResolver sourceResolver,
+            WorkspaceService workspaceService) {
 
         this.internalChatClient = ChatClient.create(internalChatModel);
         this.documentStore = documentStore;
@@ -92,6 +99,7 @@ public class RAGTool {
         this.attachmentRepository = attachmentRepository;
         this.jdbcTemplate = jdbcTemplate;
         this.sourceResolver = sourceResolver;
+        this.workspaceService = workspaceService;
     }
 
     @Tool(name = "search_social_insurance_documentation", description = """
@@ -110,8 +118,16 @@ public class RAGTool {
         Map<String, Object> context = toolContext != null ? toolContext.getContext() : Map.of();
         String userId = asString(context.get(ToolContextKeys.CTX_USER_ID), "");
         String language = asString(context.get(ToolContextKeys.CTX_LANGUAGE), DEFAULT_LANGUAGE);
-        String workspace = asString(context.get(ToolContextKeys.CTX_WORKSPACE), "");
         String conversationId = asString(context.get(ToolContextKeys.CTX_CONVERSATION_ID), "");
+
+        // Le workspace peut déjà être connu (mémorisé depuis un tour précédent de la conversation) ;
+        // sinon on l'infère à partir de la question et des workspaces disponibles.
+        String workspace = asString(context.get(ToolContextKeys.CTX_WORKSPACE), "");
+        if (workspace.isBlank()) {
+            ToolContextKeys.emitStatus(context, ChatStatus.WORKSPACE_INFERENCE, language);
+            workspace = inferWorkspace(query, language);
+        }
+        depositResolvedWorkspace(context, workspace);
 
         // Notifier le frontend que la recherche documentaire est en cours.
         ToolContextKeys.emitStatus(context, ChatStatus.RETRIEVAL, language);
@@ -266,6 +282,61 @@ public class RAGTool {
 
     private static String asString(Object value, String defaultValue) {
         return value instanceof String s && !s.isBlank() ? s : defaultValue;
+    }
+
+    /**
+     * Infère le workspace le plus pertinent pour la question posée, à partir de la description et
+     * des questions hypothétiques de chaque workspace connu. Retombe sur le workspace par défaut
+     * (catch-all, sans filtrage par source) si la réponse du LLM est vide, inconnue, ou en cas
+     * d'erreur.
+     */
+    private String inferWorkspace(String query, String language) {
+        String defaultWorkspace = workspaceService.getDefaultWorkspace();
+        try {
+            List<WorkspaceDto> workspaces = workspaceService.getAll();
+            if (workspaces.isEmpty()) {
+                return defaultWorkspace;
+            }
+
+            String systemPrompt = RAGPrompts.getWorkspaceInferenceTemplate(language)
+                    .formatted(describeWorkspaces(workspaces), defaultWorkspace);
+
+            String answer = internalChatClient.prompt()
+                    .system(systemPrompt)
+                    .user(query)
+                    .call()
+                    .content();
+
+            String resolved = answer != null ? answer.trim() : "";
+            boolean isKnown = workspaces.stream().anyMatch(w -> w.name().equals(resolved));
+            if (isKnown) {
+                return resolved;
+            }
+
+            log.debug("Réponse d'inférence de workspace inconnue ou vide ('{}'), repli sur '{}'", answer, defaultWorkspace);
+            return defaultWorkspace;
+        } catch (Exception e) {
+            log.warn("Échec de l'inférence de workspace, repli sur '{}'", defaultWorkspace, e);
+            return defaultWorkspace;
+        }
+    }
+
+    private String describeWorkspaces(List<WorkspaceDto> workspaces) {
+        return workspaces.stream()
+                .map(w -> "- %s : %s%s".formatted(
+                        w.name(),
+                        w.description() != null && !w.description().isBlank() ? w.description() : "(pas de description)",
+                        w.hypotheticalQuestions().isEmpty()
+                                ? ""
+                                : " Exemples de questions : " + String.join(" | ", w.hypotheticalQuestions())))
+                .collect(Collectors.joining(System.lineSeparator()));
+    }
+
+    @SuppressWarnings("unchecked")
+    private void depositResolvedWorkspace(Map<String, Object> context, String workspace) {
+        if (context.get(ToolContextKeys.CTX_RESOLVED_WORKSPACE) instanceof AtomicReference<?> ref) {
+            ((AtomicReference<String>) ref).set(workspace);
+        }
     }
 }
 

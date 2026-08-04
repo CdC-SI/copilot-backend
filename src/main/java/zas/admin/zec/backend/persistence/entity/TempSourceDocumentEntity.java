@@ -3,6 +3,7 @@ package zas.admin.zec.backend.persistence.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import zas.admin.zec.backend.actions.upload.model.AvailabilityStatus;
 import zas.admin.zec.backend.actions.upload.model.EmbeddingStatus;
 
 import java.time.LocalDateTime;
@@ -32,5 +33,12 @@ public class TempSourceDocumentEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private EmbeddingStatus status;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "availability_status", nullable = false)
+    private AvailabilityStatus availabilityStatus = AvailabilityStatus.ACTIVE;
+
+    @Column(name = "archived_at")
+    private LocalDateTime archivedAt;
 
 }

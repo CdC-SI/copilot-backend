@@ -15,5 +15,12 @@ import java.util.Map;
 @ConfigurationProperties(prefix = "workspace")
 public class WorkspaceProperties {
     private String defaultWorkspace;
+
+    /**
+     * @deprecated La liste des sources par workspace est désormais stockée en base
+     * (tables {@code workspace} / {@code source} / {@code workspace_source}) et résolue via
+     * {@code WorkspaceService}. Ce champ n'est plus utilisé et sera retiré.
+     */
+    @Deprecated(forRemoval = true)
     private Map<String, List<String>> sources = new LinkedHashMap<>();
 }

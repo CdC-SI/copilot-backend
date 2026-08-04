@@ -1,6 +1,7 @@
 package zas.admin.zec.backend.persistence.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import zas.admin.zec.backend.persistence.entity.DocumentEntity;
 
@@ -8,6 +9,36 @@ import java.util.List;
 import java.util.UUID;
 
 public interface DocumentRepository extends JpaRepository<DocumentEntity, UUID> {
+
+    /**
+     * Projection d'un contenu (document ou url) d'une source, dérivé des métadonnées des chunks.
+     */
+    interface SourceContentProjection {
+        String getTitle();
+        String getUrl();
+    }
+
+    @Query(value = """
+        SELECT DISTINCT metadata ->> 'title' AS title, metadata ->> 'url' AS url
+        FROM vector_store
+        WHERE metadata ->> 'source' = :source
+        """, nativeQuery = true)
+    List<SourceContentProjection> findDistinctContentsBySource(String source);
+
+    @Query(value = """
+        SELECT DISTINCT metadata ->> 'title' AS title
+        FROM vector_store
+        WHERE metadata ->> 'source' = :source
+        AND metadata ->> 'title' IS NOT NULL
+        """, nativeQuery = true)
+    List<String> findDistinctTitlesBySource(String source);
+
+    @Modifying
+    @Query(value = """
+        DELETE FROM vector_store
+        WHERE metadata ->> 'source' = :source
+        """, nativeQuery = true)
+    int deleteBySource(String source);
 
     @Query(value = """
         SELECT DISTINCT metadata ->> 'tags' AS tag
