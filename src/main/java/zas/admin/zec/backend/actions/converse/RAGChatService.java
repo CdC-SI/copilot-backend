@@ -15,6 +15,7 @@ import zas.admin.zec.backend.rag.token.WorkspaceToken;
 import zas.admin.zec.backend.tools.ConversationAttachmentTool;
 import zas.admin.zec.backend.tools.RAGTool;
 import zas.admin.zec.backend.tools.ToolContextKeys;
+import zas.admin.zec.backend.tools.WorkspaceInferenceMonitoringService;
 
 import java.util.List;
 import java.util.Map;
@@ -46,13 +47,16 @@ public class RAGChatService extends AbstractChatService {
     private final ChatClient internalChatClient;
     private final RAGTool ragTool;
     private final ConversationAttachmentTool attachmentTool;
+    private final WorkspaceInferenceMonitoringService workspaceInferenceMonitoringService;
 
     public RAGChatService(@Qualifier("internalChatModel") ChatModel internalChatModel,
                           RAGTool ragTool,
-                          ConversationAttachmentTool attachmentTool) {
+                          ConversationAttachmentTool attachmentTool,
+                          WorkspaceInferenceMonitoringService workspaceInferenceMonitoringService) {
         this.internalChatClient = ChatClient.create(internalChatModel);
         this.ragTool = ragTool;
         this.attachmentTool = attachmentTool;
+        this.workspaceInferenceMonitoringService = workspaceInferenceMonitoringService;
     }
 
     @Override
@@ -75,8 +79,17 @@ public class RAGChatService extends AbstractChatService {
 
         Map<String, Object> toolContext = baseToolContext(question, userId, statusSink);
         toolContext.put(ToolContextKeys.CTX_WORKSPACE, question.workspace());
+        toolContext.put(ToolContextKeys.CTX_ORIGINAL_QUESTION, question.query());
         toolContext.put(ToolContextKeys.CTX_RETRIEVED_DOCUMENTS, retrievedDocuments);
         toolContext.put(ToolContextKeys.CTX_RESOLVED_WORKSPACE, resolvedWorkspace);
+
+        // Un workspace explicitement attaché à la question signale que l'utilisateur a corrigé
+        // l'inférence précédente et relance la même question : on renseigne le workspace corrigé
+        // dans la ligne de monitoring correspondante.
+        if (question.workspace() != null && !question.workspace().isBlank()) {
+            workspaceInferenceMonitoringService.recordCorrection(
+                    userId, question.conversationId(), question.query(), question.workspace());
+        }
 
         Flux<Token> textTokens = internalChatClient
                 .prompt()

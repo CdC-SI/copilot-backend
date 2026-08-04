@@ -42,6 +42,15 @@ public final class ToolContextKeys {
     public static final String CTX_CONVERSATION_ID = "conversationId";
 
     /**
+     * Question originale de l'utilisateur (telle que saisie), non fournie par le LLM. Contrairement
+     * à la requête de recherche reformulée par le LLM, elle est stable entre une inférence de
+     * workspace et une éventuelle relance corrigée de la même question ; elle sert donc de clé de
+     * matching pour le monitoring de l'inférence de workspace
+     * ({@link WorkspaceInferenceMonitoringService}).
+     */
+    public static final String CTX_ORIGINAL_QUESTION = "originalQuestion";
+
+    /**
      * Clé d'une {@link Collection} mutable de {@link Document} fournie par l'appelant.
      * Les tools y déposent les documents récupérés afin que l'appelant puisse reconstruire
      * les {@link zas.admin.zec.backend.rag.token.SourceToken} une fois la génération terminée.

@@ -79,6 +79,7 @@ public class RAGTool {
     private final JdbcTemplate jdbcTemplate;
     private final SourceResolver sourceResolver;
     private final WorkspaceService workspaceService;
+    private final WorkspaceInferenceMonitoringService workspaceInferenceMonitoringService;
 
     public RAGTool(
             @Qualifier("internalChatModel") ChatModel internalChatModel,
@@ -89,7 +90,8 @@ public class RAGTool {
             AttachmentRepository attachmentRepository,
             JdbcTemplate jdbcTemplate,
             SourceResolver sourceResolver,
-            WorkspaceService workspaceService) {
+            WorkspaceService workspaceService,
+            WorkspaceInferenceMonitoringService workspaceInferenceMonitoringService) {
 
         this.internalChatClient = ChatClient.create(internalChatModel);
         this.documentStore = documentStore;
@@ -100,6 +102,7 @@ public class RAGTool {
         this.jdbcTemplate = jdbcTemplate;
         this.sourceResolver = sourceResolver;
         this.workspaceService = workspaceService;
+        this.workspaceInferenceMonitoringService = workspaceInferenceMonitoringService;
     }
 
     @Tool(name = "search_social_insurance_documentation", description = """
@@ -126,6 +129,11 @@ public class RAGTool {
         if (workspace.isBlank()) {
             ToolContextKeys.emitStatus(context, ChatStatus.WORKSPACE_INFERENCE, language);
             workspace = inferWorkspace(query, language);
+
+            // Monitoring : journaliser l'inférence (question originale de l'utilisateur, stable),
+            // afin d'aider à améliorer la classification des workspaces pour les questions futures.
+            String originalQuestion = asString(context.get(ToolContextKeys.CTX_ORIGINAL_QUESTION), "");
+            workspaceInferenceMonitoringService.recordInference(userId, conversationId, originalQuestion, workspace);
         }
         depositResolvedWorkspace(context, workspace);
 
