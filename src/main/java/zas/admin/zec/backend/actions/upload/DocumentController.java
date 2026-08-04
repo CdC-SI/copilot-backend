@@ -10,6 +10,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import zas.admin.zec.backend.actions.authorize.UserService;
+import zas.admin.zec.backend.actions.upload.model.DocumentRetentionConfig;
 import zas.admin.zec.backend.actions.upload.model.DocumentToUpload;
 import zas.admin.zec.backend.actions.upload.model.PersonalDoc;
 import zas.admin.zec.backend.actions.upload.model.UploadRequest;
@@ -27,10 +28,14 @@ public class DocumentController {
 
     private final UserService userService;
     private final UploadService uploadService;
+    private final DocumentRetentionConfigService retentionConfigService;
 
-    public DocumentController(UserService userService, UploadService uploadService) {
+    public DocumentController(UserService userService,
+                             UploadService uploadService,
+                             DocumentRetentionConfigService retentionConfigService) {
         this.userService = userService;
         this.uploadService = uploadService;
+        this.retentionConfigService = retentionConfigService;
     }
 
     @RequireInternalUser
@@ -57,6 +62,27 @@ public class DocumentController {
         var userUuid = userService.getUuid(authentication.getName());
         uploadService.deleteUserPersonalDocument(filename, userUuid);
         return ResponseEntity.ok().build();
+    }
+
+    @RequireUser
+    @PutMapping("/user-docs/reactivate")
+    public ResponseEntity<Void> reactivateUserDocument(@RequestParam String filename, Authentication authentication) {
+        var userUuid = userService.getUuid(authentication.getName());
+        uploadService.reactivatePersonalDocument(filename, userUuid);
+        return ResponseEntity.ok().build();
+    }
+
+    @RequireAdmin
+    @GetMapping("/retention-config")
+    public ResponseEntity<DocumentRetentionConfig> getRetentionConfig() {
+        return ResponseEntity.ok(retentionConfigService.get());
+    }
+
+    @RequireAdmin
+    @PutMapping("/retention-config")
+    public ResponseEntity<DocumentRetentionConfig> updateRetentionConfig(
+            @Valid @RequestBody DocumentRetentionConfig config) {
+        return ResponseEntity.ok(retentionConfigService.update(config));
     }
 
     @RequireUser

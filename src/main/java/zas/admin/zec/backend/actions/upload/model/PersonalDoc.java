@@ -5,5 +5,7 @@ import java.time.LocalDateTime;
 public record PersonalDoc(
    String title,
    LocalDateTime uploadedAt,
-   EmbeddingStatus status
+   EmbeddingStatus status,
+   AvailabilityStatus availabilityStatus,
+   Long timeToLiveInDays
 ) {}

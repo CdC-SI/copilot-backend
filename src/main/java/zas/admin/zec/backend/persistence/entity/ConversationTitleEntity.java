@@ -3,6 +3,7 @@ package zas.admin.zec.backend.persistence.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import zas.admin.zec.backend.actions.converse.ConversationType;
 
 import java.time.LocalDateTime;
 
@@ -26,10 +27,12 @@ public class ConversationTitleEntity {
     @Column(name = "chat_title", nullable = false, columnDefinition = "text")
     private String title;
 
-    @Column(name = "workspace", nullable = false, columnDefinition = "text")
-    private String workspace;
-
     @Column(name = "timestamp", nullable = false)
     private LocalDateTime timestamp;
+
+    // Déterminé une seule fois à la création de la conversation, puis immuable.
+    @Enumerated(EnumType.STRING)
+    @Column(name = "conversation_type", nullable = false)
+    private ConversationType conversationType;
 
 }
