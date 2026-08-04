@@ -5,9 +5,9 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 /**
- * Factory sélectionnant la {@link ChatService} à utiliser pour une {@link Question} donnée
- * (pattern Strategy + Factory). Chaque stratégie déclare, via {@link ChatService#supports(Question)},
- * si elle doit traiter la question ; la première stratégie supportante est retenue.
+ * Factory sélectionnant la {@link ChatService} à utiliser pour un {@link ConversationType} donné
+ * (pattern Strategy + Factory). Chaque stratégie déclare, via {@link ChatService#supports(ConversationType)},
+ * si elle doit traiter ce type ; la première stratégie supportante est retenue.
  *
  * <p>Ouverte à l'extension : ajouter une nouvelle stratégie ne nécessite qu'un nouveau
  * {@code @Service} implémentant {@link ChatService}, sans modifier cette factory.</p>
