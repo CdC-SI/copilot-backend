@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import zas.admin.zec.backend.config.security.RequireAdmin;
 import zas.admin.zec.backend.config.security.RequireUser;
@@ -34,8 +35,8 @@ public class SourceController {
 
     @RequireUser
     @GetMapping("/{name}")
-    public ResponseEntity<SourceDto> getByName(@PathVariable String name) {
-        return ResponseEntity.ok(sourceService.getByName(name));
+    public ResponseEntity<SourceDto> getByName(@PathVariable String name, Authentication authentication) {
+        return ResponseEntity.ok(sourceService.getByName(name, authentication.getName()));
     }
 
     @RequireAdmin
@@ -47,8 +48,8 @@ public class SourceController {
 
     @RequireAdmin
     @PutMapping("/{name}")
-    public ResponseEntity<SourceDto> update(@PathVariable String name, @RequestBody @Valid UpdateSourceRequest request) {
-        return ResponseEntity.ok(sourceService.update(name, request));
+    public ResponseEntity<SourceDto> update(@PathVariable String name, @RequestBody @Valid UpdateSourceRequest request, Authentication authentication) {
+        return ResponseEntity.ok(sourceService.update(name, request, authentication.getName()));
     }
 
     @RequireAdmin

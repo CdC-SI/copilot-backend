@@ -3,6 +3,7 @@ package zas.admin.zec.backend.actions.source;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.persistence.entity.SourceEntity;
 import zas.admin.zec.backend.persistence.repository.DocumentRepository;
 import zas.admin.zec.backend.persistence.repository.SourceRepository;
@@ -23,13 +24,16 @@ public class SourceService {
     private final SourceRepository sourceRepository;
     private final DocumentRepository documentRepository;
     private final TempSourceDocumentRepository tempSourceDocumentRepository;
+    private final UserService userService;
 
     public SourceService(SourceRepository sourceRepository,
                          DocumentRepository documentRepository,
-                         TempSourceDocumentRepository tempSourceDocumentRepository) {
+                         TempSourceDocumentRepository tempSourceDocumentRepository,
+                         UserService userService) {
         this.sourceRepository = sourceRepository;
         this.documentRepository = documentRepository;
         this.tempSourceDocumentRepository = tempSourceDocumentRepository;
+        this.userService = userService;
     }
 
     /**
@@ -42,12 +46,13 @@ public class SourceService {
     }
 
     /**
-     * Récupère une source par son nom, avec ses contenus dérivés de {@code vector_store}.
+     * Récupère une source par son nom, avec ses contenus dérivés de {@code vector_store},
+     * restreints à ceux accessibles à l'utilisateur authentifié.
      */
-    public SourceDto getByName(String name) {
+    public SourceDto getByName(String name, String username) {
         var entity = sourceRepository.findByName(name)
                 .orElseThrow(() -> new SourceNotFoundException("Source introuvable : " + name));
-        return toDto(entity, getContents(name));
+        return toDto(entity, getContents(name, username));
     }
 
     @Transactional
@@ -67,7 +72,7 @@ public class SourceService {
     }
 
     @Transactional
-    public SourceDto update(String name, UpdateSourceRequest request) {
+    public SourceDto update(String name, UpdateSourceRequest request, String username) {
         var entity = sourceRepository.findByName(name)
                 .orElseThrow(() -> new SourceNotFoundException("Source introuvable : " + name));
 
@@ -76,7 +81,7 @@ public class SourceService {
 
         var saved = sourceRepository.save(entity);
         log.info("Source '{}' mise à jour (id={})", saved.getName(), saved.getId());
-        return toDto(saved, getContents(name));
+        return toDto(saved, getContents(name, username));
     }
 
     /**
@@ -102,8 +107,9 @@ public class SourceService {
         log.info("Source '{}' supprimée (chunks={}, temp_docs={})", name, deletedChunks, deletedTempDocs);
     }
 
-    private List<SourceContentDto> getContents(String name) {
-        return documentRepository.findDistinctContentsBySource(name).stream()
+    private List<SourceContentDto> getContents(String name, String username) {
+        var userId = userService.getUuid(username);
+        return documentRepository.findDistinctContentsBySourceAndUser(name, userId).stream()
                 .map(projection -> new SourceContentDto(projection.getTitle(), projection.getUrl()))
                 .toList();
     }
