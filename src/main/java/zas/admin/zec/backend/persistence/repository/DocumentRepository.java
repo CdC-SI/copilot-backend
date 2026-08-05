@@ -18,12 +18,22 @@ public interface DocumentRepository extends JpaRepository<DocumentEntity, UUID> 
         String getUrl();
     }
 
+    /**
+     * Contenus d'une source restreints à ceux accessibles à l'utilisateur : soit rattachés à
+     * l'utilisateur ({@code metadata->>'user_uuid'} égal à {@code userId}), soit publics
+     * ({@code user_uuid} nul, vide ou absent des métadonnées).
+     */
     @Query(value = """
         SELECT DISTINCT metadata ->> 'title' AS title, metadata ->> 'url' AS url
         FROM vector_store
         WHERE metadata ->> 'source' = :source
+        AND (
+            metadata ->> 'user_uuid' = :userId
+            OR metadata ->> 'user_uuid' IS NULL
+            OR metadata ->> 'user_uuid' = ''
+        )
         """, nativeQuery = true)
-    List<SourceContentProjection> findDistinctContentsBySource(String source);
+    List<SourceContentProjection> findDistinctContentsBySourceAndUser(String source, String userId);
 
     @Query(value = """
         SELECT DISTINCT metadata ->> 'title' AS title
