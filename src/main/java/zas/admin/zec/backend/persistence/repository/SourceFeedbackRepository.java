@@ -4,6 +4,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import zas.admin.zec.backend.persistence.entity.FeedbackCategory;
+import zas.admin.zec.backend.persistence.entity.FeedbackStatus;
 import zas.admin.zec.backend.persistence.entity.SourceFeedbackEntity;
 
 import java.time.LocalDateTime;
@@ -12,11 +14,17 @@ import java.util.Optional;
 
 public interface SourceFeedbackRepository extends JpaRepository<SourceFeedbackEntity, Long> {
 
-    Optional<SourceFeedbackEntity> findByUserIdAndConversationIdAndMessageIdAndDocumentId(String userId, String conversationId, String messageId, String documentId);
+    Optional<SourceFeedbackEntity> findByUserUuidAndConversationUuidAndMessageUuidAndDocumentId(String userUuid, String conversationUuid, String messageUuid, String documentId);
 
-    List<SourceFeedbackEntity> findByUserIdAndConversationIdAndMessageId(String userId, String conversationId, String messageId);
+    List<SourceFeedbackEntity> findByUserUuidAndConversationUuidAndMessageUuid(String userUuid, String conversationUuid, String messageUuid);
 
     List<SourceFeedbackEntity> findByTimestampBetween(LocalDateTime start, LocalDateTime end);
+
+    List<SourceFeedbackEntity> findByTimestampBetweenAndStatus(LocalDateTime start, LocalDateTime end, FeedbackStatus status);
+
+    long countByTimestampBetweenAndStatus(LocalDateTime start, LocalDateTime end, FeedbackStatus status);
+
+    long countByTimestampBetweenAndCategory(LocalDateTime start, LocalDateTime end, FeedbackCategory category);
 
     @Query(value = """
         select sf.document_id as documentId,

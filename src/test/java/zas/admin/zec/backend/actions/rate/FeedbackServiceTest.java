@@ -7,6 +7,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import zas.admin.zec.backend.persistence.entity.FeedbackCategory;
+import zas.admin.zec.backend.persistence.entity.FeedbackStatus;
 import zas.admin.zec.backend.persistence.entity.MessageFeedbackEntity;
 import zas.admin.zec.backend.persistence.entity.SourceFeedbackEntity;
 import zas.admin.zec.backend.persistence.repository.MessageFeedbackRepository;
@@ -28,6 +30,8 @@ class FeedbackServiceTest {
     private MessageFeedbackRepository messageFeedbackRepository;
     @Mock
     private SourceFeedbackRepository sourceFeedbackRepository;
+    @Mock
+    private FeedbackNotificationService notificationService;
 
     @InjectMocks
     private FeedbackService feedbackService;
@@ -35,7 +39,7 @@ class FeedbackServiceTest {
     @Test
     @DisplayName("sendFeedback creates new message feedback when none exists")
     void sendFeedback_createsNew_whenNoExistingFeedback() {
-        Feedback feedback = new Feedback("conv1", "msg1", true, "Great", "Q?", "A.");
+        Feedback feedback = new Feedback("conv1", "msg1", true, "Great", "Q?", "A.", null);
         when(messageFeedbackRepository.findByUserUuidAndConversationUuidAndMessageUuid("user1", "conv1", "msg1"))
                 .thenReturn(Optional.empty());
 
@@ -46,12 +50,13 @@ class FeedbackServiceTest {
         assertEquals(1, captor.getValue().getScore());
         assertEquals("Great", captor.getValue().getComment());
         assertEquals("user1", captor.getValue().getUserUuid());
+        assertEquals(FeedbackStatus.NEW, captor.getValue().getStatus());
     }
 
     @Test
-    @DisplayName("sendFeedback updates existing message feedback")
+    @DisplayName("sendFeedback updates existing message feedback and notifies moderators when negative")
     void sendFeedback_updatesExisting() {
-        Feedback feedback = new Feedback("conv1", "msg1", false, "Bad", null, null);
+        Feedback feedback = new Feedback("conv1", "msg1", false, "Bad", null, null, FeedbackCategory.WRONG_ANSWER);
         MessageFeedbackEntity existing = new MessageFeedbackEntity();
         existing.setScore(1);
         when(messageFeedbackRepository.findByUserUuidAndConversationUuidAndMessageUuid("user1", "conv1", "msg1"))
@@ -62,13 +67,16 @@ class FeedbackServiceTest {
         verify(messageFeedbackRepository).save(existing);
         assertEquals(-1, existing.getScore());
         assertEquals("Bad", existing.getComment());
+        assertEquals(FeedbackCategory.WRONG_ANSWER, existing.getCategory());
+        assertEquals(FeedbackStatus.NEW, existing.getStatus());
+        verify(notificationService).notifyNegativeFeedback(existing);
     }
 
     @Test
     @DisplayName("sendFeedback for source creates new when none exists")
     void sendSourceFeedback_createsNew() {
-        SourceFeedback feedback = new SourceFeedback("conv1", "msg1", "doc1", true, "Good source", "Q", "A");
-        when(sourceFeedbackRepository.findByUserIdAndConversationIdAndMessageIdAndDocumentId("user1", "conv1", "msg1", "doc1"))
+        SourceFeedback feedback = new SourceFeedback("conv1", "msg1", "doc1", true, "Good source", "Q", "A", null);
+        when(sourceFeedbackRepository.findByUserUuidAndConversationUuidAndMessageUuidAndDocumentId("user1", "conv1", "msg1", "doc1"))
                 .thenReturn(Optional.empty());
 
         feedbackService.sendFeedback("user1", feedback);
@@ -77,18 +85,32 @@ class FeedbackServiceTest {
     }
 
     @Test
+    @DisplayName("sendFeedback for source notifies moderators when negative")
+    void sendSourceFeedback_negative_notifies() {
+        SourceFeedback feedback = new SourceFeedback("conv1", "msg1", "doc1", false, "Wrong source", "Q", "A", FeedbackCategory.WRONG_SOURCE);
+        when(sourceFeedbackRepository.findByUserUuidAndConversationUuidAndMessageUuidAndDocumentId("user1", "conv1", "msg1", "doc1"))
+                .thenReturn(Optional.empty());
+
+        feedbackService.sendFeedback("user1", feedback);
+
+        ArgumentCaptor<SourceFeedbackEntity> captor = ArgumentCaptor.forClass(SourceFeedbackEntity.class);
+        verify(sourceFeedbackRepository).save(captor.capture());
+        verify(notificationService).notifyNegativeFeedback(captor.getValue());
+    }
+
+    @Test
     @DisplayName("getFeedbacks returns mapped list")
     void getFeedbacks_returnsMappedList() {
         SourceFeedbackEntity entity = new SourceFeedbackEntity();
-        entity.setConversationId("conv1");
-        entity.setMessageId("msg1");
+        entity.setConversationUuid("conv1");
+        entity.setMessageUuid("msg1");
         entity.setDocumentId("doc1");
         entity.setFeedbackType(SourceFeedbackEntity.FeedbackType.POSITIVE);
         entity.setComment("Nice");
         entity.setQuestion("Q");
         entity.setAnswer("A");
 
-        when(sourceFeedbackRepository.findByUserIdAndConversationIdAndMessageId("user1", "conv1", "msg1"))
+        when(sourceFeedbackRepository.findByUserUuidAndConversationUuidAndMessageUuid("user1", "conv1", "msg1"))
                 .thenReturn(List.of(entity));
 
         List<SourceFeedback> result = feedbackService.getFeedbacks("user1", "conv1", "msg1");
@@ -98,4 +120,3 @@ class FeedbackServiceTest {
         assertEquals("doc1", result.get(0).documentId());
     }
 }
-

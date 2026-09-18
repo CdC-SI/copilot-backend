@@ -1,41 +1,22 @@
 package zas.admin.zec.backend.persistence.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
-
-import java.time.LocalDateTime;
 
 @Getter
 @Setter
 @Entity
 @Table(name = "chat_feedback")
-public class MessageFeedbackEntity {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
-
-    @Column(name = "user_uuid")
-    private String userUuid;
-
-    @Column(name = "conversation_uuid")
-    private String conversationUuid;
-
-    @Column(name = "message_uuid")
-    private String messageUuid;
+public class MessageFeedbackEntity extends AbstractFeedbackEntity {
 
     @Column(name = "score")
     private Integer score;
 
-    @Column(name = "comment")
-    private String comment;
-
-    @Column(name = "timestamp")
-    private LocalDateTime timestamp;
-
-    @Column(name = "question", columnDefinition = "text")
-    private String question;
-
-    @Column(name = "answer", columnDefinition = "text")
-    private String answer;
+    @Override
+    public boolean isNegative() {
+        return score != null && score < 0;
+    }
 }
