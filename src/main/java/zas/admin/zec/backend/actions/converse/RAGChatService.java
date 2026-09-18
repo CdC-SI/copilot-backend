@@ -125,10 +125,28 @@ public class RAGChatService extends AbstractChatService {
 
     private Flux<Token> toSourceTokens(List<Document> documents) {
         if (documents.isEmpty()) {
+            log.info("No source emitted to the frontend");
             return Flux.empty();
         }
+        logSources(documents);
         return Flux.fromIterable(documents)
                 .map(this::toSourceToken);
+    }
+
+    /**
+     * Journalise les documents effectivement remontés au frontend dans l'encart "sources",
+     * dans l'ordre d'émission.
+     */
+    private void logSources(List<Document> documents) {
+        log.info("Emitting {} source(s) to the frontend", documents.size());
+        for (int i = 0; i < documents.size(); i++) {
+            var document = documents.get(i);
+            log.info("Source #{}: id={}, title={}, score={}",
+                    i + 1,
+                    document.getId(),
+                    document.getMetadata().get(META_TITLE),
+                    document.getScore());
+        }
     }
 
     private SourceToken toSourceToken(Document document) {

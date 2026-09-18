@@ -44,6 +44,8 @@ public class DocumentReranker {
 
     private static final String INSTRUCTION = "Given a user search query, determine whether the document can answer the query or not.";
 
+    private static final String META_TITLE = "title";
+
     private final InternalChatModelProperties internalChatModelProperties;
     private final RerankingProperties rerankingProperties;
     private final WebClient reranker;
@@ -73,7 +75,7 @@ public class DocumentReranker {
             return documents;
         }
 
-        debugBeforeReranking(documents);
+        debugBeforeReranking(query, documents);
         try {
             var response = reranker.post()
                     .uri("/score")
@@ -91,7 +93,7 @@ public class DocumentReranker {
                     ? documents
                     : updateDocumentScores(documents, response.data());
 
-            debugAfterReranking(rerankedDocs);
+            debugAfterReranking(query, rerankedDocs);
             return rerankedDocs;
         } catch (RuntimeException ex) {
             log.error("Error during document reranking, returning original documents", ex);
@@ -111,16 +113,26 @@ public class DocumentReranker {
         return rerankingProperties.enabled();
     }
 
-    private void debugBeforeReranking(List<Document> documents) {
-        log.debug("Documents score before reranking: {}", documents.stream()
-                .map(doc -> String.format("id=%s, score=%.4f", doc.getId(), doc.getScore()))
-                .toList());
+    private void debugBeforeReranking(String query, List<Document> documents) {
+        describe("Before reranking", query, documents);
     }
 
-    private void debugAfterReranking(List<Document> documents) {
-        log.debug("Documents score after reranking: {}", documents.stream()
-                .map(doc -> String.format("id=%s, score=%.4f", doc.getId(), doc.getScore()))
-                .toList());
+    private void debugAfterReranking(String query, List<Document> documents) {
+        describe("After reranking", query, documents);
+    }
+
+    /**
+     * Journalise les documents d'une variante de requête, une ligne par document, dans l'ordre de
+     * la liste fournie. Les blocs « before » et « after » portent sur les mêmes documents et dans
+     * le même ordre, ce qui permet de lire la variation de score ligne à ligne.
+     */
+    private void describe(String label, String query, List<Document> documents) {
+        log.debug("{} — query '{}': {} document(s)", label, query, documents.size());
+        documents.forEach(doc -> log.debug("{}: id={}, title={}, score={}",
+                label,
+                doc.getId(),
+                doc.getMetadata().getOrDefault(META_TITLE, ""),
+                doc.getScore()));
     }
 
     private String formatQuery(String query) {

@@ -1,5 +1,6 @@
 package zas.admin.zec.backend.rag.joiner;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.rag.Query;
 import org.springframework.ai.rag.retrieval.join.DocumentJoiner;
@@ -12,6 +13,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+@Slf4j
 public class RankedDocumentJoiner implements DocumentJoiner {
 
     private final DocumentReranker reranker;
@@ -28,6 +30,16 @@ public class RankedDocumentJoiner implements DocumentJoiner {
 
     @Override
     public List<Document> join(Map<Query, List<List<Document>>> documentsForQuery) {
+        var preRerankDocs = documentsForQuery.values().stream()
+                .flatMap(List::stream)
+                .flatMap(List::stream)
+                .collect(Collectors.toMap(Document::getId, Function.identity(), (existing, duplicate) -> existing))
+                .values().stream()
+                .sorted(Comparator.comparingDouble(Document::getScore).reversed())
+                .limit(this.topK)
+                .toList();
+        logDocuments("Before reranking", preRerankDocs);
+
         var ragRerankedDocs = documentsForQuery.entrySet().stream()
                 .flatMap(entry -> entry.getValue()
                         .stream()
@@ -40,9 +52,20 @@ public class RankedDocumentJoiner implements DocumentJoiner {
                 .limit(reranker.isEnabled() ? this.topK : 10)
                 .toList();
 
+        if (!ragRerankedDocs.isEmpty()) {
+            logDocuments("Top-1 reranked document", List.of(ragRerankedDocs.get(0)));
+        }
+
         // Combine with conversation documents
         var result = new ArrayList<>(conversationDocuments);
         result.addAll(ragRerankedDocs);
         return result;
+    }
+
+    private void logDocuments(String label, List<Document> documents) {
+        documents.forEach(doc -> {
+            String title = (String) doc.getMetadata().getOrDefault("title", "");
+            log.info("{}: id={}, title={}, score={}", label, doc.getId(), title, doc.getScore());
+        });
     }
 }
