@@ -43,7 +43,7 @@ public class FeedbackReportService {
 
     public FeedbackReport buildReport(LocalDateTime start, LocalDateTime end) {
         long msgTotal = msgRepo.countByTimestampBetween(start, end);
-        long srcTotal = srcRepo.findByTimestampBetween(start, end).size();
+        long srcTotal = srcRepo.countByTimestampBetween(start, end);
         long total = msgTotal + srcTotal;
 
         long treated = msgRepo.countByTimestampBetweenAndStatus(start, end, FeedbackStatus.TREATED)

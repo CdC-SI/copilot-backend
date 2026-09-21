@@ -1,3 +1,4 @@
+<#ftl output_format="HTML">
 <#-- Rapport hebdomadaire des feedbacks envoyé aux destinataires configurés. -->
 <html>
 <body style="font-family: Arial, sans-serif; font-size: 14px; color: #222;">

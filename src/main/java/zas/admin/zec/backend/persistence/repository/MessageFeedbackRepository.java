@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-public interface MessageFeedbackRepository extends JpaRepository<MessageFeedbackEntity, Long> {
+public interface MessageFeedbackRepository extends JpaRepository<MessageFeedbackEntity, Integer> {
     Optional<MessageFeedbackEntity> findByUserUuidAndConversationUuidAndMessageUuid(String userUuid, String conversationUuid, String messageUuid);
 
     List<MessageFeedbackEntity> findByTimestampBetween(LocalDateTime start, LocalDateTime end);

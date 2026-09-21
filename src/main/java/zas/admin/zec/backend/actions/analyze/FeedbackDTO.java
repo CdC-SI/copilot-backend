@@ -10,7 +10,7 @@ import java.util.List;
 public class FeedbackDTO {
     // --- Message feedback ---
     public record MessageFeedback(
-            Long id,
+            Integer id,
             String userUuid,
             String conversationUuid,
             String messageUuid,
@@ -28,7 +28,7 @@ public class FeedbackDTO {
 
     // --- Source feedback row ---
     public record SourceFeedback(
-            Long id,
+            Integer id,
             String userUuid,
             String conversationUuid,
             String messageUuid,

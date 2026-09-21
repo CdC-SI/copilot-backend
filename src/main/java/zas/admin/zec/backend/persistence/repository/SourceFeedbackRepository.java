@@ -12,13 +12,15 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-public interface SourceFeedbackRepository extends JpaRepository<SourceFeedbackEntity, Long> {
+public interface SourceFeedbackRepository extends JpaRepository<SourceFeedbackEntity, Integer> {
 
     Optional<SourceFeedbackEntity> findByUserUuidAndConversationUuidAndMessageUuidAndDocumentId(String userUuid, String conversationUuid, String messageUuid, String documentId);
 
     List<SourceFeedbackEntity> findByUserUuidAndConversationUuidAndMessageUuid(String userUuid, String conversationUuid, String messageUuid);
 
     List<SourceFeedbackEntity> findByTimestampBetween(LocalDateTime start, LocalDateTime end);
+
+    long countByTimestampBetween(LocalDateTime start, LocalDateTime end);
 
     List<SourceFeedbackEntity> findByTimestampBetweenAndStatus(LocalDateTime start, LocalDateTime end, FeedbackStatus status);
 

@@ -1,3 +1,4 @@
+<#ftl output_format="HTML">
 <#-- Notification envoyée aux modérateurs lors d'un feedback négatif. -->
 <html>
 <body style="font-family: Arial, sans-serif; font-size: 14px; color: #222;">
