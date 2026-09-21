@@ -48,12 +48,12 @@ public class FeedbackKPIController {
     }
 
     @PatchMapping("/messages/{id}/status")
-    public MessageFeedback updateMessageStatus(@PathVariable Integer id, @RequestBody StatusUpdateRequest request) {
+    public MessageFeedback updateMessageStatus(@PathVariable Long id, @RequestBody StatusUpdateRequest request) {
         return svc.updateMessageFeedbackStatus(id, request.status());
     }
 
     @PatchMapping("/sources/{id}/status")
-    public SourceFeedback updateSourceStatus(@PathVariable Integer id, @RequestBody StatusUpdateRequest request) {
+    public SourceFeedback updateSourceStatus(@PathVariable Long id, @RequestBody StatusUpdateRequest request) {
         return svc.updateSourceFeedbackStatus(id, request.status());
     }
 

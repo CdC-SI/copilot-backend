@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-public interface SourceFeedbackRepository extends JpaRepository<SourceFeedbackEntity, Integer> {
+public interface SourceFeedbackRepository extends JpaRepository<SourceFeedbackEntity, Long> {
 
     Optional<SourceFeedbackEntity> findByUserUuidAndConversationUuidAndMessageUuidAndDocumentId(String userUuid, String conversationUuid, String messageUuid, String documentId);
 

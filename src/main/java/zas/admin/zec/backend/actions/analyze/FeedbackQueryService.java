@@ -105,7 +105,7 @@ public class FeedbackQueryService {
     }
 
     @Transactional
-    public MessageFeedback updateMessageFeedbackStatus(Integer id, FeedbackStatus status) {
+    public MessageFeedback updateMessageFeedbackStatus(Long id, FeedbackStatus status) {
         var entity = msgRepo.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Feedback de message introuvable : " + id));
         entity.setStatus(status);
@@ -114,7 +114,7 @@ public class FeedbackQueryService {
     }
 
     @Transactional
-    public FeedbackDTO.SourceFeedback updateSourceFeedbackStatus(Integer id, FeedbackStatus status) {
+    public FeedbackDTO.SourceFeedback updateSourceFeedbackStatus(Long id, FeedbackStatus status) {
         var entity = srcRepo.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Feedback de source introuvable : " + id));
         entity.setStatus(status);
