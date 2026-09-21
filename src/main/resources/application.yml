@@ -58,6 +58,17 @@ spring:
     pub-sub-domain: true
     template:
       default-destination: ${JMS_DEFAULT_TOPIC:gaime.webapp}
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:25}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${MAIL_SMTP_AUTH:false}
+      mail.smtp.starttls.enable: ${MAIL_SMTP_STARTTLS:false}
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 5000
+      mail.smtp.writetimeout: 5000
   h2:
     console:
       enabled: true
@@ -184,6 +195,14 @@ nuxeo:
   url: ${NUXEO_URL}
   username: ${NUXEO_USERNAME}
   password: ${NUXEO_PASSWORD}
+
+feedback:
+  mail:
+    enabled: ${FEEDBACK_MAIL_ENABLED:false}
+    from: ${FEEDBACK_MAIL_FROM:no-reply-local@zas.admin.ch}
+    recipients: ${FEEDBACK_MAIL_RECIPIENTS:}
+    subject-prefix: ${FEEDBACK_MAIL_SUBJECT_PREFIX:[ZAS Copilot]}
+    app-base-url: ${FEEDBACK_MAIL_APP_BASE_URL:http://localhost:4200}
 
 management:
   observations:

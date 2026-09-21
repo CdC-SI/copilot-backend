@@ -1,6 +1,7 @@
 package zas.admin.zec.backend.actions.rate;
 
 import jakarta.annotation.Nullable;
+import zas.admin.zec.backend.persistence.entity.FeedbackCategory;
 
 public record Feedback(
         String conversationId,
@@ -8,5 +9,6 @@ public record Feedback(
         boolean isPositive,
         @Nullable String comment,
         @Nullable String question,
-        @Nullable String answer) {
+        @Nullable String answer,
+        @Nullable FeedbackCategory category) {
 }
