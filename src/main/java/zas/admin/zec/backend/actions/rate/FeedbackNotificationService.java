@@ -124,6 +124,10 @@ public class FeedbackNotificationService {
         helper.setSubject(subject);
         helper.setText(out.toString(), true);
 
+        if (properties.logContent()) {
+            log.debug("Envoi d'un mail à {} avec pour sujet '{}' et pour contenu :\n{}", recipients, subject, out);
+        }
+
         mailSender.send(message);
     }
 }

@@ -15,5 +15,6 @@ public record FeedbackMailProperties(
         @NotNull String from,
         @NotNull List<String> recipients,
         @NotNull String subjectPrefix,
-        @NotNull String appBaseUrl) {
+        @NotNull String appBaseUrl,
+        boolean logContent) {
 }

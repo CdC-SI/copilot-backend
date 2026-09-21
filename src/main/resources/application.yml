@@ -203,6 +203,7 @@ feedback:
     recipients: ${FEEDBACK_MAIL_RECIPIENTS:}
     subject-prefix: ${FEEDBACK_MAIL_SUBJECT_PREFIX:[ZAS Copilot]}
     app-base-url: ${FEEDBACK_MAIL_APP_BASE_URL:http://localhost:4200}
+    log-content: ${FEEDBACK_MAIL_LOG_CONTENT:false}
 
 management:
   observations:
