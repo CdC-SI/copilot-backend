@@ -2,9 +2,12 @@ package zas.admin.zec.backend.actions.analyze;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import zas.admin.zec.backend.actions.analyze.FeedbackDTO.*;
 import zas.admin.zec.backend.actions.converse.ConversationService;
 import zas.admin.zec.backend.actions.converse.Source;
+import zas.admin.zec.backend.persistence.entity.FeedbackCategory;
+import zas.admin.zec.backend.persistence.entity.FeedbackStatus;
 import zas.admin.zec.backend.persistence.entity.MessageFeedbackEntity;
 import zas.admin.zec.backend.persistence.entity.SourceFeedbackEntity;
 import zas.admin.zec.backend.persistence.repository.MessageFeedbackRepository;
@@ -12,6 +15,7 @@ import zas.admin.zec.backend.persistence.repository.SourceFeedbackRepository;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
@@ -45,18 +49,22 @@ public class FeedbackQueryService {
         return new TimeWindow(start, end);
     }
 
-    public List<MessageFeedback> listMessages(String range, boolean includeDetails) {
+    public List<MessageFeedback> listMessages(String range, boolean includeDetails, FeedbackStatus status, FeedbackCategory category) {
         TimeWindow w = window(range);
         return msgRepo.findByTimestampBetween(w.start(), w.end())
                 .stream()
+                .filter(m -> status == null || m.getStatus() == status)
+                .filter(m -> category == null || m.getCategory() == category)
                 .sorted(Comparator.comparing(MessageFeedbackEntity::getTimestamp).reversed())
                 .map(m -> toMessageDTO(m, includeDetails))
                 .toList();
     }
 
-    public List<FeedbackDTO.SourceFeedback> listSources(String range) {
+    public List<FeedbackDTO.SourceFeedback> listSources(String range, FeedbackStatus status, FeedbackCategory category) {
         TimeWindow w = window(range);
         return srcRepo.findByTimestampBetween(w.start(), w.end()).stream()
+                .filter(s -> status == null || s.getStatus() == status)
+                .filter(s -> category == null || s.getCategory() == category)
                 .map(this::toSourceDTO)
                 .toList();
     }
@@ -81,7 +89,37 @@ public class FeedbackQueryService {
                 })
                 .toList();
 
-        return new Stats(total, positive, negative, rate, perDay, topDocs);
+        var byStatus = Arrays.stream(FeedbackStatus.values())
+                .map(s -> new ByStatus(s,
+                        msgRepo.countByTimestampBetweenAndStatus(w.start(), w.end(), s)
+                                + srcRepo.countByTimestampBetweenAndStatus(w.start(), w.end(), s)))
+                .toList();
+
+        var byCategory = Arrays.stream(FeedbackCategory.values())
+                .map(c -> new ByCategory(c,
+                        msgRepo.countByTimestampBetweenAndCategory(w.start(), w.end(), c)
+                                + srcRepo.countByTimestampBetweenAndCategory(w.start(), w.end(), c)))
+                .toList();
+
+        return new Stats(total, positive, negative, rate, perDay, topDocs, byStatus, byCategory);
+    }
+
+    @Transactional
+    public MessageFeedback updateMessageFeedbackStatus(Long id, FeedbackStatus status) {
+        var entity = msgRepo.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Feedback de message introuvable : " + id));
+        entity.setStatus(status);
+        msgRepo.save(entity);
+        return toMessageDTO(entity, false);
+    }
+
+    @Transactional
+    public FeedbackDTO.SourceFeedback updateSourceFeedbackStatus(Long id, FeedbackStatus status) {
+        var entity = srcRepo.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Feedback de source introuvable : " + id));
+        entity.setStatus(status);
+        srcRepo.save(entity);
+        return toSourceDTO(entity);
     }
 
     private MessageFeedback toMessageDTO(MessageFeedbackEntity e, boolean includeDetails) {
@@ -93,7 +131,7 @@ public class FeedbackQueryService {
         return new MessageFeedback(
                 e.getId(), e.getUserUuid(), e.getConversationUuid(), e.getMessageUuid(),
                 e.getScore(), e.getComment(), e.getTimestamp().atZone(ZoneId.systemDefault()).toInstant(),
-                e.getQuestion(), e.getAnswer(), sources
+                e.getQuestion(), e.getAnswer(), sources, e.getStatus(), e.getCategory()
         );
     }
 
@@ -108,8 +146,8 @@ public class FeedbackQueryService {
         }
 
         return new SourceFeedback(
-                s.getId(), s.getUserId(), s.getConversationId(), s.getMessageId(), s.getDocumentId(),
+                s.getId(), s.getUserUuid(), s.getConversationUuid(), s.getMessageUuid(), s.getDocumentId(),
                 s.getFeedbackType().name(), s.getComment(), s.getTimestamp().atZone(ZoneId.systemDefault()).toInstant(),
-                title, url, s.getQuestion(), s.getAnswer());
+                title, url, s.getQuestion(), s.getAnswer(), s.getStatus(), s.getCategory());
     }
 }

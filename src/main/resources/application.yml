@@ -58,6 +58,10 @@ spring:
     pub-sub-domain: true
     template:
       default-destination: ${JMS_DEFAULT_TOPIC:gaime.webapp}
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:25}
+    protocol: smtp
   h2:
     console:
       enabled: true
@@ -184,6 +188,15 @@ nuxeo:
   url: ${NUXEO_URL}
   username: ${NUXEO_USERNAME}
   password: ${NUXEO_PASSWORD}
+
+feedback:
+  mail:
+    enabled: ${FEEDBACK_MAIL_ENABLED:false}
+    from: ${FEEDBACK_MAIL_FROM:no-reply-local@zas.admin.ch}
+    recipients: ${FEEDBACK_MAIL_RECIPIENTS:}
+    subject-prefix: ${FEEDBACK_MAIL_SUBJECT_PREFIX:[ZAS Copilot]}
+    app-base-url: ${FEEDBACK_MAIL_APP_BASE_URL:http://localhost:4200}
+    log-content: ${FEEDBACK_MAIL_LOG_CONTENT:false}
 
 management:
   observations:

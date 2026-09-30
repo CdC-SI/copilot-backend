@@ -1,6 +1,8 @@
 package zas.admin.zec.backend.actions.analyze;
 
 import zas.admin.zec.backend.actions.converse.Source;
+import zas.admin.zec.backend.persistence.entity.FeedbackCategory;
+import zas.admin.zec.backend.persistence.entity.FeedbackStatus;
 
 import java.time.Instant;
 import java.util.List;
@@ -8,7 +10,7 @@ import java.util.List;
 public class FeedbackDTO {
     // --- Message feedback ---
     public record MessageFeedback(
-            Integer id,
+            Long id,
             String userUuid,
             String conversationUuid,
             String messageUuid,
@@ -19,7 +21,9 @@ public class FeedbackDTO {
             // optional enriched fields
             String question,
             String answer,
-            List<Source> sources
+            List<Source> sources,
+            FeedbackStatus status,
+            FeedbackCategory category
     ) {}
 
     // --- Source feedback row ---
@@ -37,7 +41,9 @@ public class FeedbackDTO {
             String documentTitle,
             String documentUrl,
             String question,
-            String answer
+            String answer,
+            FeedbackStatus status,
+            FeedbackCategory category
     ) {}
 
     // --- Stats ---
@@ -47,9 +53,17 @@ public class FeedbackDTO {
             long negative,
             double positiveRate,
             List<PerDay> perDay,
-            List<ByDocument> byDocument
+            List<ByDocument> byDocument,
+            List<ByStatus> byStatus,
+            List<ByCategory> byCategory
     ) {}
 
     public record PerDay(String date, long positive, long negative) {}
     public record ByDocument(String documentId, String title, long negatives, long positives) {}
+    public record ByStatus(FeedbackStatus status, long count) {}
+    public record ByCategory(FeedbackCategory category, long count) {}
+
+    // --- Status update request ---
+    public record StatusUpdateRequest(FeedbackStatus status) {}
 }
+

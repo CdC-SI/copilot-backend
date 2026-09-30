@@ -13,11 +13,20 @@ les assurances sociales suisses, basé sur Spring AI.
 ## Commandes de build / test
 
 - **Utiliser directement `mvn`** (et non `./mvnw` / `mvnw.cmd`) pour toutes les commandes de build et de test.
+- Dépôt Maven local : `D:\maven\repository` — déjà configuré (settings.xml), **inutile de le préciser** dans les commandes (`-Dmaven.repo.local=...`).
+- **JDK 21 obligatoire** : le Java par défaut de la machine est le JDK 25, **incompatible avec Lombok** sur ce projet (erreurs `cannot find symbol` sur les getters/setters générés). Définir `JAVA_HOME` sur le JDK 21 avant toute commande Maven, par exemple :
+  ```powershell
+  $env:JAVA_HOME = 'C:\Program Files\Eclipse Adoptium\jdk-21.0.1.12-hotspot'
+  $env:Path = "$env:JAVA_HOME\bin;$env:Path"
+  mvn -o compile
+  ```
+  (adapter le chemin si l'installation diffère). Comme chaque commande `powershell` démarre un processus neuf, il faut redéfinir `JAVA_HOME`/`Path` dans **chaque** appel Maven.
 - Privilégier le mode hors-ligne quand possible : `mvn -o ...`.
 - Exemples :
   - Compiler : `mvn -o compile`
   - Lancer les tests : `mvn -o test`
-  - Build complet : `mvn -o clean package`
+  - Build complet (référence) : `mvn clean install`
+  - Build complet hors-ligne : `mvn -o clean package`
   - Un seul test : `mvn -o test -Dtest=NomDeLaClasseTest`
 - Shell par défaut : **PowerShell** sous Windows. Chaîner les commandes avec `;` (pas `&&`).
 
