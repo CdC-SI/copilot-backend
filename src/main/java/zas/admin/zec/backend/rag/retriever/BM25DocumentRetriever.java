@@ -1,7 +1,5 @@
 package zas.admin.zec.backend.rag.retriever;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.rag.Query;
@@ -12,6 +10,9 @@ import org.springframework.ai.vectorstore.pgvector.PgVectorFilterExpressionConve
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.lang.NonNull;
 import org.springframework.util.StringUtils;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.util.List;
 import java.util.Map;
@@ -34,7 +35,7 @@ import java.util.function.Supplier;
 @Slf4j
 public class BM25DocumentRetriever implements DocumentRetriever {
 
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final ObjectMapper OBJECT_MAPPER = JsonMapper.builder().build();
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
 
     private final JdbcTemplate jdbcTemplate;

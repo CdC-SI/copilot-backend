@@ -24,7 +24,6 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.util.Assert;
 import reactor.core.scheduler.Scheduler;
 
-import javax.validation.constraints.Null;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -48,7 +47,7 @@ public final class RAGAdvisor implements BaseAdvisor {
     private final Scheduler scheduler;
     private final int order;
 
-    public RAGAdvisor(@Null List<QueryTransformer> queryTransformers,
+    public RAGAdvisor(@Nullable List<QueryTransformer> queryTransformers,
                       @Nullable QueryExpander queryExpander, DocumentRetriever documentRetriever,
                       @Nullable DocumentJoiner documentJoiner, @Nullable List<DocumentPostProcessor> documentPostProcessors,
                       @Nullable QueryAugmenter queryAugmenter, @Nullable TaskExecutor taskExecutor,

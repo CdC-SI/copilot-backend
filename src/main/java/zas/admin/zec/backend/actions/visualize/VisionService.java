@@ -1,8 +1,8 @@
 package zas.admin.zec.backend.actions.visualize;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import tools.jackson.databind.JsonNode;
 import zas.admin.zec.backend.actions.visualize.model.MedicalServices;
 import zas.admin.zec.backend.actions.visualize.model.TextTranslation;
 import zas.admin.zec.backend.actions.visualize.model.ZasDocumentType;

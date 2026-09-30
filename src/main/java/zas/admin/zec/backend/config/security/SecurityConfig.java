@@ -1,7 +1,5 @@
 package zas.admin.zec.backend.config.security;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -27,6 +25,9 @@ import org.springframework.security.oauth2.server.resource.web.DefaultBearerToke
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationFilter;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import zas.admin.zec.backend.config.api.ApiKeyAuthenticationConverter;
 import zas.admin.zec.backend.config.api.ApiKeyAuthenticationProvider;
 
@@ -50,7 +51,7 @@ public class SecurityConfig {
             "/api/public/v3/api-docs/**",
             "/api/public/v3/api-docs.yaml"
     };
-    private static final ObjectMapper objectMapper = new ObjectMapper();
+    private static final ObjectMapper objectMapper = JsonMapper.builder().build();
 
     @Value("${zas.security.blue-token.public-key}")
     private String publicKeyPem;

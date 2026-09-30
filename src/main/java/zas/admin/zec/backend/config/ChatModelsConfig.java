@@ -6,12 +6,11 @@ import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.OpenAiEmbeddingModel;
 import org.springframework.ai.openai.OpenAiEmbeddingOptions;
-import org.springframework.ai.openai.api.OpenAiApi;
-import org.springframework.ai.retry.RetryUtils;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.web.util.UriComponentsBuilder;
 import zas.admin.zec.backend.config.properties.InternalChatModelProperties;
 import zas.admin.zec.backend.config.properties.PublicChatModelProperties;
 
@@ -27,12 +26,9 @@ public class ChatModelsConfig {
 
     @Bean(name = "internalChatModel")
     public ChatModel internalChatModel() {
-        var localAiApi = OpenAiApi.builder()
-                .apiKey(internalChatModelProperties.apiKey())
-                .baseUrl(internalChatModelProperties.chatBaseUrl())
-                .build();
-
         var internalChatOptions = OpenAiChatOptions.builder()
+                .apiKey(internalChatModelProperties.apiKey())
+                .baseUrl(apiBaseUrl(internalChatModelProperties.chatBaseUrl()))
                 .model(internalChatModelProperties.chatModel())
                 .temperature(0.0)
                 .maxTokens(16384)
@@ -40,45 +36,40 @@ public class ChatModelsConfig {
                 .build();
 
         return OpenAiChatModel.builder()
-                .openAiApi(localAiApi)
-                .defaultOptions(internalChatOptions)
+                .options(internalChatOptions)
                 .build();
     }
 
     @Bean(name = "visionModel")
     public ChatModel visionModel() {
-        var api = OpenAiApi.builder()
-                .apiKey(internalChatModelProperties.apiKey())
-                .baseUrl(internalChatModelProperties.visionBaseUrl())
-                .build();
-
         var options = OpenAiChatOptions.builder()
+                .apiKey(internalChatModelProperties.apiKey())
+                .baseUrl(apiBaseUrl(internalChatModelProperties.visionBaseUrl()))
                 .model(internalChatModelProperties.visionModel())
                 .temperature(0.0)
                 .maxTokens(15360)
                 .build();
 
         return OpenAiChatModel.builder()
-                .openAiApi(api)
-                .defaultOptions(options)
+                .options(options)
                 .build();
     }
 
     @Primary
     @Bean(name = "internalEmbeddingModel")
     public OpenAiEmbeddingModel internalEmbeddingModel() {
-        var openAiApi = OpenAiApi.builder()
-                .apiKey(internalChatModelProperties.apiKey())
-                .baseUrl(internalChatModelProperties.embeddingBaseUrl())
-                .build();
-
-        return new OpenAiEmbeddingModel(
-                openAiApi,
-                MetadataMode.EMBED,
-                OpenAiEmbeddingOptions.builder()
+        return OpenAiEmbeddingModel.builder()
+                .metadataMode(MetadataMode.EMBED)
+                .options(OpenAiEmbeddingOptions.builder()
+                        .apiKey(internalChatModelProperties.apiKey())
+                        .baseUrl(apiBaseUrl(internalChatModelProperties.embeddingBaseUrl()))
                         .model(internalChatModelProperties.embeddingModel())
-                        //.dimensions(internalChatModelProperties.embeddingDimensions())
-                        .build(),
-                RetryUtils.DEFAULT_RETRY_TEMPLATE);
+                        .build())
+                .build();
+    }
+
+    private static String apiBaseUrl(String baseUrl) {
+        // OpenAiApi appended /v1; the SDK expects it in the base URL.
+        return UriComponentsBuilder.fromUriString(baseUrl).pathSegment("v1").toUriString();
     }
 }

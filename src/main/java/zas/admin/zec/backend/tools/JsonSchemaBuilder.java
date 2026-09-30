@@ -1,8 +1,8 @@
 package zas.admin.zec.backend.tools;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.util.List;
 
@@ -11,7 +11,7 @@ public class JsonSchemaBuilder {
     private JsonSchemaBuilder() {}
 
     public static String buildFlatJsonSchema(List<String> fields) {
-        var mapper = new ObjectMapper();
+        var mapper = JsonMapper.builder().build();
         ObjectNode schema = mapper.createObjectNode();
         schema.put("type", "object");
 
