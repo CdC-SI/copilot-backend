@@ -1,12 +1,13 @@
 package zas.admin.zec.backend.actions.upload.strategy;
 
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
 import org.springframework.data.jpa.repository.JpaRepository;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.json.JsonReadFeature;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import zas.admin.zec.backend.actions.upload.model.DocumentToUpload;
 import zas.admin.zec.backend.actions.upload.validation.UploadException;
 import zas.admin.zec.backend.persistence.entity.DocumentEntity;
@@ -43,8 +44,7 @@ public final class EmbeddedDocUploadStrategy implements UploadStrategy {
     public EmbeddedDocUploadStrategy(DocumentRepository documentRepository, QuestionRepository questionRepository) {
         this.documentRepository = documentRepository;
         this.questionRepository = questionRepository;
-        this.mapper = new ObjectMapper();
-        this.mapper.configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true);
+        this.mapper = JsonMapper.builder().enable(JsonReadFeature.ALLOW_SINGLE_QUOTES).build();
     }
 
     @Override
@@ -52,7 +52,7 @@ public final class EmbeddedDocUploadStrategy implements UploadStrategy {
         try (Reader in = new InputStreamReader(new ByteArrayInputStream(doc.file().getBytes()), StandardCharsets.UTF_8)) {
             if (doc.faqStore()) processQuestionCSV(in);
             else processDocumentCSV(in);
-        } catch (IOException e) {
+        } catch (IOException | JacksonException e) {
             throw new UploadException(doc.file().getOriginalFilename(), ERR_UPLOAD_CSV, e);
         }
     }
@@ -83,19 +83,19 @@ public final class EmbeddedDocUploadStrategy implements UploadStrategy {
         }
     }
 
-    private DocumentEntity toDocumentEntity(CSVRecord rec) throws JsonProcessingException {
+    private DocumentEntity toDocumentEntity(CSVRecord rec) throws JacksonException {
         DocumentEntity entity = new DocumentEntity();
         setCommonFields(entity, rec);
         return entity;
     }
 
-    private QuestionEntity toQuestionEntity(CSVRecord rec) throws JsonProcessingException {
+    private QuestionEntity toQuestionEntity(CSVRecord rec) throws JacksonException {
         QuestionEntity entity = new QuestionEntity();
         setCommonFields(entity, rec);
         return entity;
     }
 
-    private void setCommonFields(Object entity, CSVRecord rec) throws JsonProcessingException {
+    private void setCommonFields(Object entity, CSVRecord rec) throws JacksonException {
         if (entity instanceof DocumentEntity doc) {
             doc.setContent(rec.get(COL_CONTENT));
             doc.setMetadata(mapper.readValue(rec.get(COL_METADATA), new TypeReference<>() {}));

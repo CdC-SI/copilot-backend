@@ -1,10 +1,10 @@
 package zas.admin.zec.backend.actions.summarize.jms;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jms.core.JmsTemplate;
 import org.springframework.stereotype.Service;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
 
@@ -31,9 +31,9 @@ public class GaimeJmsService {
      *
      * @param visa Le visa de l'utilisateur
      * @param objTokens La liste des tokens de documents à afficher
-     * @throws JsonProcessingException Si la sérialisation JSON échoue
+     * @throws JacksonException Si la sérialisation JSON échoue
      */
-    public void sendOpenDocumentsMessage(String visa, List<String> objTokens) throws JsonProcessingException {
+    public void sendOpenDocumentsMessage(String visa, List<String> objTokens) throws JacksonException {
         log.info("Envoi message JMS sur topic pour afficher {} documents (visa: {})", objTokens.size(), visa);
 
         OpenInfo openInfo = new OpenInfo();
@@ -51,4 +51,3 @@ public class GaimeJmsService {
         log.info("Message JMS envoyé avec succès sur topic");
     }
 }
-

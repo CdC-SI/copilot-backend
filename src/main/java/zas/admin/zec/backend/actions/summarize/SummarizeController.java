@@ -1,17 +1,17 @@
 package zas.admin.zec.backend.actions.summarize;
 
-import zas.admin.zec.backend.config.security.ZasUser;
 import ch.admin.zas.jweb.securityevents.core.utils.OPDOOperation;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import tools.jackson.core.JacksonException;
 import zas.admin.zec.backend.actions.summarize.jms.GaimeJmsService;
 import zas.admin.zec.backend.config.security.RequireAdmin;
-import zas.admin.zec.backend.tools.SecurityLogging;
+import zas.admin.zec.backend.config.security.ZasUser;
 import zas.admin.zec.backend.tools.OpdoPersonalData;
+import zas.admin.zec.backend.tools.SecurityLogging;
 
 import java.util.List;
 import java.util.Map;
@@ -153,7 +153,7 @@ public class SummarizeController {
         } catch (TaskNotFoundException | TaskNotCompletedException e) {
             log.warn("Tâche introuvable ou non terminée : {}", e.getMessage());
             throw e;
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             log.error("Erreur lors de la sérialisation du message JMS", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
                     Map.of(

@@ -8,8 +8,8 @@ import org.springframework.boot.testcontainers.service.connection.ServiceConnect
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
-import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.images.builder.ImageFromDockerfile;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import java.nio.file.Path;
@@ -20,14 +20,14 @@ public class LocalConfig {
     @Bean(initMethod = "start", destroyMethod = "stop")
     @ServiceConnection
     @SuppressWarnings("resource")
-    PostgreSQLContainer<?> postgresContainer() {
+    PostgreSQLContainer postgresContainer() {
         String imageName = new ImageFromDockerfile("copilot-backend-postgres-test", false)
                 .withFileFromPath(".", Path.of("src/test/resources/docker"))
                 .withFileFromPath("init-extensions.sql", Path.of("src/test/resources/init-extensions.sql"))
                 .withFileFromPath("docker/pg-textsearch-postgresql-18_1.2.0-1_amd64.deb", Path.of("src/test/resources/docker/pg-textsearch-postgresql-18_1.2.0-1_amd64.deb"))
                 .get();
 
-        return new PostgreSQLContainer<>(DockerImageName.parse(imageName).asCompatibleSubstituteFor("postgres"))
+        return new PostgreSQLContainer(DockerImageName.parse(imageName).asCompatibleSubstituteFor("postgres"))
                 .withDatabaseName("pg_db")
                 .withUsername("admin")
                 .withPassword("pg_password");

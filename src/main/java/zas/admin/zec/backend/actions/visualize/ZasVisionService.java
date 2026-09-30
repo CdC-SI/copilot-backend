@@ -1,6 +1,5 @@
 package zas.admin.zec.backend.actions.visualize;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.rendering.ImageType;
@@ -11,13 +10,13 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.content.Media;
 import org.springframework.ai.openai.OpenAiChatOptions;
-import org.springframework.ai.openai.api.ResponseFormat;
 import org.springframework.ai.util.json.schema.JsonSchemaGenerator;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.MimeTypeUtils;
 import org.springframework.web.multipart.MultipartFile;
+import tools.jackson.databind.JsonNode;
 import zas.admin.zec.backend.actions.visualize.model.MedicalServices;
 import zas.admin.zec.backend.actions.visualize.model.TextTranslation;
 import zas.admin.zec.backend.actions.visualize.model.ZasDocumentType;
@@ -55,8 +54,7 @@ public class ZasVisionService implements VisionService {
         String jsonSchema = JsonSchemaBuilder.buildFlatJsonSchema(fields);
 
         var options = OpenAiChatOptions.builder()
-                .responseFormat(new ResponseFormat(ResponseFormat.Type.JSON_SCHEMA, jsonSchema))
-                .build();
+                .outputSchema(jsonSchema);
 
         var prompt = new Prompt(
                 visionMessageService.structureDataFromImageMessage(jsonSchema),
@@ -69,8 +67,7 @@ public class ZasVisionService implements VisionService {
         String jsonSchema = JsonSchemaGenerator.generateForType(MedicalServices.class);
 
         var options = OpenAiChatOptions.builder()
-                .responseFormat(new ResponseFormat(ResponseFormat.Type.JSON_SCHEMA, jsonSchema))
-                .build();
+                .outputSchema(jsonSchema);
 
         var prompt = new Prompt(
                 visionMessageService.extractTariffPositionMessage(jsonSchema),
@@ -83,8 +80,7 @@ public class ZasVisionService implements VisionService {
         String jsonSchema = JsonSchemaGenerator.generateForType(SumexInvoice.class);
 
         var options = OpenAiChatOptions.builder()
-                .responseFormat(new ResponseFormat(ResponseFormat.Type.JSON_SCHEMA, jsonSchema))
-                .build();
+                .outputSchema(jsonSchema);
 
         var prompt = new Prompt(
                 visionMessageService.extractSumexInvoiceMessage(jsonSchema),
@@ -97,8 +93,7 @@ public class ZasVisionService implements VisionService {
     public ZasDocumentType classifyFile(MultipartFile file) {
         String jsonSchema = JsonSchemaGenerator.generateForType(ZasDocumentType.class);
         var options = OpenAiChatOptions.builder()
-                .responseFormat(new ResponseFormat(ResponseFormat.Type.JSON_SCHEMA, jsonSchema))
-                .build();
+                .outputSchema(jsonSchema);
 
         var prompt = new Prompt(visionMessageService.classifyMessage(), visionMessageService.fileMessage(file));
 
@@ -122,11 +117,10 @@ public class ZasVisionService implements VisionService {
 
             var systemMessage = visionMessageService.translateImageMessage(language);
             String jsonSchema = JsonSchemaGenerator.generateForType(TextTranslation.class);
-            var options = OpenAiChatOptions.builder()
-                    .temperature(0.0)
-                    .responseFormat(new ResponseFormat(ResponseFormat.Type.JSON_SCHEMA, jsonSchema))
-                    .build();
             List<CompletableFuture<TextTranslation>> futures = pages.stream().map(pageBytes -> CompletableFuture.supplyAsync(() -> {
+                var options = OpenAiChatOptions.builder()
+                        .temperature(0.0)
+                        .outputSchema(jsonSchema);
                 var userMessage = UserMessage.builder()
                         .text("""
                                 Task: Extract and translate all readable text from this image.
