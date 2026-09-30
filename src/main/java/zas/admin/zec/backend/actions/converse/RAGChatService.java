@@ -25,7 +25,10 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * Stratégie {@link ChatService} "fonctionnalités complètes" : un unique {@link ChatClient} auquel
  * sont attribués le tool {@link RAGTool} (recherche documentaire) et {@link ConversationAttachmentTool}
- * (pièces jointes). Le LLM décide lui-même d'invoquer ces tools via tool-calling.
+ * (pièces jointes). Le LLM décide lui-même d'invoquer ces tools via tool-calling, sauf lorsque le
+ * workspace est fourni explicitement dans la question (correction d'une inférence précédente) :
+ * une consigne prioritaire est alors ajoutée au system prompt pour rendre l'appel à {@link RAGTool}
+ * obligatoire.
  *
  * <p>Active pour les conversations de type {@link ConversationType#COMPLETE}.</p>
  *
@@ -85,15 +88,16 @@ public class RAGChatService extends AbstractChatService {
 
         // Un workspace explicitement attaché à la question signale que l'utilisateur a corrigé
         // l'inférence précédente et relance la même question : on renseigne le workspace corrigé
-        // dans la ligne de monitoring correspondante.
-        if (question.workspace() != null && !question.workspace().isBlank()) {
+        // dans la ligne de monitoring correspondante, et la recherche documentaire devient obligatoire.
+        boolean workspaceProvided = question.workspace() != null && !question.workspace().isBlank();
+        if (workspaceProvided) {
             workspaceInferenceMonitoringService.recordCorrection(
                     userId, question.conversationId(), question.query(), question.workspace());
         }
 
         Flux<Token> textTokens = internalChatClient
                 .prompt()
-                .system(agenticSystemPrompt(question))
+                .system(agenticSystemPrompt(question, workspaceProvided))
                 .messages(conversationHistory.stream().map(this::convertToMessage).toList())
                 .tools(ragTool, attachmentTool)
                 .toolContext(toolContext)
@@ -101,6 +105,14 @@ public class RAGChatService extends AbstractChatService {
                 .stream()
                 .chatResponse()
                 .flatMap(this::toTextToken)
+                .doOnComplete(() -> {
+                    // La consigne de prompt n'offre pas de garantie stricte : on trace les cas où le
+                    // LLM a malgré tout ignoré la recherche documentaire.
+                    if (workspaceProvided && resolvedWorkspace.get() == null) {
+                        log.warn("Workspace '{}' fourni explicitement mais RAGTool non appelé (conversation {})",
+                                question.workspace(), question.conversationId());
+                    }
+                })
                 .doFinally(signal -> statusSink.tryEmitComplete());
 
         // Les sources ne sont connues qu'après la génération (si le tool a été appelé).
@@ -116,11 +128,15 @@ public class RAGChatService extends AbstractChatService {
         return statusSink.asFlux().mergeWith(textTokens).concatWith(sourceTokens).concatWith(workspaceToken);
     }
 
-    private String agenticSystemPrompt(Question question) {
+    private String agenticSystemPrompt(Question question, boolean workspaceProvided) {
         // Prompt non orienté RAG : le LLM décide lui-même d'appeler le tool de recherche
         // documentaire, et répond directement aux demandes situationnelles (résumé, traduction...).
-        return RAGPrompts.getAgenticSystemPrompt(question.language())
+        // Si le workspace est fourni explicitement, une consigne prioritaire rend l'appel obligatoire.
+        String prompt = RAGPrompts.getAgenticSystemPrompt(question.language())
                 .formatted(question.responseFormat());
+        return workspaceProvided
+                ? prompt + RAGPrompts.getForcedRetrievalDirective(question.language(), question.workspace())
+                : prompt;
     }
 
     private Flux<Token> toSourceTokens(List<Document> documents) {

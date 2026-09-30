@@ -583,6 +583,41 @@ public final class RAGPrompts {
             </formato_di_risposta>
             """;
 
+    // Consignes ajoutées en fin de prompt agentique lorsque le workspace est fourni explicitement :
+    // l'utilisateur a corrigé le domaine inféré et relance sa question, la recherche est obligatoire.
+    private static final String FORCED_RETRIEVAL_DIRECTIVE_FR = """
+
+            <consigne_prioritaire>
+                L'utilisateur a explicitement sélectionné le domaine documentaire « %s » pour ce message, ce qui signifie qu'il a corrigé le domaine utilisé précédemment et qu'il relance sa question.
+                Cette consigne prime sur toutes les autres consignes relatives au choix des outils :
+                - Vous DEVEZ appeler l'outil « search_social_insurance_documentation » AVANT de répondre, même si la question a déjà reçu une réponse plus tôt dans la conversation.
+                - Ne réutilisez PAS la réponse précédente ni ses sources : elles peuvent reposer sur un domaine erroné.
+                - Fondez votre réponse exclusivement sur les documents retournés par ce nouvel appel.
+            </consigne_prioritaire>
+            """;
+
+    private static final String FORCED_RETRIEVAL_DIRECTIVE_DE = """
+
+            <vorrangige_anweisung>
+                Die Benutzerin oder der Benutzer hat für diese Nachricht ausdrücklich den Dokumentationsbereich «%s» ausgewählt. Das bedeutet, dass der zuvor verwendete Bereich korrigiert wurde und die Frage erneut gestellt wird.
+                Diese Anweisung hat Vorrang vor allen anderen Anweisungen zur Werkzeugwahl:
+                - Sie MÜSSEN das Werkzeug «search_social_insurance_documentation» aufrufen, BEVOR Sie antworten, auch wenn die Frage bereits früher im Gespräch beantwortet wurde.
+                - Verwenden Sie die vorherige Antwort und deren Quellen NICHT wieder: Sie können auf einem falschen Bereich beruhen.
+                - Stützen Sie Ihre Antwort ausschliesslich auf die Dokumente, die dieser neue Aufruf zurückgibt.
+            </vorrangige_anweisung>
+            """;
+
+    private static final String FORCED_RETRIEVAL_DIRECTIVE_IT = """
+
+            <istruzione_prioritaria>
+                L'utente ha selezionato esplicitamente l'ambito documentale «%s» per questo messaggio: ciò significa che ha corretto l'ambito usato in precedenza e sta riproponendo la sua domanda.
+                Questa istruzione prevale su tutte le altre istruzioni relative alla scelta degli strumenti:
+                - DEVI richiamare lo strumento «search_social_insurance_documentation» PRIMA di rispondere, anche se alla domanda è già stata data risposta in precedenza nella conversazione.
+                - NON riutilizzare la risposta precedente né le sue fonti: potrebbero basarsi su un ambito errato.
+                - Basa la tua risposta esclusivamente sui documenti restituiti da questa nuova chiamata.
+            </istruzione_prioritaria>
+            """;
+
     private static final String ATTACHMENT_SYSTEM_PROMPT_FR = """
             <personnalité>
                 Vous êtes ZIA, l'assistant de la Centrale de Compensation (CdC). Vous êtes consciencieux, amical et polyvalent. Votre mission est d'aider l'utilisateur dans ses tâches quotidiennes : rédiger et relire des courriels, traduire ou reformuler des textes, résumer, structurer des idées, expliquer un concept, corriger l'orthographe et le style, etc.
@@ -824,6 +859,19 @@ public final class RAGPrompts {
             case "it" -> AGENTIC_SYSTEM_PROMPT_IT;
             default -> AGENTIC_SYSTEM_PROMPT_DE;
         };
+    }
+
+    /**
+     * Consigne à ajouter au prompt agentique lorsque le workspace est fourni explicitement par
+     * l'utilisateur : rend l'appel à l'outil de recherche documentaire obligatoire.
+     */
+    public static String getForcedRetrievalDirective(String lang, String workspace) {
+        String directive = switch (lang) {
+            case "fr" -> FORCED_RETRIEVAL_DIRECTIVE_FR;
+            case "it" -> FORCED_RETRIEVAL_DIRECTIVE_IT;
+            default -> FORCED_RETRIEVAL_DIRECTIVE_DE;
+        };
+        return directive.formatted(workspace);
     }
 
     /**
