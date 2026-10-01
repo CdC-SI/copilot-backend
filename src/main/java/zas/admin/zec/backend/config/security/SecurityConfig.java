@@ -78,8 +78,7 @@ public class SecurityConfig {
     @Bean
     @Order(2)
     public SecurityFilterChain publicApiSecurityFilterChain(HttpSecurity http,
-                                                            AuthenticationManager apiKeyAuthManager,
-                                                            ApiKeyAuthenticationConverter converter) throws Exception {
+                                                            AuthenticationManager apiKeyAuthManager) throws Exception {
         http.securityMatcher(PUBLIC_API_PATH)
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -87,7 +86,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .anyRequest().authenticated());
 
-        AuthenticationFilter apiKeyFilter = new AuthenticationFilter(apiKeyAuthManager, converter);
+        AuthenticationFilter apiKeyFilter = new AuthenticationFilter(apiKeyAuthManager, new ApiKeyAuthenticationConverter());
         apiKeyFilter.setSuccessHandler((request, response, authentication) -> { });
         apiKeyFilter.setFailureHandler((request, response, exception) -> {
             response.setStatus(401);

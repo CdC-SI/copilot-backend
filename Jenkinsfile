@@ -1,9 +1,7 @@
+@Library('zas-pipelinelibrary') _
 
-@Library('phenix-pipeline-library') _
-
-mavenDockerBuild{
-    displayParameters=true
-    jdk='jdk21(x64)'
+mavenPipelineTemplate{
+    node='java-25'
     mvnArgs='-B clean verify'
     dockerConfig = [
         dockerfilePath: 'Dockerfile',
