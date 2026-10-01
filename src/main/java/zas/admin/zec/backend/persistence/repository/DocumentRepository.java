@@ -11,6 +11,19 @@ import java.util.UUID;
 public interface DocumentRepository extends JpaRepository<DocumentEntity, UUID> {
 
     /**
+     * Une ligne par tag : les tags stockés en tableau JSON sont dépliés, une valeur scalaire (format historique,
+     * ex. {@code "a,b"} pour la FAQ) ou une clé absente ({@code null}) est renvoyée telle quelle.
+     */
+    String TAGS_FROM = """
+        FROM vector_store v
+        CROSS JOIN LATERAL (
+            SELECT json_array_elements_text(v.metadata -> 'tags') WHERE json_typeof(v.metadata -> 'tags') = 'array'
+            UNION ALL
+            SELECT v.metadata ->> 'tags' WHERE json_typeof(v.metadata -> 'tags') IS DISTINCT FROM 'array'
+        ) AS t(tag)
+        """;
+
+    /**
      * Projection d'un contenu (document ou url) d'une source, dérivé des métadonnées des chunks.
      */
     interface SourceContentProjection {
@@ -51,30 +64,29 @@ public interface DocumentRepository extends JpaRepository<DocumentEntity, UUID> 
     int deleteBySource(String source);
 
     @Query(value = """
-        SELECT DISTINCT metadata ->> 'tags' AS tag
-        FROM vector_store
-        WHERE metadata ->> 'organizations' IS NULL OR metadata ->> 'organizations' = ''
+        SELECT DISTINCT t.tag AS tag
+        """ + TAGS_FROM + """
+        WHERE v.metadata ->> 'organizations' IS NULL OR v.metadata ->> 'organizations' = ''
         """, nativeQuery = true)
     List<String> findPublicTags();
 
     @Query(value = """
-        SELECT DISTINCT metadata ->> 'tags' AS tag
-        FROM vector_store
-        WHERE metadata ->> 'source' IN :sources
-        AND (metadata ->> 'organizations' IS NULL OR metadata ->> 'organizations' = '')
+        SELECT DISTINCT t.tag AS tag
+        """ + TAGS_FROM + """
+        WHERE v.metadata ->> 'source' IN :sources
+        AND (v.metadata ->> 'organizations' IS NULL OR v.metadata ->> 'organizations' = '')
         """, nativeQuery = true)
     List<String> findPublicTagsBySources(List<String> sources);
 
     @Query(value = """
-        SELECT DISTINCT metadata ->> 'tags' AS tag
-        FROM vector_store
-        """, nativeQuery = true)
+        SELECT DISTINCT t.tag AS tag
+        """ + TAGS_FROM, nativeQuery = true)
     List<String> findAllTags();
 
     @Query(value = """
-        SELECT DISTINCT metadata ->> 'tags' AS tag
-        FROM vector_store
-        WHERE metadata ->> 'source' IN :sources
+        SELECT DISTINCT t.tag AS tag
+        """ + TAGS_FROM + """
+        WHERE v.metadata ->> 'source' IN :sources
         """, nativeQuery = true)
     List<String> findTagsBySources(List<String> sources);
 

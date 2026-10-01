@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
+import zas.admin.zec.backend.persistence.MetadataValues;
 import zas.admin.zec.backend.rag.RAGPrompts;
 import zas.admin.zec.backend.rag.token.SourceToken;
 import zas.admin.zec.backend.rag.token.Token;
@@ -149,22 +150,22 @@ public class RAGChatService extends AbstractChatService {
 
     private SourceToken toSourceToken(Document document) {
         var meta = document.getMetadata();
-        var url = (String) meta.get(META_URL);
+        var url = MetadataValues.getString(meta, META_URL);
         if (url != null && !url.isBlank()) {
             return SourceToken.fromURLWithDetails(
                     document.getId(),
                     url,
-                    (String) meta.get(META_PAGE_NUM),
-                    (String) meta.get(META_SUBSECTION),
-                    (String) meta.get(META_STATE)
+                    MetadataValues.getString(meta, META_PAGE_NUM),
+                    MetadataValues.getString(meta, META_SUBSECTION),
+                    MetadataValues.getString(meta, META_STATE)
             );
         }
         return SourceToken.fromFileWithDetails(
                 document.getId(),
-                (String) meta.get(META_TITLE),
-                (String) meta.get(META_PAGE_NUM),
-                (String) meta.get(META_SUBSECTION),
-                (String) meta.get(META_STATE)
+                MetadataValues.getString(meta, META_TITLE),
+                MetadataValues.getString(meta, META_PAGE_NUM),
+                MetadataValues.getString(meta, META_SUBSECTION),
+                MetadataValues.getString(meta, META_STATE)
         );
     }
 

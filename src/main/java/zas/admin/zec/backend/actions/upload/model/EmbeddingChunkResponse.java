@@ -9,11 +9,11 @@ import java.util.Map;
  *
  * @param content   texte du chunk
  * @param embedding vecteur d'embedding du chunk
- * @param metadata  métadonnées associées au chunk
+ * @param metadata  métadonnées associées au chunk (types JSON natifs conservés : chaîne, nombre, booléen, tableau)
  */
 public record EmbeddingChunkResponse(
         @JsonProperty("content") String content,
         @JsonProperty("embedding") String embedding,
-        @JsonProperty("metadata") Map<String, String> metadata
+        @JsonProperty("metadata") Map<String, Object> metadata
 ) {}
 

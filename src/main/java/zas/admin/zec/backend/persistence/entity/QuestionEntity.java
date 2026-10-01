@@ -27,7 +27,7 @@ public class QuestionEntity {
 
     @Type(JsonType.class)
     @Column(name = "metadata", columnDefinition = "json")
-    private Map<String, String> metadata;
+    private Map<String, Object> metadata;
 
     @Array(length = 1024)
     @JdbcTypeCode(SqlTypes.VECTOR)

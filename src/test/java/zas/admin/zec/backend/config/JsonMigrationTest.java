@@ -7,6 +7,7 @@ import tools.jackson.databind.json.JsonMapper;
 import zas.admin.zec.backend.actions.converse.ConversationTitleUpdate;
 import zas.admin.zec.backend.actions.summarize.jms.GaimeJmsService;
 import zas.admin.zec.backend.actions.upload.model.DocumentToUpload;
+import zas.admin.zec.backend.actions.upload.model.EmbeddingChunkResponse;
 import zas.admin.zec.backend.actions.upload.strategy.EmbeddedDocUploadStrategy;
 import zas.admin.zec.backend.actions.upload.validation.UploadException;
 import zas.admin.zec.backend.persistence.entity.DocumentEntity;
@@ -71,6 +72,34 @@ class JsonMigrationTest {
 
         assertEquals("fr", saved.get().getMetadata().get("language"));
         assertArrayEquals(new float[]{0.1f, 0.2f}, saved.get().getEmbedding());
+    }
+
+    @Test
+    void csvKeepsNativeJsonTypesInMetadata() {
+        var documents = mock(DocumentRepository.class);
+        var saved = new AtomicReference<DocumentEntity>();
+        when(documents.saveAll(anyList())).thenAnswer(invocation -> {
+            List<DocumentEntity> batch = invocation.getArgument(0);
+            saved.set(batch.getFirst());
+            return batch;
+        });
+        var strategy = new EmbeddedDocUploadStrategy(documents, mock(QuestionRepository.class));
+
+        strategy.upload(csv("text,\"{'page_number':3,'tags':['AVS','AI']}\",\"0.1,0.2\""));
+
+        assertEquals(3, saved.get().getMetadata().get("page_number"));
+        assertEquals(List.of("AVS", "AI"), saved.get().getMetadata().get("tags"));
+    }
+
+    @Test
+    void embeddingChunkKeepsNativeJsonTypesInMetadata() {
+        var chunk = mapper.readValue("""
+                {"content":"text","embedding":"[0.1]","metadata":{"page_number":3,"tags":["AVS","AI"],"title":"T"}}
+                """, EmbeddingChunkResponse.class);
+
+        assertEquals(3, chunk.metadata().get("page_number"));
+        assertEquals(List.of("AVS", "AI"), chunk.metadata().get("tags"));
+        assertEquals("T", chunk.metadata().get("title"));
     }
 
     @Test

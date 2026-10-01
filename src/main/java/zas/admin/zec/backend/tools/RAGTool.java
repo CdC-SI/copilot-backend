@@ -232,16 +232,27 @@ public class RAGTool {
     }
 
     private Filter.Expression buildExpression(String workspace, String userId, boolean userHasAccessToInternalDocuments) {
+        return metadataFilter(sourceResolver.resolve(workspace), userId, userHasAccessToInternalDocuments);
+    }
+
+    /**
+     * Filtre sur les métadonnées : sources du workspace, exclusion des documents internes ({@code organizations}
+     * contenant {@code ZAS}, valeur scalaire ou tableau) sauf droits, documents publics ou propres à l'utilisateur.
+     */
+    static Filter.Expression metadataFilter(Collection<String> sources, String userId,
+                                            boolean userHasAccessToInternalDocuments) {
         FilterExpressionBuilder builder = new FilterExpressionBuilder();
         List<FilterExpressionBuilder.Op> ops = new ArrayList<>();
 
-        var sources = sourceResolver.resolve(workspace);
         if (!CollectionUtils.isEmpty(sources)) {
             ops.add(builder.in(META_SOURCE, List.copyOf(sources)));
         }
 
         if (!userHasAccessToInternalDocuments) {
-            ops.add(builder.ne(META_ORGANIZATIONS, ORG_ZAS));
+            // ne() seul ne suffit pas : sur un tableau, "!=" est vrai dès qu'un élément diffère (["ZAS","OFAS"]
+            // passerait) ; nin() exclut tout tableau contenant ZAS. ne() conserve l'exclusion historique des
+            // documents sans clé "organizations" (isNotNull() n'est pas supporté par le converter PgVector).
+            ops.add(builder.and(builder.ne(META_ORGANIZATIONS, ORG_ZAS), builder.nin(META_ORGANIZATIONS, ORG_ZAS)));
         }
 
         ops.add(builder.group(builder.or(builder.eq(META_USER_UUID, userId), builder.eq(META_USER_UUID, ""))));
