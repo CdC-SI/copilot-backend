@@ -3,6 +3,7 @@ package zas.admin.zec.backend.actions.converse;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.model.Generation;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
 import zas.admin.zec.backend.rag.token.TextToken;
@@ -11,6 +12,7 @@ import zas.admin.zec.backend.tools.ToolContextKeys;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Base commune aux implémentations de {@link ChatService}, regroupant les helpers partagés :
@@ -34,13 +36,13 @@ abstract class AbstractChatService implements ChatService {
     }
 
     protected Flux<Token> toTextToken(ChatResponse response) {
-        if (response == null) {
-            return Flux.just(new TextToken(""));
-        } else {
-            response.getResult();
-        }
-        var text = response.getResult().getOutput().getText();
-        return Flux.just(new TextToken(text != null ? text : ""));
+        var text = Optional.ofNullable(response)
+                .map(ChatResponse::getResult)
+                .map(Generation::getOutput)
+                .map(AssistantMessage::getText)
+                .orElse("");
+
+        return Flux.just(new TextToken(text));
     }
 
     protected org.springframework.ai.chat.messages.Message convertToMessage(Message message) {
