@@ -63,6 +63,7 @@ public class UploadService {
             personalDoc.setUploadedAt(LocalDateTime.now());
             personalDoc.setStatus(EmbeddingStatus.PENDING);
             personalDoc.setAvailabilityStatus(AvailabilityStatus.ACTIVE);
+            personalDoc.setNextPollAt(LocalDateTime.now());
 
             var savedDoc = tempSourceDocumentRepository.save(personalDoc);
 
@@ -134,11 +135,15 @@ public class UploadService {
 
     @Transactional
     public void deleteUserPersonalDocument(String filename, String userUuid) {
-        var docEntity = tempSourceDocumentRepository.findByFileNameAndUserUuid(filename, userUuid)
+        var docEntity = tempSourceDocumentRepository.findByFileNameAndUserUuidForUpdate(filename, userUuid)
                 .orElseThrow(() -> new IllegalArgumentException(String.format("Document %s not found", filename)));
 
         tempSourceDocumentRepository.delete(docEntity);
         vectorStore.delete(buildUserFileFilter(userUuid, filename));
+
+        if (docEntity.getStatus() == EmbeddingStatus.PENDING && docEntity.getJobId() != null) {
+            eventPublisher.publishEvent(new PersonalDocumentDeletedEvent(docEntity.getJobId(), userUuid));
+        }
     }
 
     public void uploadAdminDocuments(List<DocumentToUpload> documents) {

@@ -119,6 +119,14 @@ py-backend:
   baseUrl: http://copilot:8000
 embedding-service:
   base-url: ${EMBEDDING_SERVICE_BASE_URL}
+  poll-interval: ${EMBEDDING_SERVICE_POLL_INTERVAL:3s}
+  retry-delay: ${EMBEDDING_SERVICE_RETRY_DELAY:30s}
+  lease: ${EMBEDDING_SERVICE_LEASE:5m}
+  batch-size: ${EMBEDDING_SERVICE_BATCH_SIZE:10}
+  max-submit-attempts: ${EMBEDDING_SERVICE_MAX_SUBMIT_ATTEMPTS:3}
+  job-timeout: ${EMBEDDING_SERVICE_JOB_TIMEOUT:6h}
+  request-timeout: ${EMBEDDING_SERVICE_REQUEST_TIMEOUT:60s}
+  max-response-size: ${EMBEDDING_SERVICE_MAX_RESPONSE_SIZE:64MB}
 identity-check:
   baseUrl: ${IDENTITY_CHECK_BASE_URL:https://api.int.adnovum-vips.ch}
   call-back-url: ${IDENTITY_CHECK_CALL_BACK_URL:http://localhost:4200/tools}
