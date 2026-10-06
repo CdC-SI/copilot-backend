@@ -41,4 +41,16 @@ public class TempSourceDocumentEntity {
     @Column(name = "archived_at")
     private LocalDateTime archivedAt;
 
+    @Column(name = "job_id")
+    private String jobId;
+
+    @Column(name = "job_submitted_at")
+    private LocalDateTime jobSubmittedAt;
+
+    @Column(name = "job_attempts", nullable = false)
+    private int jobAttempts;
+
+    @Column(name = "next_poll_at")
+    private LocalDateTime nextPollAt;
+
 }

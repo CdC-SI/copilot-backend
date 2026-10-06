@@ -166,6 +166,39 @@ class UploadServiceTest {
     }
 
     @Test
+    @DisplayName("deleteUserPersonalDocument publishes a cancel event for a pending job")
+    void deleteUserPersonalDocument_publishesCancelEventForPendingJob() {
+        TempSourceDocumentEntity doc = new TempSourceDocumentEntity();
+        doc.setFileName("file.pdf");
+        doc.setStatus(EmbeddingStatus.PENDING);
+        doc.setJobId("job-1");
+
+        when(tempSourceDocumentRepository.findByFileNameAndUserUuid("file.pdf", "uuid"))
+                .thenReturn(Optional.of(doc));
+
+        uploadService.deleteUserPersonalDocument("file.pdf", "uuid");
+
+        verify(tempSourceDocumentRepository).delete(doc);
+        verify(eventPublisher).publishEvent(new PersonalDocumentDeletedEvent("job-1", "uuid"));
+    }
+
+    @Test
+    @DisplayName("deleteUserPersonalDocument does not cancel anything for a processed document")
+    void deleteUserPersonalDocument_doesNotCancelProcessedDocument() {
+        TempSourceDocumentEntity doc = new TempSourceDocumentEntity();
+        doc.setFileName("file.pdf");
+        doc.setStatus(EmbeddingStatus.PROCESSED);
+        doc.setJobId("job-1");
+
+        when(tempSourceDocumentRepository.findByFileNameAndUserUuid("file.pdf", "uuid"))
+                .thenReturn(Optional.of(doc));
+
+        uploadService.deleteUserPersonalDocument("file.pdf", "uuid");
+
+        verify(eventPublisher, never()).publishEvent(any(Object.class));
+    }
+
+    @Test
     @DisplayName("reactivatePersonalDocument throws when not found")
     void reactivatePersonalDocument_throwsWhenNotFound() {
         when(tempSourceDocumentRepository.findByFileNameAndUserUuid("missing.pdf", "uuid"))

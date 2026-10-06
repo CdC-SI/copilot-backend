@@ -15,8 +15,11 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.json.JsonMapper;
+import zas.admin.zec.backend.actions.upload.model.EmbeddingStatus;
 import zas.admin.zec.backend.persistence.entity.DocumentEntity;
+import zas.admin.zec.backend.persistence.entity.TempSourceDocumentEntity;
 import zas.admin.zec.backend.persistence.repository.DocumentRepository;
+import zas.admin.zec.backend.persistence.repository.TempSourceDocumentRepository;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -25,8 +28,8 @@ import java.net.http.HttpResponse;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
-import java.util.Base64;
-import java.util.Map;
+import java.time.LocalDateTime;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.when;
@@ -76,6 +79,9 @@ class MigrationStartupIT {
 
     @Autowired
     private VectorStore vectorStore;
+
+    @Autowired
+    private TempSourceDocumentRepository tempDocuments;
 
     @MockitoBean(name = "internalEmbeddingModel")
     private OpenAiEmbeddingModel embeddingModel;
@@ -133,6 +139,26 @@ class MigrationStartupIT {
         assertEquals(document.getId().toString(), results.getFirst().getId());
         assertEquals("fr", results.getFirst().getMetadata().get("language"));
         assertEquals("test document", results.getFirst().getText());
+    }
+
+    @Test
+    @Transactional
+    void pendingPersonalDocumentsCanBeClaimedForEmbeddingPolling() {
+        var now = LocalDateTime.now();
+        var doc = new TempSourceDocumentEntity();
+        doc.setFileName("migration-it-" + UUID.randomUUID() + ".pdf");
+        doc.setUserUuid("migration-it-user");
+        doc.setContent(new byte[]{1});
+        doc.setStatus(EmbeddingStatus.PENDING);
+        doc.setNextPollAt(now.minusSeconds(1));
+        tempDocuments.saveAndFlush(doc);
+
+        assertTrue(tempDocuments.lockDueForEmbedding(now, 100).contains(doc.getId()));
+        assertEquals(Optional.of(doc.getId()), tempDocuments.lockIfDueForEmbedding(doc.getId(), now));
+        assertEquals(1, tempDocuments.leaseUntil(List.of(doc.getId()), now.plusMinutes(5)));
+        assertFalse(tempDocuments.lockDueForEmbedding(now, 100).contains(doc.getId()));
+        assertTrue(tempDocuments.lockIfDueForEmbedding(doc.getId(), now).isEmpty());
+        assertTrue(tempDocuments.findByIdForUpdate(doc.getId()).isPresent());
     }
 
     private HttpRequest.Builder request(String path) {
