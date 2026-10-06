@@ -173,7 +173,7 @@ class UploadServiceTest {
         doc.setStatus(EmbeddingStatus.PENDING);
         doc.setJobId("job-1");
 
-        when(tempSourceDocumentRepository.findByFileNameAndUserUuid("file.pdf", "uuid"))
+        when(tempSourceDocumentRepository.findByFileNameAndUserUuidForUpdate("file.pdf", "uuid"))
                 .thenReturn(Optional.of(doc));
 
         uploadService.deleteUserPersonalDocument("file.pdf", "uuid");
@@ -190,7 +190,7 @@ class UploadServiceTest {
         doc.setStatus(EmbeddingStatus.PROCESSED);
         doc.setJobId("job-1");
 
-        when(tempSourceDocumentRepository.findByFileNameAndUserUuid("file.pdf", "uuid"))
+        when(tempSourceDocumentRepository.findByFileNameAndUserUuidForUpdate("file.pdf", "uuid"))
                 .thenReturn(Optional.of(doc));
 
         uploadService.deleteUserPersonalDocument("file.pdf", "uuid");

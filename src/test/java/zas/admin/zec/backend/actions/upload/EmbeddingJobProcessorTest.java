@@ -183,6 +183,21 @@ class EmbeddingJobProcessorTest {
     }
 
     @Test
+    @DisplayName("does not fail a newer job when the previous job fails")
+    void process_ignoresStaleFailure() {
+        givenSubmittedJob("job-1");
+        when(client.status("job-1", USER)).thenAnswer(invocation -> {
+            doc.setJobId("job-2");
+            throw new EmbeddingServiceException(400, "failed", "failed");
+        });
+
+        processor.process(DOC_ID);
+
+        assertEquals("job-2", doc.getJobId());
+        assertEquals(EmbeddingStatus.PENDING, doc.getStatus());
+    }
+
+    @Test
     @DisplayName("resets the job for resubmission when the job is lost (410)")
     void process_resubmitsWhenJobLost() {
         givenSubmittedJob("job-1");

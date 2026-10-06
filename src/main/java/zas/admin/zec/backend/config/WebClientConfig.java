@@ -79,6 +79,17 @@ public class WebClientConfig {
         return executor;
     }
 
+    @Bean(name = "embeddingJobExecutor")
+    public TaskExecutor embeddingJobExecutor() {
+        var executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(4);
+        executor.setMaxPoolSize(10);
+        executor.setQueueCapacity(50);
+        executor.setThreadNamePrefix("EmbeddingJobExecutor-");
+        executor.initialize();
+        return executor;
+    }
+
     @Bean(name = "identityCheckRestClient")
     public RestClient identityCheckRestClient(RestClient.Builder builder, RestClientSsl ssl) {
         RestClient.Builder clientBuilder = builder.baseUrl(identityCheckProperties.baseUrl());

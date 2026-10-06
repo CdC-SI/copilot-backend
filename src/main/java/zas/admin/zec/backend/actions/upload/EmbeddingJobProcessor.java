@@ -85,8 +85,9 @@ public class EmbeddingJobProcessor {
      * Ne lève jamais d'exception.
      */
     public void process(Long tempDocId) {
+        JobSnapshot job = null;
         try {
-            var job = transactionTemplate.execute(status -> tempSourceDocumentRepository.findById(tempDocId)
+            job = transactionTemplate.execute(status -> tempSourceDocumentRepository.findById(tempDocId)
                     .filter(doc -> doc.getStatus() == EmbeddingStatus.PENDING)
                     .map(JobSnapshot::of)
                     .orElse(null));
@@ -109,7 +110,7 @@ public class EmbeddingJobProcessor {
             }
         } catch (Exception e) {
             log.error("Erreur inattendue lors du traitement d'embedding du document ID: {}", tempDocId, e);
-            reschedule(tempDocId, properties.retryDelay());
+            reschedule(tempDocId, job == null ? null : job.jobId(), properties.retryDelay());
         }
     }
 
@@ -142,7 +143,7 @@ public class EmbeddingJobProcessor {
             } else {
                 log.warn("Soumission du document ID: {} en échec transitoire, nouvel essai dans {} : {}",
                         job.id(), properties.retryDelay(), e.getMessage());
-                updateIfPending(job.id(), doc -> {
+                updateIfPending(job.id(), job.jobId(), doc -> {
                     if (doc.getJobSubmittedAt() == null) {
                         doc.setJobSubmittedAt(LocalDateTime.now());
                     }
@@ -178,7 +179,7 @@ public class EmbeddingJobProcessor {
         try {
             var response = embeddingServiceClient.status(job.jobId(), job.userUuid());
             switch (response.jobStatus()) {
-                case QUEUED, RUNNING, UNKNOWN -> reschedule(job.id(), properties.pollInterval());
+                case QUEUED, RUNNING, UNKNOWN -> reschedule(job, properties.pollInterval());
                 case COMPLETED, COMPLETED_WITH_ERRORS -> {
                     if (response.pagesFailed() != null && response.pagesFailed() > 0) {
                         log.warn("Job {} (document ID: {}) terminé avec {} page(s) en échec sur {}",
@@ -190,7 +191,7 @@ public class EmbeddingJobProcessor {
             }
         } catch (EmbeddingServiceException e) {
             if (e.isNotReady()) {
-                reschedule(job.id(), properties.pollInterval());
+                reschedule(job, properties.pollInterval());
             } else if (e.isJobGone()) {
                 resetForResubmission(job, e);
             } else if (e.isPermanent()) {
@@ -198,7 +199,7 @@ public class EmbeddingJobProcessor {
             } else {
                 log.warn("Polling du job {} (document ID: {}) en échec transitoire : {}",
                         job.jobId(), job.id(), e.getMessage());
-                reschedule(job.id(), properties.retryDelay());
+                reschedule(job, properties.retryDelay());
             }
         }
     }
@@ -230,7 +231,7 @@ public class EmbeddingJobProcessor {
         log.warn("Job {} (document ID: {}) perdu côté service ({}), resoumission",
                 job.jobId(), job.id(), e.getCode() != null ? e.getCode() : "HTTP " + e.getHttpStatus());
 
-        updateIfPending(job.id(), doc -> {
+        updateIfPending(job.id(), job.jobId(), doc -> {
             if (!Objects.equals(doc.getJobId(), job.jobId())) {
                 return;
             }
@@ -243,7 +244,7 @@ public class EmbeddingJobProcessor {
     private void fail(JobSnapshot job, String reason) {
         log.error("Échec de l'embedding du document ID: {} ({}) : {}", job.id(), job.fileName(), reason);
         try {
-            updateIfPending(job.id(), doc -> {
+            updateIfPending(job.id(), job.jobId(), doc -> {
                 doc.setStatus(EmbeddingStatus.FAILED);
                 doc.setNextPollAt(null);
             });
@@ -253,16 +254,27 @@ public class EmbeddingJobProcessor {
     }
 
     private void reschedule(Long tempDocId, Duration delay) {
+        reschedule(tempDocId, null, delay);
+    }
+
+    private void reschedule(JobSnapshot job, Duration delay) {
+        reschedule(job.id(), job.jobId(), delay);
+    }
+
+    private void reschedule(Long tempDocId, String expectedJobId, Duration delay) {
         try {
-            updateIfPending(tempDocId, doc -> doc.setNextPollAt(LocalDateTime.now().plus(delay)));
+            updateIfPending(tempDocId, expectedJobId,
+                    doc -> doc.setNextPollAt(LocalDateTime.now().plus(delay)));
         } catch (Exception ex) {
             log.error("Impossible de replanifier le document ID: {}", tempDocId, ex);
         }
     }
 
-    private void updateIfPending(Long tempDocId, Consumer<TempSourceDocumentEntity> update) {
+    private void updateIfPending(Long tempDocId, String expectedJobId,
+                                 Consumer<TempSourceDocumentEntity> update) {
         transactionTemplate.executeWithoutResult(status -> tempSourceDocumentRepository.findByIdForUpdate(tempDocId)
                 .filter(doc -> doc.getStatus() == EmbeddingStatus.PENDING)
+                .filter(doc -> Objects.equals(doc.getJobId(), expectedJobId))
                 .ifPresent(update));
     }
 

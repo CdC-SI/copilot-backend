@@ -18,6 +18,11 @@ public interface TempSourceDocumentRepository extends JpaRepository<TempSourceDo
 
     Optional<TempSourceDocumentEntity> findByFileName(String fileName);
     Optional<TempSourceDocumentEntity> findByFileNameAndUserUuid(String filename, String userUuid);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT d FROM TempSourceDocumentEntity d WHERE d.fileName = :filename AND d.userUuid = :userUuid")
+    Optional<TempSourceDocumentEntity> findByFileNameAndUserUuidForUpdate(@Param("filename") String filename,
+                                                                            @Param("userUuid") String userUuid);
     List<TempSourceDocumentEntity> findAllByUserUuid(String userUuid);
 
     List<TempSourceDocumentEntity> findAllByAvailabilityStatusAndUserUuidNotNullAndUploadedAtBefore(

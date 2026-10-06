@@ -135,7 +135,7 @@ public class UploadService {
 
     @Transactional
     public void deleteUserPersonalDocument(String filename, String userUuid) {
-        var docEntity = tempSourceDocumentRepository.findByFileNameAndUserUuid(filename, userUuid)
+        var docEntity = tempSourceDocumentRepository.findByFileNameAndUserUuidForUpdate(filename, userUuid)
                 .orElseThrow(() -> new IllegalArgumentException(String.format("Document %s not found", filename)));
 
         tempSourceDocumentRepository.delete(docEntity);

@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 /**
  * Poller périodique des documents personnels en attente d'embedding : réserve un lot de documents
  * échus et délègue chaque étape (soumission, polling, récupération du résultat) à
- * {@link EmbeddingJobProcessor} sur l'executor asynchrone.
+ * {@link EmbeddingJobProcessor} sur son executor dédié.
  */
 @Slf4j
 @Component
@@ -20,7 +20,7 @@ public class EmbeddingJobPoller {
     private final TaskExecutor asyncExecutor;
 
     public EmbeddingJobPoller(EmbeddingJobProcessor processor,
-                              @Qualifier("asyncExecutor") TaskExecutor asyncExecutor) {
+                              @Qualifier("embeddingJobExecutor") TaskExecutor asyncExecutor) {
         this.processor = processor;
         this.asyncExecutor = asyncExecutor;
     }
