@@ -191,6 +191,8 @@ proxy:
 ai:
   agent:
     ii-data-folder: ${II_DATA_FOLDER}
+  process:
+    enabled: ${PROCESS_ENABLED:false}
 
 nuxeo:
   url: ${NUXEO_URL}

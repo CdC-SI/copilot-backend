@@ -64,4 +64,12 @@ public class MessageEntity {
      */
     @Column(name = "workspace")
     private String workspace;
+
+    /**
+     * Processus BPMN ({@code bpmn_id}) utilisés pour produire ce message, réinjectés par
+     * {@code RAGChatService} au tour suivant ; {@code null} ou vide pour la plupart des messages.
+     */
+    @Type(StringArrayType.class)
+    @Column(name = "processes", columnDefinition = "text[]")
+    private String[] processes;
 }

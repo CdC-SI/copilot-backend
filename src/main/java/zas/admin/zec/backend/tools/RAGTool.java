@@ -27,6 +27,9 @@ import zas.admin.zec.backend.actions.workspace.WorkspaceDto;
 import zas.admin.zec.backend.actions.workspace.WorkspaceService;
 import zas.admin.zec.backend.config.properties.RetrievingProperties;
 import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
+import zas.admin.zec.backend.process.BusinessProcess;
+import zas.admin.zec.backend.process.LoadedProcesses;
+import zas.admin.zec.backend.process.ProcessService;
 import zas.admin.zec.backend.rag.ChatStatus;
 import zas.admin.zec.backend.rag.RAGPrompts;
 import zas.admin.zec.backend.rag.joiner.RankedDocumentJoiner;
@@ -69,6 +72,8 @@ public class RAGTool {
             Your only permitted response is to inform the user that no relevant documentation was found and that you cannot answer without it.
             </no_documentation_found>
             """;
+    /** Garde-fou de taille : un processus pèse jusqu'à ~37 600 caractères de JSON. */
+    static final int MAX_PROCESSES_PER_SEARCH = 2;
 
     private final ChatClient internalChatClient;
     private final VectorStore documentStore;
@@ -80,6 +85,7 @@ public class RAGTool {
     private final SourceResolver sourceResolver;
     private final WorkspaceService workspaceService;
     private final WorkspaceInferenceMonitoringService workspaceInferenceMonitoringService;
+    private final ProcessService processService;
 
     public RAGTool(
             @Qualifier("internalChatModel") ChatModel internalChatModel,
@@ -91,7 +97,8 @@ public class RAGTool {
             JdbcTemplate jdbcTemplate,
             SourceResolver sourceResolver,
             WorkspaceService workspaceService,
-            WorkspaceInferenceMonitoringService workspaceInferenceMonitoringService) {
+            WorkspaceInferenceMonitoringService workspaceInferenceMonitoringService,
+            ProcessService processService) {
 
         this.internalChatClient = ChatClient.create(internalChatModel);
         this.documentStore = documentStore;
@@ -103,6 +110,7 @@ public class RAGTool {
         this.sourceResolver = sourceResolver;
         this.workspaceService = workspaceService;
         this.workspaceInferenceMonitoringService = workspaceInferenceMonitoringService;
+        this.processService = processService;
     }
 
     @Tool(name = "search_social_insurance_documentation", description = """
@@ -153,7 +161,43 @@ public class RAGTool {
         }
 
         log.debug("RAGTool retrieved {} documents for query '{}'", documents.size(), query);
-        return formatDocuments(documents);
+        return formatDocuments(documents) + referencedProcesses(context, documents);
+    }
+
+    /**
+     * Enchaînement automatique, sans décision du LLM : les processus BPMN cités dans les
+     * {@code outgoing_links} des documents retrouvés sont ajoutés au résultat du tool, un bloc
+     * {@code <processus>} par processus. Sans effet si le chargement des processus n'est pas activé
+     * ({@link ToolContextKeys#CTX_LOADED_PROCESSES} absent) ou si le processus est déjà en contexte.
+     * Une erreur ici ne doit jamais priver le LLM des documents : elle est journalisée et ignorée.
+     */
+    private String referencedProcesses(Map<String, Object> context, List<Document> documents) {
+        if (documents.isEmpty() || !(context.get(ToolContextKeys.CTX_LOADED_PROCESSES) instanceof LoadedProcesses loaded)) {
+            return "";
+        }
+        try {
+            List<BusinessProcess> fresh = processService.findReferencedBy(documents).stream()
+                    .filter(process -> !loaded.contains(process.bpmnId()))
+                    .toList();
+            if (fresh.size() > MAX_PROCESSES_PER_SEARCH) {
+                log.info("{} processus cités par les documents, seuls les {} premiers sont injectés : {}",
+                        fresh.size(), MAX_PROCESSES_PER_SEARCH, fresh.stream().map(BusinessProcess::name).toList());
+            }
+
+            StringBuilder blocks = new StringBuilder();
+            for (BusinessProcess process : fresh.stream().limit(MAX_PROCESSES_PER_SEARCH).toList()) {
+                if (loaded.add(process)) {
+                    String block = processService.render(process);
+                    log.info("Processus injecté (documents retrouvés) : '{}' ({} caractères)", process.name(), block.length());
+                    log.debug("Bloc processus injecté :{}{}", System.lineSeparator(), block);
+                    blocks.append(System.lineSeparator()).append(block);
+                }
+            }
+            return blocks.toString();
+        } catch (RuntimeException e) {
+            log.warn("Échec du chargement des processus cités par les documents", e);
+            return "";
+        }
     }
 
     private List<Document> retrieve(String query, String language, String workspace,

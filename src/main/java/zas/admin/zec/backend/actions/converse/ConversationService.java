@@ -132,6 +132,8 @@ public class ConversationService {
         StringBuilder assistantMessage = new StringBuilder();
         Set<Source> sources = new HashSet<>();
         Set<String> suggestions = new HashSet<>();
+        // Processus BPMN utilisés pour la réponse (bpmn_id, ordre d'émission), réinjectés au tour suivant.
+        Set<String> processes = new LinkedHashSet<>();
 
         // Type de la conversation : figé à sa création (1re question), immuable ensuite.
         // Pour une conversation existante, on réutilise le type persisté ; pour une nouvelle
@@ -160,6 +162,12 @@ public class ConversationService {
                         }
                         yield Flux.empty();
                     }
+                    case ProcessToken processToken -> {
+                        if (processes.add(processToken.bpmnId())) {
+                            yield Flux.just(processToken.content());
+                        }
+                        yield Flux.empty();
+                    }
                     case WorkspaceToken workspaceToken -> {
                         workspace.set(workspaceToken.name());
                         yield Flux.just(workspaceToken.content());
@@ -172,7 +180,7 @@ public class ConversationService {
                 .concatWithValues("<message_uuid>%s</message_uuid>".formatted(assistantMessageId))
                 .concatWith(
                         Mono.fromRunnable(() -> saveExchange(question, userId, assistantMessageId, assistantMessage.toString(),
-                                        sources, suggestions, timestamp, workspace.get(), conversationType))
+                                        sources, suggestions, processes, timestamp, workspace.get(), conversationType))
                                 .subscribeOn(Schedulers.boundedElastic())
                                 .then(Mono.empty()))
                 .onErrorResume(err -> {
@@ -280,13 +288,14 @@ public class ConversationService {
     }
 
     private void saveExchange(Question question, String userId, String assistantMessageId, String answer, Set<Source> sources,
-                              Set<String> suggestions, LocalDateTime userMessageTimestamp, String resolvedWorkspace,
-                              ConversationType conversationType) {
+                              Set<String> suggestions, Set<String> processes, LocalDateTime userMessageTimestamp,
+                              String resolvedWorkspace, ConversationType conversationType) {
 
         var userMessage = new Message(UUID.randomUUID().toString(), userId, question.conversationId(), null,
-                question.language(), question.query(), "USER", null, null, userMessageTimestamp, resolvedWorkspace);
+                question.language(), question.query(), "USER", null, null, userMessageTimestamp, resolvedWorkspace, null);
         var assistantMessage = new Message(assistantMessageId, userId, question.conversationId(), null,
-                question.language(), answer, "LLM", sources.stream().toList(), suggestions.stream().toList(), LocalDateTime.now(), resolvedWorkspace);
+                question.language(), answer, "LLM", sources.stream().toList(), suggestions.stream().toList(), LocalDateTime.now(), resolvedWorkspace,
+                List.copyOf(processes));
 
         save(userMessage, userId, question.conversationId());
         save(assistantMessage, userId, question.conversationId());
@@ -309,7 +318,8 @@ public class ConversationService {
                                 .toList(),
                         List.of(message.getSuggestions()),
                         message.getTimestamp(),
-                        message.getWorkspace()
+                        message.getWorkspace(),
+                        message.getProcesses() == null ? List.of() : List.of(message.getProcesses())
                 ))
                 .toList();
     }
@@ -362,6 +372,9 @@ public class ConversationService {
                 ? new String[0]
                 : message.suggestions().toArray(String[]::new));
         entity.setWorkspace(message.workspace());
+        entity.setProcesses(Objects.isNull(message.processes()) || message.processes().isEmpty()
+                ? null
+                : message.processes().toArray(String[]::new));
 
         conversationRepository.save(entity);
     }

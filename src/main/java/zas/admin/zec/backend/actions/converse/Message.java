@@ -17,5 +17,6 @@ public record Message(
         @Nullable List<Source> sources,
         @Nullable List<String> suggestions,
         LocalDateTime timestamp,
-        @Nullable String workspace) {
+        @Nullable String workspace,
+        @Nullable List<String> processes) {
 }

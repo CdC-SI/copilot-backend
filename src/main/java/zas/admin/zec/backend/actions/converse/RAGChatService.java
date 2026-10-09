@@ -8,18 +8,25 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
+import zas.admin.zec.backend.config.properties.ProcessProperties;
 import zas.admin.zec.backend.persistence.MetadataValues;
+import zas.admin.zec.backend.process.BusinessProcess;
+import zas.admin.zec.backend.process.LoadedProcesses;
+import zas.admin.zec.backend.process.ProcessService;
 import zas.admin.zec.backend.rag.RAGPrompts;
+import zas.admin.zec.backend.rag.token.ProcessToken;
 import zas.admin.zec.backend.rag.token.SourceToken;
 import zas.admin.zec.backend.rag.token.Token;
 import zas.admin.zec.backend.rag.token.WorkspaceToken;
 import zas.admin.zec.backend.tools.ConversationAttachmentTool;
+import zas.admin.zec.backend.tools.ProcessTool;
 import zas.admin.zec.backend.tools.RAGTool;
 import zas.admin.zec.backend.tools.ToolContextKeys;
 import zas.admin.zec.backend.tools.WorkspaceInferenceMonitoringService;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -37,6 +44,12 @@ import java.util.concurrent.atomic.AtomicReference;
  * le {@code ToolContext}. Les documents éventuellement récupérés par le tool sont collectés via une
  * liste partagée déposée dans le {@code ToolContext}, puis convertis en {@link SourceToken} une fois
  * la réponse générée.</p>
+ *
+ * <p>Quand le chargement des processus BPMN est activé ({@code ai.process.enabled}), le tool
+ * {@link ProcessTool} est ajouté, {@link RAGTool} enchaîne automatiquement sur les processus cités
+ * par les documents, et les processus utilisés au tour précédent (persistés sur le dernier message
+ * assistant) sont réinjectés dans le system prompt. Un {@link ProcessToken} est émis par processus
+ * utilisé, pour être persisté avec la réponse.</p>
  */
 @Slf4j
 @Service
@@ -47,20 +60,31 @@ public class RAGChatService extends AbstractChatService {
     private static final String META_URL = "url";
     private static final String META_PAGE_NUM = "page_num";
     private static final String META_SUBSECTION = "subsection";
+    /** Processus émis (donc réinjectés au tour suivant) : les plus récents d'abord retenus. */
+    static final int MAX_PROCESSES_PER_ANSWER = 2;
 
     private final ChatClient internalChatClient;
     private final RAGTool ragTool;
     private final ConversationAttachmentTool attachmentTool;
     private final WorkspaceInferenceMonitoringService workspaceInferenceMonitoringService;
+    private final ProcessTool processTool;
+    private final ProcessService processService;
+    private final ProcessProperties processProperties;
 
     public RAGChatService(@Qualifier("internalChatModel") ChatModel internalChatModel,
                           RAGTool ragTool,
                           ConversationAttachmentTool attachmentTool,
-                          WorkspaceInferenceMonitoringService workspaceInferenceMonitoringService) {
+                          WorkspaceInferenceMonitoringService workspaceInferenceMonitoringService,
+                          ProcessTool processTool,
+                          ProcessService processService,
+                          ProcessProperties processProperties) {
         this.internalChatClient = ChatClient.create(internalChatModel);
         this.ragTool = ragTool;
         this.attachmentTool = attachmentTool;
         this.workspaceInferenceMonitoringService = workspaceInferenceMonitoringService;
+        this.processTool = processTool;
+        this.processService = processService;
+        this.processProperties = processProperties;
     }
 
     @Override
@@ -87,6 +111,16 @@ public class RAGChatService extends AbstractChatService {
         toolContext.put(ToolContextKeys.CTX_RETRIEVED_DOCUMENTS, retrievedDocuments);
         toolContext.put(ToolContextKeys.CTX_RESOLVED_WORKSPACE, resolvedWorkspace);
 
+        // Processus BPMN : registre partagé avec les tools, prérempli avec les processus du tour précédent.
+        LoadedProcesses loadedProcesses = processProperties.enabled() ? new LoadedProcesses() : null;
+        String processContext = "";
+        Object[] tools = {ragTool, attachmentTool};
+        if (loadedProcesses != null) {
+            toolContext.put(ToolContextKeys.CTX_LOADED_PROCESSES, loadedProcesses);
+            processContext = processContext(question, conversationHistory, loadedProcesses);
+            tools = new Object[]{ragTool, attachmentTool, processTool};
+        }
+
         // Un workspace explicitement attaché à la question signale que l'utilisateur a corrigé
         // l'inférence précédente et relance la même question : on renseigne le workspace corrigé
         // dans la ligne de monitoring correspondante, et la recherche documentaire devient obligatoire.
@@ -98,9 +132,9 @@ public class RAGChatService extends AbstractChatService {
 
         Flux<Token> textTokens = internalChatClient
                 .prompt()
-                .system(agenticSystemPrompt(question, workspaceProvided))
+                .system(agenticSystemPrompt(question, workspaceProvided) + processContext)
                 .messages(conversationHistory.stream().map(this::convertToMessage).toList())
-                .tools(ragTool, attachmentTool)
+                .tools(tools)
                 .toolContext(toolContext)
                 .user(question.query())
                 .stream()
@@ -124,9 +158,55 @@ public class RAGChatService extends AbstractChatService {
                 ? Flux.just(new WorkspaceToken(resolvedWorkspace.get()))
                 : Flux.empty());
 
+        // Processus utilisés (réinjectés, cités par les documents ou demandés au tool), persistés avec la réponse.
+        Flux<Token> processTokens = Flux.defer(() -> loadedProcesses == null
+                ? Flux.empty()
+                : Flux.fromIterable(loadedProcesses.mostRecent(MAX_PROCESSES_PER_ANSWER))
+                        .map(p -> new ProcessToken(p.bpmnId(), p.name(), p.bpandaLink())));
+
         // statusSink.asFlux() émet les StatusToken produits pendant le tool-calling,
         // avant et pendant que textTokens streame la réponse du LLM.
-        return statusSink.asFlux().mergeWith(textTokens).concatWith(sourceTokens).concatWith(workspaceToken);
+        return statusSink.asFlux().mergeWith(textTokens)
+                .concatWith(sourceTokens)
+                .concatWith(processTokens)
+                .concatWith(workspaceToken);
+    }
+
+    /**
+     * Partie du system prompt propre aux processus : la consigne d'utilisation avec la liste des
+     * processus disponibles, puis les processus utilisés au tour précédent (dernier message
+     * assistant), réinjectés dans un bloc {@code <processus_en_cours>} et enregistrés comme déjà
+     * chargés. Sans cette réinjection, le processus serait perdu au tour suivant, seul le texte des
+     * réponses étant persisté.
+     */
+    private String processContext(Question question, List<Message> conversationHistory, LoadedProcesses loadedProcesses) {
+        try {
+            StringBuilder context = new StringBuilder(RAGPrompts.getProcessDirective(question.language(), processService.catalog()));
+
+            List<String> previous = conversationHistory.reversed().stream()
+                    .filter(message -> "LLM".equals(message.role()))
+                    .findFirst()
+                    .map(Message::processes)
+                    .orElse(List.of());
+            List<BusinessProcess> carried = processService.findByBpmnIds(previous).stream()
+                    .limit(MAX_PROCESSES_PER_ANSWER)
+                    .filter(loadedProcesses::add)
+                    .toList();
+            if (!carried.isEmpty()) {
+                String blocks = carried.stream()
+                        .map(processService::render)
+                        .collect(Collectors.joining(System.lineSeparator()));
+                log.info("Processus réinjecté(s) depuis le tour précédent : {} ({} caractères)",
+                        carried.stream().map(BusinessProcess::name).toList(), blocks.length());
+                context.append(System.lineSeparator()).append("<processus_en_cours>")
+                        .append(System.lineSeparator()).append(blocks).append(System.lineSeparator())
+                        .append("</processus_en_cours>").append(System.lineSeparator());
+            }
+            return context.toString();
+        } catch (RuntimeException e) {
+            log.warn("Échec de la préparation du contexte des processus (conversation {})", question.conversationId(), e);
+            return "";
+        }
     }
 
     private String agenticSystemPrompt(Question question, boolean workspaceProvided) {

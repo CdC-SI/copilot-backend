@@ -76,6 +76,15 @@ public final class ToolContextKeys {
      */
     public static final String CTX_STATUS_SINK = "statusSink";
 
+    /**
+     * Clé d'un {@link zas.admin.zec.backend.process.LoadedProcesses} fourni par l'appelant quand le
+     * chargement des processus BPMN est activé. {@link RAGTool} et {@link ProcessTool} y enregistrent
+     * les processus injectés dans le contexte du LLM (sans doublon), afin que l'appelant émette un
+     * {@link zas.admin.zec.backend.rag.token.ProcessToken} par processus une fois la génération terminée.
+     * Absente : aucun processus n'est chargé.
+     */
+    public static final String CTX_LOADED_PROCESSES = "loadedProcesses";
+
     private ToolContextKeys() {
         // Classe utilitaire — pas d'instanciation.
     }
