@@ -17,6 +17,8 @@ public enum ChatStatus {
     WORKSPACE_INFERENCE("Recherche du workspace pertinent", "Suche nach dem passenden Workspace", "Ricerca dello spazio di lavoro pertinente", "workspace_inference"),
     AGENT_HANDOFF("%s traite votre demande", "%s bearbeitet Ihre Anfrage", "%s sta elaborando la sua richiesta", "agent_handoff"),
     TOOL_USE("Utilisation de l'outil : %s", "Verwendung des Tools: %s", "Utilizzo dello strumento: %s", "tool_use"),
+    // Réutilise la balise "tool_use" déjà gérée par le frontend.
+    DOCUMENT_LOOKUP("Consultation des documents liés", "Abrufen verknüpfter Dokumente", "Consultazione dei documenti collegati", "tool_use"),
     TOPIC_CHECK("Validation de la requête", "Validierungsabfrage", "Convalida della query", "topic_check");
 
     private final String textFR;

@@ -23,6 +23,7 @@ import zas.admin.zec.backend.persistence.entity.MessageEntity;
 import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
 import zas.admin.zec.backend.persistence.repository.ConversationRepository;
 import zas.admin.zec.backend.persistence.repository.ConversationTitleRepository;
+import zas.admin.zec.backend.rag.TurnTrace;
 import zas.admin.zec.backend.rag.token.*;
 
 import java.io.IOException;
@@ -73,7 +74,7 @@ public class ConversationService {
         return conversationRepository.findByConversationIdAndMessageId(conversationUuid, messageUuid)
                 .map(MessageEntity::getSources)
                 .map(source -> Arrays.stream(source)
-                        .map(this::fromSourceString)
+                        .map(ConversationService::fromSourceString)
                         .toList()
                 )
                 .orElse(List.of());
@@ -145,9 +146,16 @@ public class ConversationService {
         AtomicReference<String> workspace = new AtomicReference<>(
                 question.workspace() != null && !question.workspace().isBlank() ? question.workspace() : null);
 
+        // Trace du tour (statut déclaré + documents consultés), émise en interne par l'agent.
+        AtomicReference<TurnTrace> turnTrace = new AtomicReference<>();
+
         return getTokenStream(question, userId, conversationType)
                 .flatMap(token -> switch (token) {
                     case StatusToken statusToken -> Flux.just(statusToken.content());
+                    case TurnTraceToken turnTraceToken -> {
+                        turnTrace.set(turnTraceToken.trace());
+                        yield Flux.empty();
+                    }
                     case SuggestionToken suggestionToken -> {
                         if (suggestions.add(suggestionToken.suggestion())) {
                             yield Flux.just(suggestionToken.content());
@@ -172,7 +180,7 @@ public class ConversationService {
                 .concatWithValues("<message_uuid>%s</message_uuid>".formatted(assistantMessageId))
                 .concatWith(
                         Mono.fromRunnable(() -> saveExchange(question, userId, assistantMessageId, assistantMessage.toString(),
-                                        sources, suggestions, timestamp, workspace.get(), conversationType))
+                                        sources, suggestions, timestamp, workspace.get(), conversationType, turnTrace.get()))
                                 .subscribeOn(Schedulers.boundedElastic())
                                 .then(Mono.empty()))
                 .onErrorResume(err -> {
@@ -281,12 +289,13 @@ public class ConversationService {
 
     private void saveExchange(Question question, String userId, String assistantMessageId, String answer, Set<Source> sources,
                               Set<String> suggestions, LocalDateTime userMessageTimestamp, String resolvedWorkspace,
-                              ConversationType conversationType) {
+                              ConversationType conversationType, TurnTrace turnTrace) {
 
         var userMessage = new Message(UUID.randomUUID().toString(), userId, question.conversationId(), null,
                 question.language(), question.query(), "USER", null, null, userMessageTimestamp, resolvedWorkspace);
         var assistantMessage = new Message(assistantMessageId, userId, question.conversationId(), null,
-                question.language(), answer, "LLM", sources.stream().toList(), suggestions.stream().toList(), LocalDateTime.now(), resolvedWorkspace);
+                question.language(), answer, "LLM", sources.stream().toList(), suggestions.stream().toList(),
+                LocalDateTime.now(), resolvedWorkspace, turnTrace);
 
         save(userMessage, userId, question.conversationId());
         save(assistantMessage, userId, question.conversationId());
@@ -305,11 +314,12 @@ public class ConversationService {
                         message.getMessage(),
                         getRole(message),
                         Arrays.stream(message.getSources())
-                                .map(this::fromSourceString)
+                                .map(ConversationService::fromSourceString)
                                 .toList(),
                         List.of(message.getSuggestions()),
                         message.getTimestamp(),
-                        message.getWorkspace()
+                        message.getWorkspace(),
+                        message.getConsultedSources() != null ? TurnTrace.fromMap(message.getConsultedSources()) : null
                 ))
                 .toList();
     }
@@ -334,7 +344,7 @@ public class ConversationService {
                 ? new String[0]
                 : message.sources()
                     .stream()
-                    .map(this::toSourceString)
+                    .map(ConversationService::toSourceString)
                     .distinct()
                     .toArray(String[]::new));
 
@@ -355,20 +365,22 @@ public class ConversationService {
                 ? new String[0]
                 : message.sources()
                     .stream()
-                    .map(this::toSourceString)
+                    .map(ConversationService::toSourceString)
                     .distinct()
                     .toArray(String[]::new));
         entity.setSuggestions(Objects.isNull(message.suggestions())
                 ? new String[0]
                 : message.suggestions().toArray(String[]::new));
         entity.setWorkspace(message.workspace());
+        entity.setConsultedSources(message.turnTrace() != null ? message.turnTrace().toMap() : null);
 
         conversationRepository.save(entity);
     }
 
-    private String toSourceString(Source src) {
+    static String toSourceString(Source src) {
         // Old format for strings that still have only link or FILE:link
-        if (src.pageNumber() == null
+        if (src.type() != SourceType.BUSINESS_PROCESS
+            && src.pageNumber() == null
             && src.subsection() == null
             && src.version() == null) {
             return src.type() == SourceType.FILE
@@ -376,18 +388,35 @@ public class ConversationService {
                     : src.link();
         }
 
-        // New extended format: TYPE|link|page|subsection|version|documentId   (URL-encoded parts)
+        // New extended format: TYPE|link|page|subsection|version|documentId|title
         return String.join(DELIM,
                 src.type().name(),
-                src.link(),
-                src.pageNumber(),
-                src.subsection(),
-                src.version(),
-                src.documentId() == null ? "" : src.documentId()
+                sanitize(src.link()),
+                sanitize(src.pageNumber()),
+                sanitize(src.subsection()),
+                sanitize(src.version()),
+                src.documentId() == null ? "" : src.documentId(),
+                sanitize(src.title())
                 );
     }
 
-    private Source fromSourceString(String raw) {
+    /**
+     * Le séparateur "|" ne doit pas apparaître dans les champs ; {@code null} est écrit comme une chaîne vide
+     * (et non "null", que {@link String#join} produirait).
+     */
+    private static String sanitize(String value) {
+        return value == null ? "" : value.replace(DELIM, "/");
+    }
+
+    /** Champ optionnel relu : absent, vide ou "null" (lignes écrites avant correction) → {@code null}. */
+    private static String optionalPart(String[] parts, int index) {
+        if (parts.length <= index || parts[index].isEmpty() || "null".equals(parts[index])) {
+            return null;
+        }
+        return parts[index];
+    }
+
+    static Source fromSourceString(String raw) {
         /* -------- legacy strings -------- */
         if (!raw.contains(DELIM)) {                 // no “|” → old style
             if (raw.startsWith(SourceType.FILE.name() + ":")) {
@@ -399,19 +428,20 @@ public class ConversationService {
 
         /* -------- new strings (pipe-separated) -------- */
         String[] parts = raw.split("\\|", -1);      // keep empty tail segments
-        //       0       1      2         3          4          5
-        //      TYPE | link | page | subsection | version | documentId
+        //       0       1      2         3          4          5          6
+        //      TYPE | link | page | subsection | version | documentId | title
         SourceType type       = SourceType.valueOf(parts[0]);
         String link           = parts[1];
-        String pageNumber     = parts.length > 2 ? parts[2] : null;
-        String subsection     = parts.length > 3 ? parts[3] : null;
-        String version        = parts.length > 4 ? parts[4] : null;
+        String pageNumber     = optionalPart(parts, 2);
+        String subsection     = optionalPart(parts, 3);
+        String version        = optionalPart(parts, 4);
         String documentId     = parts.length > 5 ? parts[5] : generateLegacyDocId(parts);
+        String title          = optionalPart(parts, 6);
 
-        return new Source(documentId, type, link, pageNumber, subsection, version);
+        return new Source(documentId, type, link, pageNumber, subsection, version, title);
     }
 
-    private String generateLegacyDocId(String[] sourceParts) {
+    private static String generateLegacyDocId(String[] sourceParts) {
         return String.join("#", Arrays.stream(sourceParts).filter(part -> part != null && !part.isEmpty()).toList());
     }
 

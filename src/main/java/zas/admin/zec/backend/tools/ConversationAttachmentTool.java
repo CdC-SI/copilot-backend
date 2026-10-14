@@ -2,6 +2,7 @@ package zas.admin.zec.backend.tools;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.model.ToolContext;
+import org.springframework.ai.document.Document;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
@@ -10,8 +11,11 @@ import zas.admin.zec.backend.persistence.entity.AttachmentEntity;
 import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
 import zas.admin.zec.backend.rag.ChatStatus;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -32,6 +36,10 @@ import java.util.stream.Collectors;
 @Component
 public class ConversationAttachmentTool {
 
+    private static final String META_TITLE = "title";
+    private static final String META_STATE = "state";
+    private static final String STATE_PERSONAL_UPLOADS = "personal.uploads";
+
     private final AttachmentRepository attachmentRepository;
 
     public ConversationAttachmentTool(AttachmentRepository attachmentRepository) {
@@ -45,6 +53,9 @@ public class ConversationAttachmentTool {
             quel fichier cibler avant d'appeler get_attachment_content.""")
     public String listConversationAttachments(ToolContext toolContext) {
         var context = contextMap(toolContext);
+        if (!ToolCallBudget.tryAcquire(context, "list_conversation_attachments")) {
+            return ToolCallBudget.EXHAUSTED_MESSAGE;
+        }
         var conversationId = asString(context.get(ToolContextKeys.CTX_CONVERSATION_ID));
         var userId = asString(context.get(ToolContextKeys.CTX_USER_ID));
         var language = asString(context.get(ToolContextKeys.CTX_LANGUAGE));
@@ -84,6 +95,9 @@ public class ConversationAttachmentTool {
             ToolContext toolContext) {
 
         var context = contextMap(toolContext);
+        if (!ToolCallBudget.tryAcquire(context, "get_attachment_content")) {
+            return ToolCallBudget.EXHAUSTED_MESSAGE;
+        }
         var conversationId = asString(context.get(ToolContextKeys.CTX_CONVERSATION_ID));
         var userId = asString(context.get(ToolContextKeys.CTX_USER_ID));
         var language = asString(context.get(ToolContextKeys.CTX_LANGUAGE));
@@ -105,7 +119,7 @@ public class ConversationAttachmentTool {
         if (attachments.size() == 1 && (filename == null || filename.isBlank())) {
             var entity = attachments.getFirst();
             log.debug("Single attachment '{}' returned for conversation '{}'", entity.getFilename(), conversationId);
-            return formatContent(entity);
+            return read(context, entity);
         }
 
         // Plusieurs fichiers avec un nom fourni → matching insensible à la casse, partiel
@@ -118,7 +132,7 @@ public class ConversationAttachmentTool {
             if (matches.size() == 1) {
                 log.debug("Matched attachment '{}' for filename hint '{}' in conversation '{}'",
                         matches.getFirst().getFilename(), filename, conversationId);
-                return formatContent(matches.getFirst());
+                return read(context, matches.getFirst());
             }
             if (matches.size() > 1) {
                 return ("Plusieurs fichiers correspondent à « %s » : %s. " +
@@ -135,6 +149,40 @@ public class ConversationAttachmentTool {
                 + attachments.stream().map(AttachmentEntity::getFilename).collect(Collectors.joining(", "))
                 + ". Utilisez list_conversation_attachments pour identifier le bon fichier, "
                 + "puis appelez à nouveau get_attachment_content avec le nom exact.");
+    }
+
+    /**
+     * Contenu de la pièce jointe. S'il est disponible, la pièce jointe est aussi déposée dans
+     * {@link ToolContextKeys#CTX_RETRIEVED_DOCUMENTS} (sources affichées, {@code <retrieved_sources>}).
+     */
+    private static String read(Map<String, Object> context, AttachmentEntity entity) {
+        if (entity.getStatus() == AttachmentStatus.PROCESSED && entity.getContent() != null) {
+            depositDocument(context, entity);
+        }
+        return formatContent(entity);
+    }
+
+    private static void depositDocument(Map<String, Object> context, AttachmentEntity entity) {
+        if (context.get(ToolContextKeys.CTX_RETRIEVED_DOCUMENTS) instanceof Collection<?> sink) {
+            @SuppressWarnings("unchecked")
+            var documentSink = (Collection<Document>) sink;
+            documentSink.add(Document.builder()
+                    .id(documentId(entity.getId()))
+                    .text(entity.getContent())
+                    .metadata(Map.of(
+                            META_TITLE, entity.getFilename(),
+                            META_STATE, STATE_PERSONAL_UPLOADS,
+                            MetadataFormatter.META_COLLECTION, MetadataFormatter.COLLECTION_ATTACHMENT))
+                    .build());
+        }
+    }
+
+    /**
+     * Identifiant stable d'une pièce jointe (UUID déterministe dérivé de son id) : identique d'un appel et
+     * d'un tour à l'autre, ce qui permet le dédoublonnage des sources et leur réutilisation ({@code reuse}).
+     */
+    public static String documentId(Long attachmentId) {
+        return UUID.nameUUIDFromBytes(("attachment:" + attachmentId).getBytes(StandardCharsets.UTF_8)).toString();
     }
 
     private static String formatContent(AttachmentEntity entity) {

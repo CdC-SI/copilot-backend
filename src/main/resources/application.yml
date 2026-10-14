@@ -166,6 +166,8 @@ rag:
     enabled: ${RERANKING_ENABLED:true}
     truncate-prompt-tokens: ${RERANKING_TRUNCATE_PROMPT_TOKENS:16384}
     top-k: ${RERANKING_TOP_K:5}
+  document-tool:
+    max-tool-calls-per-turn: ${RAG_MAX_TOOL_CALLS_PER_TURN:10}
 logging:
   level:
     zas.admin.zec: DEBUG

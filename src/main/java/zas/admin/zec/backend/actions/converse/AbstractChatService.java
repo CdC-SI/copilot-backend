@@ -10,7 +10,9 @@ import zas.admin.zec.backend.rag.token.TextToken;
 import zas.admin.zec.backend.rag.token.Token;
 import zas.admin.zec.backend.tools.ToolContextKeys;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -36,13 +38,53 @@ abstract class AbstractChatService implements ChatService {
     }
 
     protected Flux<Token> toTextToken(ChatResponse response) {
-        var text = Optional.ofNullable(response)
+        return Flux.just(new TextToken(extractText(response)));
+    }
+
+    protected String extractText(ChatResponse response) {
+        return Optional.ofNullable(response)
                 .map(ChatResponse::getResult)
                 .map(Generation::getOutput)
                 .map(AssistantMessage::getText)
                 .orElse("");
+    }
 
-        return Flux.just(new TextToken(text));
+    /**
+     * Convertit l'historique en messages Spring AI en préfixant chaque message utilisateur par le bloc
+     * {@code <retrieved_sources>} des documents consultés lors du tour assistant précédent.
+     * Le rendu est déterministe : un même historique produit toujours le même préfixe (prefix caching).
+     */
+    protected List<org.springframework.ai.chat.messages.Message> toPromptMessages(List<Message> history) {
+        List<org.springframework.ai.chat.messages.Message> messages = new ArrayList<>(history.size());
+        String pendingBlock = "";
+        int assistantTurn = 0;
+        for (Message message : history) {
+            if ("USER".equals(message.role())) {
+                messages.add(new UserMessage(withContextBlock(pendingBlock, message.message())));
+                pendingBlock = "";
+            } else {
+                assistantTurn++;
+                messages.add(new AssistantMessage(message.message()));
+                pendingBlock = RetrievedSourcesRenderer.render(assistantTurn,
+                        RetrievedSourcesRenderer.consultedSources(message));
+            }
+        }
+        return messages;
+    }
+
+    /** Bloc {@code <retrieved_sources>} du dernier tour assistant, à préfixer à la question courante. */
+    protected String retrievedSourcesForCurrentTurn(List<Message> history) {
+        if (history.isEmpty() || "USER".equals(history.getLast().role())) {
+            return "";
+        }
+        long assistantTurns = history.stream().filter(m -> !"USER".equals(m.role())).count();
+        return RetrievedSourcesRenderer.render((int) assistantTurns,
+                RetrievedSourcesRenderer.consultedSources(history.getLast()));
+    }
+
+    /** Préfixe {@code text} par un bloc ajouté par le système ({@code <retrieved_sources>}, {@code <conversation_attachments>}). */
+    protected static String withContextBlock(String block, String text) {
+        return block == null || block.isEmpty() ? text : block + "\n\n" + text;
     }
 
     protected org.springframework.ai.chat.messages.Message convertToMessage(Message message) {

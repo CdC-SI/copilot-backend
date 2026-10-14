@@ -26,7 +26,6 @@ import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.actions.workspace.WorkspaceDto;
 import zas.admin.zec.backend.actions.workspace.WorkspaceService;
 import zas.admin.zec.backend.config.properties.RetrievingProperties;
-import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
 import zas.admin.zec.backend.rag.ChatStatus;
 import zas.admin.zec.backend.rag.RAGPrompts;
 import zas.admin.zec.backend.rag.joiner.RankedDocumentJoiner;
@@ -53,14 +52,13 @@ import java.util.stream.Collectors;
 @Component
 public class RAGTool {
 
+    public static final String TOOL_NAME = "search_social_insurance_documentation";
+
     private static final String DEFAULT_LANGUAGE = "fr";
 
-    private static final String META_TITLE = "title";
-    private static final String META_STATE = "state";
     private static final String META_SOURCE = "source";
     private static final String META_ORGANIZATIONS = "organizations";
     private static final String META_USER_UUID = "user_uuid";
-    private static final String STATE_PERSONAL_UPLOADS = "personal.uploads";
     private static final String ORG_ZAS = "ZAS";
     private static final String NO_DOCS_FOUND = """
             <no_documentation_found>
@@ -75,7 +73,6 @@ public class RAGTool {
     private final UserService userService;
     private final DocumentReranker reranker;
     private final RetrievingProperties retrievingProperties;
-    private final AttachmentRepository attachmentRepository;
     private final JdbcTemplate jdbcTemplate;
     private final SourceResolver sourceResolver;
     private final WorkspaceService workspaceService;
@@ -87,7 +84,6 @@ public class RAGTool {
             UserService userService,
             DocumentReranker reranker,
             RetrievingProperties retrievingProperties,
-            AttachmentRepository attachmentRepository,
             JdbcTemplate jdbcTemplate,
             SourceResolver sourceResolver,
             WorkspaceService workspaceService,
@@ -98,19 +94,22 @@ public class RAGTool {
         this.userService = userService;
         this.reranker = reranker;
         this.retrievingProperties = retrievingProperties;
-        this.attachmentRepository = attachmentRepository;
         this.jdbcTemplate = jdbcTemplate;
         this.sourceResolver = sourceResolver;
         this.workspaceService = workspaceService;
         this.workspaceInferenceMonitoringService = workspaceInferenceMonitoringService;
     }
 
-    @Tool(name = "search_social_insurance_documentation", description = """
+    @Tool(name = TOOL_NAME, description = """
             Recherche dans la documentation officielle des assurances sociales suisses (AVS, AI, APG, PC, \
-            allocations familiales, etc.) les passages pertinents pour répondre à une question. \
+            allocations familiales, etc.) et dans les descriptions des processus métier internes les \
+            passages pertinents pour répondre à une question. \
             À utiliser dès qu'une question porte sur les prestations, cotisations, réglementations, \
             procédures ou tout autre sujet relatif aux assurances sociales suisses. \
-            Retourne les extraits de documents pertinents, chacun encadré par des balises <document>.""")
+            Retourne les extraits pertinents, chacun encadré par une balise <document id="..." collection="..."> \
+            et suivi de ses métadonnées JSON dans une balise <metadata> (doc_id, chunk_index, title, url, \
+            outgoing_links, process_id...). Ces métadonnées permettent d'appeler get_documents pour suivre \
+            un lien sortant, lire les chunks voisins ou ouvrir le contenu complet d'un processus métier.""")
     public String searchSocialInsuranceDocumentation(
             @ToolParam(description = """
                     La requête de recherche, reformulée de façon autonome et explicite à partir de la \
@@ -119,6 +118,9 @@ public class RAGTool {
             ToolContext toolContext) {
 
         Map<String, Object> context = toolContext != null ? toolContext.getContext() : Map.of();
+        if (!ToolCallBudget.tryAcquire(context, TOOL_NAME)) {
+            return ToolCallBudget.EXHAUSTED_MESSAGE;
+        }
         String userId = asString(context.get(ToolContextKeys.CTX_USER_ID), "");
         String language = asString(context.get(ToolContextKeys.CTX_LANGUAGE), DEFAULT_LANGUAGE);
         String conversationId = asString(context.get(ToolContextKeys.CTX_CONVERSATION_ID), "");
@@ -143,7 +145,7 @@ public class RAGTool {
         boolean hasAccessToInternalDocuments = !userId.isBlank()
                 && userService.hasAccessToInternalDocuments(userId);
 
-        List<Document> documents = retrieve(query, language, workspace, conversationId, userId, hasAccessToInternalDocuments);
+        List<Document> documents = retrieve(query, language, workspace, userId, hasAccessToInternalDocuments);
 
         // Remonter les documents (avec leurs métadonnées) à l'appelant pour reconstruire les sources.
         if (context.get(ToolContextKeys.CTX_RETRIEVED_DOCUMENTS) instanceof Collection<?> sink) {
@@ -157,7 +159,7 @@ public class RAGTool {
     }
 
     private List<Document> retrieve(String query, String language, String workspace,
-                                    String conversationId, String userId, boolean hasAccessToInternalDocuments) {
+                                    String userId, boolean hasAccessToInternalDocuments) {
 
         Supplier<Filter.Expression> filterExpressionSupplier =
                 () -> buildExpression(workspace, userId, hasAccessToInternalDocuments);
@@ -185,9 +187,9 @@ public class RAGTool {
             documentsForQuery.put(expandedQuery, List.of(documentRetriever.retrieve(expandedQuery)));
         }
 
-        // 4. Join, rerank and combine with the conversation attachments.
-        var conversationDocuments = getConversationDocuments(conversationId, userId);
-        var documentJoiner = new RankedDocumentJoiner(reranker, conversationDocuments);
+        // 4. Join and rerank. Les pièces jointes de la conversation ne sont pas ajoutées aux résultats : l'agent
+        //    les lit via get_attachment_content (liste fournie par le bloc <conversation_attachments>).
+        var documentJoiner = new RankedDocumentJoiner(reranker);
         return documentJoiner.join(documentsForQuery);
     }
 
@@ -197,8 +199,7 @@ public class RAGTool {
         }
 
         return documents.stream()
-                .map(Document::getText)
-                .map(text -> "<document>" + System.lineSeparator() + text + System.lineSeparator() + "</document>")
+                .map(document -> MetadataFormatter.format(document, true, true))
                 .collect(Collectors.joining(System.lineSeparator()));
     }
 
@@ -215,22 +216,6 @@ public class RAGTool {
         return vectorRetriever;
     }
 
-    private List<Document> getConversationDocuments(String conversationId, String userId) {
-        if (conversationId.isBlank() || userId.isBlank()) {
-            return List.of();
-        }
-        return attachmentRepository.findAllByConversationIdAndUserId(conversationId, userId)
-                .stream()
-                .filter(a -> a.getContent() != null && !a.getContent().isBlank())
-                .map(attachmentEntity -> new Document(
-                        attachmentEntity.getContent(),
-                        Map.of(
-                                META_TITLE, attachmentEntity.getFilename(),
-                                META_STATE, STATE_PERSONAL_UPLOADS)
-                ))
-                .toList();
-    }
-
     private Filter.Expression buildExpression(String workspace, String userId, boolean userHasAccessToInternalDocuments) {
         return metadataFilter(sourceResolver.resolve(workspace), userId, userHasAccessToInternalDocuments);
     }
@@ -239,8 +224,8 @@ public class RAGTool {
      * Filtre sur les métadonnées : sources du workspace, exclusion des documents internes ({@code organizations}
      * contenant {@code ZAS}, valeur scalaire ou tableau) sauf droits, documents publics ou propres à l'utilisateur.
      */
-    static Filter.Expression metadataFilter(Collection<String> sources, String userId,
-                                            boolean userHasAccessToInternalDocuments) {
+    public static Filter.Expression metadataFilter(Collection<String> sources, String userId,
+                                                   boolean userHasAccessToInternalDocuments) {
         FilterExpressionBuilder builder = new FilterExpressionBuilder();
         List<FilterExpressionBuilder.Op> ops = new ArrayList<>();
 

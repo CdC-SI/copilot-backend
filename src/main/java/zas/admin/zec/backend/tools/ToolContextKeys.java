@@ -76,6 +76,13 @@ public final class ToolContextKeys {
      */
     public static final String CTX_STATUS_SINK = "statusSink";
 
+    /**
+     * Clé d'un {@link java.util.concurrent.atomic.AtomicInteger} fourni par l'appelant : nombre
+     * d'appels de tools encore autorisés pendant le tour courant (tous tools confondus).
+     * Cf. {@link ToolCallBudget}.
+     */
+    public static final String CTX_TOOL_CALL_BUDGET = "toolCallBudget";
+
     private ToolContextKeys() {
         // Classe utilitaire — pas d'instanciation.
     }

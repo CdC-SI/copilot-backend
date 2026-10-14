@@ -26,7 +26,7 @@ public class DocumentEntity {
     private String content;
 
     @Type(JsonType.class)
-    @Column(name = "metadata", columnDefinition = "json")
+    @Column(name = "metadata", columnDefinition = "jsonb")
     private Map<String, Object> metadata;
 
     @Array(length = 1024)
