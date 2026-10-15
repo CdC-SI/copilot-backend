@@ -26,6 +26,32 @@ mvn -o test -Dtest=MigrationStartupIT
 It requires Docker and does not contact production services. LLM responses are tested with
 a local HTTP stub; mail and JMS connectivity are not covered by this integration check.
 
+## Catalog import / export (sources & workspaces)
+
+Admins can create or update sources and workspaces in bulk from a YAML file:
+
+- `POST /api/admin/catalog/import` (multipart, part `file`, max 1 MB) upserts by `name`.
+  Elements missing from the file are left untouched; for existing elements the file wins
+  (an omitted field becomes empty). The import is all-or-nothing: any error returns `400`
+  with the list of `messages` and nothing is persisted.
+- `GET /api/admin/catalog/export` downloads the current catalog in the same format.
+
+```yaml
+version: 1
+sources:                     # processed before workspaces
+  - name: avs                # required, unique key
+    description: Assurance-vieillesse et survivants
+    hypotheticalQuestions:
+      - Quel est l'âge de référence ?
+workspaces:
+  - name: assurances-sociales
+    description: Workspace généraliste
+    hypotheticalQuestions: []
+    sources: [avs]           # sources from this file or already in the database
+```
+
+Unknown keys are rejected. All scalars except `null` are read as strings, so `yes` or dates are kept verbatim.
+
 ## Spring AI 2 migration
 
 Application JSON uses Jackson 3 (`tools.jackson`); Jackson annotations remain in
