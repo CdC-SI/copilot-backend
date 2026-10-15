@@ -73,7 +73,7 @@ class EmbeddingJobProcessorTest {
     }
 
     private static EmbeddingJobResponse job(String jobId, String status) {
-        return new EmbeddingJobResponse(jobId, status, 2, 1, 0, null);
+        return new EmbeddingJobResponse(jobId, status, 2, 1, List.of(), null, null, null);
     }
 
     @Test

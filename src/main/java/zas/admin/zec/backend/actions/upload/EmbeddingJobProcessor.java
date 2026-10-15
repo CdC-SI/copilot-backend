@@ -181,13 +181,15 @@ public class EmbeddingJobProcessor {
             switch (response.jobStatus()) {
                 case QUEUED, RUNNING, UNKNOWN -> reschedule(job, properties.pollInterval());
                 case COMPLETED, COMPLETED_WITH_ERRORS -> {
-                    if (response.pagesFailed() != null && response.pagesFailed() > 0) {
-                        log.warn("Job {} (document ID: {}) terminé avec {} page(s) en échec sur {}",
-                                job.jobId(), job.id(), response.pagesFailed(), response.pagesTotal());
+                    if (!response.pagesFailed().isEmpty()) {
+                        log.warn("Job {} (document ID: {}) terminé avec {} page(s) en échec sur {} : {}",
+                                job.jobId(), job.id(), response.pagesFailed().size(), response.pagesTotal(),
+                                response.pagesFailed());
                     }
                     persist(job, embeddingServiceClient.result(job.jobId(), job.userUuid()));
                 }
-                case FAILED, CANCELLED -> fail(job, "job " + response.status() + " : " + response.error());
+                case FAILED, CANCELLED -> fail(job, "job " + response.status() + " : " + response.error()
+                        + (response.errorCode() != null ? " (" + response.errorCode() + ")" : ""));
             }
         } catch (EmbeddingServiceException e) {
             if (e.isNotReady()) {
