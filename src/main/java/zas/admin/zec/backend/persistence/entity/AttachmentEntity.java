@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import zas.admin.zec.backend.actions.converse.AttachmentStatus;
+import zas.admin.zec.backend.actions.upload.validation.UploadErrorCode;
 
 @Getter
 @Setter
@@ -37,5 +38,9 @@ public class AttachmentEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private AttachmentStatus status;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "error_code")
+    private UploadErrorCode errorCode;
 
 }

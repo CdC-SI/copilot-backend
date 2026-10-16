@@ -13,7 +13,6 @@ import zas.admin.zec.backend.config.security.RequireUser;
 import zas.admin.zec.backend.tools.OpdoPersonalData;
 import zas.admin.zec.backend.tools.SecurityLogging;
 
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
@@ -112,13 +111,9 @@ public class ConversationController {
     @PostMapping(path = "/attachments", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<AttachmentUploadResponse> uploadAttachment(@RequestParam(required = false) String conversationId, List<MultipartFile> files, Authentication authentication) {
         var userUuid = userService.getUuid(authentication.getName());
-        try {
-            var conversationAttachments = conversationService.attachFilesToConversation(conversationId, userUuid, files);
-            return ResponseEntity.status(HttpStatus.ACCEPTED).body(AttachmentUploadResponse.pending(conversationAttachments));
-        } catch (IOException e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(AttachmentUploadResponse.failed("Failed to read attachment bytes"));
-        }
+        // Les erreurs (UploadException) sont renvoyées avec un code explicite par ExceptionsHandler.
+        var conversationAttachments = conversationService.attachFilesToConversation(conversationId, userUuid, files);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(AttachmentUploadResponse.pending(conversationAttachments));
     }
 
     /**

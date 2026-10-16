@@ -6,6 +6,7 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +17,8 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import zas.admin.zec.backend.actions.summarize.LlmOcrService;
 import zas.admin.zec.backend.actions.upload.UploadService;
+import zas.admin.zec.backend.actions.upload.validation.UploadErrorCode;
+import zas.admin.zec.backend.actions.upload.validation.UploadException;
 import zas.admin.zec.backend.actions.workspace.WorkspaceService;
 import zas.admin.zec.backend.persistence.entity.AttachmentEntity;
 import zas.admin.zec.backend.persistence.entity.ConversationTitleEntity;
@@ -203,43 +206,54 @@ public class ConversationService {
      * <p><strong>Cycle de vie MultipartFile :</strong> les bytes sont lus et commités en base <em>avant</em>
      * le retour de cette méthode. L'async ne reçoit que l'ID de l'entité et ne touche jamais au
      * {@code MultipartFile}, dont le stockage temporaire peut être libéré dès le 202.</p>
+     *
+     * @throws UploadException si aucun fichier n'est fourni, si un fichier est vide, illisible ou d'un type
+     *                         non pris en charge par l'OCR (PDF ou image), ou si la persistance échoue
      */
-    public ConversationAttachments attachFilesToConversation(String conversationId, String userId, List<MultipartFile> files) throws IOException {
+    public ConversationAttachments attachFilesToConversation(String conversationId, String userId, List<MultipartFile> files) {
+        if (files == null || files.isEmpty()) {
+            throw new UploadException(null, UploadErrorCode.NO_FILE, "No attachment provided");
+        }
         var convId = conversationId == null ? UUID.randomUUID().toString() : conversationId;
 
-        // Lire tous les bytes AVANT la transaction : échec rapide si un fichier est illisible,
-        // et garantit que le MultipartFile n'est plus accédé après le retour HTTP 202.
+        // Lire et valider tous les fichiers AVANT la transaction : échec rapide si un fichier est illisible
+        // ou non pris en charge par l'OCR, et garantit que le MultipartFile n'est plus accédé après le retour HTTP 202.
         record FileData(String filename, long size, byte[] bytes) {}
         var filesData = new ArrayList<FileData>(files.size());
         for (var file : files) {
-            filesData.add(new FileData(file.getOriginalFilename(), file.getSize(), file.getBytes()));
+            filesData.add(new FileData(file.getOriginalFilename(), file.getSize(), readAttachment(file)));
         }
 
         // Transaction : persister les entités PENDING — commit garanti avant le dispatch async.
         record PersistResult(Long id, String filename, long size) {}
-        List<PersistResult> results = transactionTemplate.execute(status -> {
-            var saved = new ArrayList<PersistResult>(filesData.size());
-            for (var data : filesData) {
-                var entity = new AttachmentEntity();
-                entity.setConversationId(convId);
-                entity.setUserId(userId);
-                entity.setFilename(data.filename());
-                entity.setFileSize(data.size());
-                entity.setFileBytes(data.bytes());
-                entity.setStatus(AttachmentStatus.PENDING);
-                // content est null : sera renseigné par AttachmentAsyncProcessor après l'OCR
-                var persisted = attachmentRepository.save(entity);
-                saved.add(new PersistResult(persisted.getId(), data.filename(), data.size()));
-            }
-            return saved;
-        });
+        List<PersistResult> results;
+        try {
+            results = transactionTemplate.execute(status -> {
+                var saved = new ArrayList<PersistResult>(filesData.size());
+                for (var data : filesData) {
+                    var entity = new AttachmentEntity();
+                    entity.setConversationId(convId);
+                    entity.setUserId(userId);
+                    entity.setFilename(data.filename());
+                    entity.setFileSize(data.size());
+                    entity.setFileBytes(data.bytes());
+                    entity.setStatus(AttachmentStatus.PENDING);
+                    // content est null : sera renseigné par AttachmentAsyncProcessor après l'OCR
+                    var persisted = attachmentRepository.save(entity);
+                    saved.add(new PersistResult(persisted.getId(), data.filename(), data.size()));
+                }
+                return saved;
+            });
+        } catch (DataAccessException e) {
+            throw new UploadException(null, UploadErrorCode.UPLOAD_FAILED, "Error while saving attachments", e);
+        }
 
         // Publier un événement par pièce jointe : l'OCR async est déclenché AFTER_COMMIT
         // (jamais le MultipartFile, uniquement l'ID), garantissant la visibilité de la ligne.
         results.forEach(r -> eventPublisher.publishEvent(new AttachmentUploadedEvent(r.id())));
 
         var attachments = results.stream()
-                .map(r -> new Attachment(r.id(), r.filename(), r.size(), AttachmentStatus.PENDING))
+                .map(r -> new Attachment(r.id(), r.filename(), r.size(), AttachmentStatus.PENDING, null))
                 .toList();
         return new ConversationAttachments(convId, attachments);
     }
@@ -250,7 +264,7 @@ public class ConversationService {
     public AttachmentUploadResponse getAttachmentsStatus(String conversationId, String userId) {
         var attachments = attachmentRepository.findAllByConversationIdAndUserId(conversationId, userId)
                 .stream()
-                .map(entity -> new Attachment(entity.getId(), entity.getFilename(), entity.getFileSize(), entity.getStatus()))
+                .map(entity -> toAttachment(entity))
                 .toList();
         return AttachmentUploadResponse.fromAttachments(new ConversationAttachments(conversationId, attachments));
     }
@@ -265,8 +279,28 @@ public class ConversationService {
     public List<Attachment> getAttachmentsForConversation(String conversationId, String userId) {
         return attachmentRepository.findAllByConversationIdAndUserId(conversationId, userId)
                 .stream()
-                .map(entity -> new Attachment(entity.getId(), entity.getFilename(), entity.getFileSize(), entity.getStatus()))
+                .map(entity -> toAttachment(entity))
                 .toList();
+    }
+
+    private byte[] readAttachment(MultipartFile file) {
+        var filename = file.getOriginalFilename();
+        try {
+            var bytes = file.getBytes();
+            if (bytes.length == 0) {
+                throw new UploadException(filename, UploadErrorCode.FILE_CONTENT_INVALID, "Empty attachment");
+            }
+            if (!ocrService.isSupported(bytes)) {
+                throw new UploadException(filename, UploadErrorCode.FILE_TYPE_UNSUPPORTED, "Attachment type not supported by OCR");
+            }
+            return bytes;
+        } catch (IOException e) {
+            throw new UploadException(filename, UploadErrorCode.FILE_READ_ERROR, "Failed to read attachment bytes", e);
+        }
+    }
+
+    private static Attachment toAttachment(AttachmentEntity entity) {
+        return new Attachment(entity.getId(), entity.getFilename(), entity.getFileSize(), entity.getStatus(), entity.getErrorCode());
     }
 
     public void deleteAttachment(Long attachmentId, String userId) {

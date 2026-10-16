@@ -7,7 +7,10 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.transaction.support.TransactionTemplate;
 import zas.admin.zec.backend.actions.summarize.LlmOcrService;
+import zas.admin.zec.backend.actions.upload.validation.UploadErrorCode;
 import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
+
+import java.io.IOException;
 
 /**
  * Service dédié au traitement OCR asynchrone des pièces jointes.
@@ -89,25 +92,39 @@ public class AttachmentAsyncProcessor {
             log.info("OCR terminé avec succès pour la pièce jointe ID: {}", attachmentId);
 
         } catch (Exception e) {
-            log.error("Erreur lors du traitement OCR pour la pièce jointe ID: {}", attachmentId, e);
-            updateStatusSafely(attachmentId, AttachmentStatus.FAILED);
+            var errorCode = toErrorCode(e);
+            log.error("Erreur lors du traitement OCR pour la pièce jointe ID: {} [{}]", attachmentId, errorCode, e);
+            markFailedSafely(attachmentId, errorCode);
         }
     }
 
     /**
-     * Met à jour le statut dans une transaction indépendante.
+     * Traduit l'erreur OCR en code renvoyé au client lors du polling.
+     */
+    static UploadErrorCode toErrorCode(Exception e) {
+        return switch (e) {
+            case LlmOcrService.UnsupportedFileTypeException _ -> UploadErrorCode.FILE_TYPE_UNSUPPORTED;
+            // PDF corrompu / chiffré ou image illisible
+            case IOException _ -> UploadErrorCode.FILE_CONTENT_INVALID;
+            default -> UploadErrorCode.OCR_FAILED;
+        };
+    }
+
+    /**
+     * Passe la pièce jointe en {@link AttachmentStatus#FAILED} dans une transaction indépendante.
      * Ne propage pas d'exception pour ne pas masquer l'erreur originale.
      */
-    private void updateStatusSafely(Long attachmentId, AttachmentStatus status) {
+    private void markFailedSafely(Long attachmentId, UploadErrorCode errorCode) {
         try {
             transactionTemplate.executeWithoutResult(txStatus ->
                     attachmentRepository.findById(attachmentId).ifPresent(entity -> {
-                        entity.setStatus(status);
+                        entity.setStatus(AttachmentStatus.FAILED);
+                        entity.setErrorCode(errorCode);
                         attachmentRepository.save(entity);
                     })
             );
         } catch (Exception ex) {
-            log.error("Impossible de mettre à jour le statut de la pièce jointe ID: {} vers {}", attachmentId, status, ex);
+            log.error("Impossible de mettre à jour le statut de la pièce jointe ID: {} vers {}", attachmentId, AttachmentStatus.FAILED, ex);
         }
     }
 }

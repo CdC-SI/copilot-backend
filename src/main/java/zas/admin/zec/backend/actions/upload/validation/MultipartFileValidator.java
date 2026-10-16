@@ -50,7 +50,7 @@ public class MultipartFileValidator implements ConstraintValidator<ValidMultipar
             return true;
         }
 
-        context.buildConstraintViolationWithTemplate("FILE_TOO_LARGE").addConstraintViolation();
+        context.buildConstraintViolationWithTemplate(UploadErrorCode.FILE_TOO_LARGE.name()).addConstraintViolation();
         return false;
     }
     private boolean isAllowedMimeType(String mimeType, ConstraintValidatorContext context) {
@@ -58,7 +58,7 @@ public class MultipartFileValidator implements ConstraintValidator<ValidMultipar
             return true;
         }
 
-        context.buildConstraintViolationWithTemplate("FILE_TYPE_UNSUPPORTED").addConstraintViolation();
+        context.buildConstraintViolationWithTemplate(UploadErrorCode.FILE_TYPE_UNSUPPORTED.name()).addConstraintViolation();
         return false;
     }
 
@@ -78,7 +78,7 @@ public class MultipartFileValidator implements ConstraintValidator<ValidMultipar
             log.error("Tika parsing failure !", e);
         }
 
-        context.buildConstraintViolationWithTemplate("FILE_CONTENT_INVALID").addConstraintViolation();
+        context.buildConstraintViolationWithTemplate(UploadErrorCode.FILE_CONTENT_INVALID.name()).addConstraintViolation();
         return false;
     }
 }

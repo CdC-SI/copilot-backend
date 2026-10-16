@@ -6,10 +6,12 @@ import org.springframework.ai.vectorstore.filter.Filter;
 import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import zas.admin.zec.backend.actions.upload.model.*;
 import zas.admin.zec.backend.actions.upload.strategy.AdminDocUploadStrategyFactory;
+import zas.admin.zec.backend.actions.upload.validation.UploadErrorCode;
 import zas.admin.zec.backend.actions.upload.validation.UploadException;
 import zas.admin.zec.backend.persistence.entity.TempSourceDocumentEntity;
 import zas.admin.zec.backend.persistence.repository.TempSourceDocumentRepository;
@@ -55,10 +57,19 @@ public class UploadService {
 
     @Transactional
     public void uploadPersonalDocument(DocumentToUpload document, String userUuid) {
+        var fileName = document.file().getOriginalFilename();
+        byte[] content;
+        try {
+            content = document.file().getBytes();
+        } catch (IOException e) {
+            throw new UploadException(fileName, UploadErrorCode.FILE_READ_ERROR,
+                    "Error while reading personal document", e);
+        }
+
         try {
             TempSourceDocumentEntity personalDoc = new TempSourceDocumentEntity();
-            personalDoc.setFileName(document.file().getOriginalFilename());
-            personalDoc.setContent(document.file().getBytes());
+            personalDoc.setFileName(fileName);
+            personalDoc.setContent(content);
             personalDoc.setUserUuid(userUuid);
             personalDoc.setUploadedAt(LocalDateTime.now());
             personalDoc.setStatus(EmbeddingStatus.PENDING);
@@ -67,13 +78,12 @@ public class UploadService {
 
             var savedDoc = tempSourceDocumentRepository.save(personalDoc);
 
-            log.info("Document personnel {} persisté, embedding asynchrone déclenché après commit",
-                    document.file().getOriginalFilename());
+            log.info("Document personnel {} persisté, embedding asynchrone déclenché après commit", fileName);
 
             eventPublisher.publishEvent(new PersonalDocumentUploadedEvent(savedDoc.getId()));
-        } catch (IOException e) {
-            throw new UploadException(document.file().getOriginalFilename(),
-                    "Error while uploading personal document", e);
+        } catch (DataAccessException e) {
+            throw new UploadException(fileName, UploadErrorCode.UPLOAD_FAILED,
+                    "Error while saving personal document", e);
         }
     }
 
@@ -86,7 +96,8 @@ public class UploadService {
                         doc.getUploadedAt(),
                         doc.getStatus(),
                         doc.getAvailabilityStatus(),
-                        computeTimeToLiveInDays(doc, retentionConfig)))
+                        computeTimeToLiveInDays(doc, retentionConfig),
+                        doc.getErrorCode()))
                 .toList();
     }
 
