@@ -8,6 +8,7 @@ import lombok.Setter;
 import org.hibernate.annotations.Type;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -63,6 +64,19 @@ public class MessageEntity {
     @Type(JsonType.class)
     @Column(name = "consulted_sources", columnDefinition = "jsonb")
     private Map<String, Object> consultedSources;
+
+    /**
+     * Appels de tools du tour (cf. {@code ToolCallRecord}) : tool, arguments fournis par le LLM, statut, durée,
+     * documents retournés. Écrit pour le débogage et les évaluations, jamais relu par l'application.
+     */
+    @Type(JsonType.class)
+    @Column(name = "tool_calls", columnDefinition = "jsonb")
+    private List<Map<String, Object>> toolCalls;
+
+    /** Tokens consommés par le tour (cf. {@code TurnUsage}). Écrit pour les évaluations, jamais relu. */
+    @Type(JsonType.class)
+    @Column(name = "usage", columnDefinition = "jsonb")
+    private Map<String, Object> usage;
 
     /**
      * Workspace utilisé pour répondre à ce message : fourni explicitement dans la {@code Question},

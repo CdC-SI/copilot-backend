@@ -6,6 +6,8 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
+import zas.admin.zec.backend.rag.TurnStatus;
+import zas.admin.zec.backend.rag.TurnTrace;
 import zas.admin.zec.backend.rag.token.TextToken;
 import zas.admin.zec.backend.rag.token.Token;
 import zas.admin.zec.backend.tools.ToolContextKeys;
@@ -64,12 +66,29 @@ abstract class AbstractChatService implements ChatService {
                 pendingBlock = "";
             } else {
                 assistantTurn++;
-                messages.add(new AssistantMessage(message.message()));
+                messages.add(new AssistantMessage(withTurnMeta(message)));
                 pendingBlock = RetrievedSourcesRenderer.render(assistantTurn,
                         RetrievedSourcesRenderer.consultedSources(message));
             }
         }
         return messages;
+    }
+
+    /**
+     * Texte d'une réponse passée tel que le modèle l'a produit : la balise {@code <turn_meta>}, retirée du texte
+     * affiché et persisté, est rétablie à partir de la trace du tour (statut et {@code used}). Sans elle, l'historique
+     * montre au modèle des réponses sans balise et il cesse de l'émettre dans les tours suivants. Un tour dont la
+     * balise manquait ({@link TurnStatus#UNKNOWN}, sources affichées comme pour une réponse) est rendu en
+     * {@code answer}. Rendu déterministe (prefix caching). Historique antérieur à la trace : texte inchangé.
+     */
+    static String withTurnMeta(Message message) {
+        TurnTrace trace = message.turnTrace();
+        if (trace == null) {
+            return message.message();
+        }
+        TurnStatus status = trace.status() == TurnStatus.UNKNOWN ? TurnStatus.ANSWER : trace.status();
+        return message.message().stripTrailing() + "\n<turn_meta status=\"" + status.key() + "\" used=\""
+                + String.join(",", trace.used().declared()) + "\"/>";
     }
 
     /** Bloc {@code <retrieved_sources>} du dernier tour assistant, à préfixer à la question courante. */

@@ -6,7 +6,8 @@ import java.util.regex.Pattern;
 
 /**
  * Filtre à état appliqué au flux de texte du LLM pour extraire et masquer la balise de fin de tour
- * {@code <turn_meta status="answer|followup|refusal" reuse="id1,id2"/>}.
+ * {@code <turn_meta status="answer|followup|refusal" used="id1,id2"/>} ({@code used} : documents sur lesquels la
+ * réponse s'appuie ; l'ancien attribut {@code reuse} est accepté comme synonyme).
  *
  * <p>Le texte est transmis au fil de l'eau ; seule une éventuelle fin de chunk pouvant être le début
  * de la balise est retenue jusqu'au chunk suivant. La balise (et tout ce qui suit dans le même bloc
@@ -19,7 +20,7 @@ public final class TurnMetaStreamFilter {
 
     private static final String OPEN = "<turn_meta";
     private static final Pattern ATTRIBUTE = Pattern.compile("(\\w+)\\s*=\\s*[\"']([^\"']*)[\"']");
-    private static final Pattern REUSE_ID = Pattern.compile("^[A-Za-z0-9_\\-:.#]{1,128}$");
+    private static final Pattern DOCUMENT_ID = Pattern.compile("^[A-Za-z0-9_\\-:.#]{1,128}$");
 
     private final StringBuilder pending = new StringBuilder();
     private final StringBuilder tag = new StringBuilder();
@@ -27,8 +28,12 @@ public final class TurnMetaStreamFilter {
     private boolean tagClosed;
     private TurnMeta meta;
 
-    /** Métadonnées de fin de tour extraites. */
-    public record TurnMeta(TurnStatus status, List<String> reuseIds) {}
+    /**
+     * Métadonnées de fin de tour extraites.
+     *
+     * @param usedIds identifiants déclarés par l'agent (attributs {@code used} et {@code reuse}), non encore validés
+     */
+    public record TurnMeta(TurnStatus status, List<String> usedIds) {}
 
     /** @return le texte pouvant être émis immédiatement (éventuellement vide). */
     public String accept(String chunk) {
@@ -97,22 +102,22 @@ public final class TurnMetaStreamFilter {
 
     private void parse(String rawTag) {
         TurnStatus status = TurnStatus.UNKNOWN;
-        List<String> reuse = new ArrayList<>();
+        List<String> used = new ArrayList<>();
         Matcher m = ATTRIBUTE.matcher(rawTag);
         while (m.find()) {
             String name = m.group(1).toLowerCase(Locale.ROOT);
             String value = m.group(2);
             if ("status".equals(name)) {
                 status = TurnStatus.fromKey(value);
-            } else if ("reuse".equals(name)) {
+            } else if ("used".equals(name) || "reuse".equals(name)) {
                 Arrays.stream(value.split("[,\\s]+"))
                         .map(String::strip)
-                        .filter(id -> REUSE_ID.matcher(id).matches())
-                        .distinct()
-                        .forEach(reuse::add);
+                        .filter(id -> DOCUMENT_ID.matcher(id).matches())
+                        .filter(id -> !used.contains(id))
+                        .forEach(used::add);
             }
         }
-        meta = new TurnMeta(status, List.copyOf(reuse));
+        meta = new TurnMeta(status, List.copyOf(used));
     }
 
     private static int partialOpenSuffix(CharSequence s) {

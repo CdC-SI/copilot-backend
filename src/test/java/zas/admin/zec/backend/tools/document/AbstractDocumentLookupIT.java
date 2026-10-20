@@ -54,7 +54,7 @@ import java.util.Map;
 })
 @Import(LocalConfig.class)
 @Transactional
-abstract class AbstractDocumentLookupIT {
+public abstract class AbstractDocumentLookupIT {
 
     protected static final JsonMapper JSON = JsonMapper.builder().build();
 

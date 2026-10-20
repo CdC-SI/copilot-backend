@@ -19,12 +19,12 @@ class TurnMetaStreamFilterTest {
     @Test
     void stripsTagSplitAcrossChunksAndParsesIt() {
         var filter = new TurnMetaStreamFilter();
-        String text = run(filter, "La rente est ", "versée.\n<tu", "rn_meta status=\"ans", "wer\" reuse=\"a1, b2\"/>");
+        String text = run(filter, "La rente est ", "versée.\n<tu", "rn_meta status=\"ans", "wer\" used=\"a1, b2\"/>");
 
         assertEquals("La rente est versée.\n", text);
         var meta = filter.meta().orElseThrow();
         assertEquals(TurnStatus.ANSWER, meta.status());
-        assertEquals(List.of("a1", "b2"), meta.reuseIds());
+        assertEquals(List.of("a1", "b2"), meta.usedIds());
     }
 
     @Test
@@ -45,7 +45,7 @@ class TurnMetaStreamFilterTest {
         String text = run(filter, "Pouvez-vous préciser ?<turn_meta reuse='' status='followup'></turn_meta>");
         assertEquals("Pouvez-vous préciser ?", text);
         assertEquals(TurnStatus.FOLLOWUP, filter.meta().orElseThrow().status());
-        assertEquals(List.of(), filter.meta().orElseThrow().reuseIds());
+        assertEquals(List.of(), filter.meta().orElseThrow().usedIds());
     }
 
     @Test
@@ -57,10 +57,17 @@ class TurnMetaStreamFilterTest {
     }
 
     @Test
-    void filtersInvalidReuseIds() {
+    void filtersInvalidUsedIds() {
         var filter = new TurnMetaStreamFilter();
-        run(filter, "<turn_meta status=\"answer\" reuse=\"ok-1,bad id;DROP,\"/>");
-        assertEquals(List.of("ok-1", "bad"), filter.meta().orElseThrow().reuseIds());
+        run(filter, "<turn_meta status=\"answer\" used=\"ok-1,bad id;DROP,\"/>");
+        assertEquals(List.of("ok-1", "bad"), filter.meta().orElseThrow().usedIds());
+    }
+
+    @Test
+    void acceptsReuseAsAliasOfUsedWithoutDuplicates() {
+        var filter = new TurnMetaStreamFilter();
+        run(filter, "Réponse.<turn_meta used=\"a, b\" status=\"answer\" reuse=\"b,c\"/>");
+        assertEquals(List.of("a", "b", "c"), filter.meta().orElseThrow().usedIds());
     }
 
     @Test

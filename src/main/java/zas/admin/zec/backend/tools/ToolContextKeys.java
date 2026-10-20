@@ -83,6 +83,12 @@ public final class ToolContextKeys {
      */
     public static final String CTX_TOOL_CALL_BUDGET = "toolCallBudget";
 
+    /**
+     * Clé d'une liste thread-safe de {@link zas.admin.zec.backend.rag.TurnUsage.LlmCall} fournie par l'appelant :
+     * les tools y déposent l'usage des appels LLM qu'ils font eux-mêmes (ex. inférence du workspace).
+     */
+    public static final String CTX_LLM_USAGE = "llmUsage";
+
     private ToolContextKeys() {
         // Classe utilitaire — pas d'instanciation.
     }

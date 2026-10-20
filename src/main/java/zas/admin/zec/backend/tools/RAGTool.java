@@ -3,6 +3,7 @@ package zas.admin.zec.backend.tools;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.document.Document;
@@ -28,6 +29,7 @@ import zas.admin.zec.backend.actions.workspace.WorkspaceService;
 import zas.admin.zec.backend.config.properties.RetrievingProperties;
 import zas.admin.zec.backend.rag.ChatStatus;
 import zas.admin.zec.backend.rag.RAGPrompts;
+import zas.admin.zec.backend.rag.TurnUsage;
 import zas.admin.zec.backend.rag.joiner.RankedDocumentJoiner;
 import zas.admin.zec.backend.rag.reranker.DocumentReranker;
 import zas.admin.zec.backend.rag.retriever.BM25DocumentRetriever;
@@ -60,6 +62,10 @@ public class RAGTool {
     private static final String META_ORGANIZATIONS = "organizations";
     private static final String META_USER_UUID = "user_uuid";
     private static final String ORG_ZAS = "ZAS";
+    /** Appel sans requête (le LLM a omis l'argument) : message exploitable plutôt qu'une exception. */
+    static final String MISSING_QUERY = "<error>The 'query' argument is required: rephrase the user's question as a "
+            + "standalone search query and call the tool again.</error>";
+
     private static final String NO_DOCS_FOUND = """
             <no_documentation_found>
             The knowledge base search returned NO relevant documents for this query.
@@ -121,6 +127,9 @@ public class RAGTool {
         if (!ToolCallBudget.tryAcquire(context, TOOL_NAME)) {
             return ToolCallBudget.EXHAUSTED_MESSAGE;
         }
+        if (query == null || query.isBlank()) {
+            return MISSING_QUERY;
+        }
         String userId = asString(context.get(ToolContextKeys.CTX_USER_ID), "");
         String language = asString(context.get(ToolContextKeys.CTX_LANGUAGE), DEFAULT_LANGUAGE);
         String conversationId = asString(context.get(ToolContextKeys.CTX_CONVERSATION_ID), "");
@@ -130,7 +139,7 @@ public class RAGTool {
         String workspace = asString(context.get(ToolContextKeys.CTX_WORKSPACE), "");
         if (workspace.isBlank()) {
             ToolContextKeys.emitStatus(context, ChatStatus.WORKSPACE_INFERENCE, language);
-            workspace = inferWorkspace(query, language);
+            workspace = inferWorkspace(query, language, context);
 
             // Monitoring : journaliser l'inférence (question originale de l'utilisateur, stable),
             // afin d'aider à améliorer la classification des workspaces pour les questions futures.
@@ -294,7 +303,7 @@ public class RAGTool {
      * (catch-all, sans filtrage par source) si la réponse du LLM est vide, inconnue, ou en cas
      * d'erreur.
      */
-    private String inferWorkspace(String query, String language) {
+    private String inferWorkspace(String query, String language, Map<String, Object> context) {
         String defaultWorkspace = workspaceService.getDefaultWorkspace();
         try {
             List<WorkspaceDto> workspaces = workspaceService.getAll();
@@ -305,11 +314,14 @@ public class RAGTool {
             String systemPrompt = RAGPrompts.getWorkspaceInferenceTemplate(language)
                     .formatted(describeWorkspaces(workspaces), defaultWorkspace);
 
-            String answer = internalChatClient.prompt()
+            ChatResponse response = internalChatClient.prompt()
                     .system(systemPrompt)
                     .user(query)
                     .call()
-                    .content();
+                    .chatResponse();
+            recordUsage(context, "workspace_inference", response);
+            String answer = response != null && response.getResult() != null
+                    ? response.getResult().getOutput().getText() : null;
 
             String resolved = answer != null ? answer.trim() : "";
             boolean isKnown = workspaces.stream().anyMatch(w -> w.name().equals(resolved));
@@ -323,6 +335,20 @@ public class RAGTool {
             log.warn("Échec de l'inférence de workspace, repli sur '{}'", defaultWorkspace, e);
             return defaultWorkspace;
         }
+    }
+
+    /** Dépose l'usage d'un appel LLM du tool dans {@link ToolContextKeys#CTX_LLM_USAGE}, si l'appelant l'a fourni. */
+    private static void recordUsage(Map<String, Object> context, String purpose, ChatResponse response) {
+        if (!(context.get(ToolContextKeys.CTX_LLM_USAGE) instanceof Collection<?> sink) || response == null
+                || response.getMetadata() == null || response.getMetadata().getUsage() == null
+                || response.getMetadata().getUsage().getPromptTokens() == null) {
+            return;
+        }
+        var usage = response.getMetadata().getUsage();
+        @SuppressWarnings("unchecked")
+        var calls = (Collection<TurnUsage.LlmCall>) sink;
+        calls.add(new TurnUsage.LlmCall(purpose, usage.getPromptTokens(),
+                usage.getCompletionTokens() != null ? usage.getCompletionTokens() : 0, usage.getCacheReadInputTokens()));
     }
 
     private String describeWorkspaces(List<WorkspaceDto> workspaces) {

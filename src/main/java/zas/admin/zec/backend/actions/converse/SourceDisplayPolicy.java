@@ -5,6 +5,7 @@ import zas.admin.zec.backend.rag.ConsultedSource;
 import zas.admin.zec.backend.rag.TurnMetaStreamFilter.TurnMeta;
 import zas.admin.zec.backend.rag.TurnStatus;
 import zas.admin.zec.backend.rag.TurnTrace;
+import zas.admin.zec.backend.rag.UsedDocuments;
 import zas.admin.zec.backend.rag.token.SourceToken;
 import zas.admin.zec.backend.tools.MetadataFormatter;
 import zas.admin.zec.backend.tools.document.DocumentCollection;
@@ -15,14 +16,17 @@ import java.util.*;
  * Décide des sources affichées en fin de tour selon le statut déclaré par l'agent ({@code <turn_meta>}).
  *
  * <ul>
- *   <li>{@link TurnStatus#ANSWER} : sources consultées pendant le tour + sources consultées pendant les
- *       questions de suivi immédiatement précédentes + sources réutilisées ({@code reuse}) validées.</li>
+ *   <li>{@link TurnStatus#ANSWER} : les documents déclarés dans {@code used} (ceux sur lesquels la réponse s'appuie),
+ *       pris parmi les documents du tour, des questions de suivi précédentes et des tours antérieurs, plus les pièces
+ *       jointes lues pendant le tour (toujours affichées). Si {@code used}
+ *       est vide ou ne contient aucun identifiant valide : documents consultés pendant le tour + pendant les questions
+ *       de suivi immédiatement précédentes.</li>
  *   <li>{@link TurnStatus#FOLLOWUP} : aucune source affichée (elles sont conservées dans la trace du tour).</li>
  *   <li>{@link TurnStatus#REFUSAL} : aucune source affichée.</li>
  *   <li>{@link TurnStatus#UNKNOWN} (balise absente / invalide) : comportement historique, sources du tour.</li>
  * </ul>
  *
- * <p>Les identifiants {@code reuse} fournis par le LLM ne sont jamais pris tels quels : seuls ceux présents
+ * <p>Les identifiants {@code used} fournis par le LLM ne sont jamais pris tels quels : seuls ceux présents
  * dans les sources consultées ou affichées de la conversation (ou du tour courant) sont retenus.</p>
  *
  * <p>Sources affichées sans doublons ({@link #displayed}) : la description d'un processus (chunk de documentation)
@@ -48,32 +52,48 @@ final class SourceDisplayPolicy {
             log.warn("Balise <turn_meta> sans statut valide (conversation {}) : affichage des sources du tour", conversationId);
         }
 
+        // Classement des identifiants déclarés : consultés pendant ce tour, repris d'un tour antérieur, inconnus.
+        Map<String, ConsultedSource> earlier = knownSources(history);
+        Map<String, ConsultedSource> currentById = new LinkedHashMap<>();
+        current.forEach(s -> currentById.put(s.id(), s));
+        UsedDocuments used = UsedDocuments.classify(meta.map(TurnMeta::usedIds).orElse(List.of()),
+                currentById.keySet(), earlier.keySet());
+        used.unknown().forEach(id ->
+                log.warn("Source déclarée (used) inconnue ignorée : '{}' (conversation {})", id, conversationId));
+
         List<SourceToken> displayed = switch (status) {
             case FOLLOWUP, REFUSAL -> List.of();
             case UNKNOWN -> displayed(current);
-            case ANSWER -> answerSources(current, history, meta.map(TurnMeta::reuseIds).orElse(List.of()), conversationId);
+            case ANSWER -> answerSources(current, history, used, currentById, earlier, conversationId);
         };
-        return new Outcome(status, displayed, new TurnTrace(status, current));
+        return new Outcome(status, displayed, new TurnTrace(status, current, used, List.of()));
     }
 
     private static List<SourceToken> answerSources(List<ConsultedSource> current, List<Message> history,
-                                                   List<String> reuseIds, String conversationId) {
-        List<ConsultedSource> sources = new ArrayList<>(current);
-        sources.addAll(pendingFollowupSources(history));
+                                                   UsedDocuments used, Map<String, ConsultedSource> currentById,
+                                                   Map<String, ConsultedSource> earlier, String conversationId) {
+        List<ConsultedSource> consulted = new ArrayList<>(current);
+        consulted.addAll(pendingFollowupSources(history));
+        if (used.isEmpty()) {
+            return displayed(consulted);
+        }
 
-        if (!reuseIds.isEmpty()) {
-            Map<String, ConsultedSource> known = knownSources(history);
-            current.forEach(s -> known.putIfAbsent(s.id(), s));
-            for (String id : reuseIds) {
-                ConsultedSource source = known.get(id);
-                if (source != null) {
-                    sources.add(source);
-                } else {
-                    log.warn("Source réutilisée inconnue ignorée : '{}' (conversation {})", id, conversationId);
-                }
+        // Dans l'ordre de déclaration ; un document du tour prime sur une occurrence antérieure.
+        List<ConsultedSource> relied = new ArrayList<>();
+        for (String id : used.declared()) {
+            ConsultedSource source = currentById.containsKey(id) ? currentById.get(id) : earlier.get(id);
+            if (source != null) {
+                relied.add(source);
             }
         }
-        return displayed(sources);
+        if (relied.isEmpty()) {
+            log.warn("Aucun identifiant used valide (conversation {}) : affichage des sources consultées", conversationId);
+            return displayed(consulted);
+        }
+        // Une pièce jointe lue pendant ce tour l'a été pour répondre : elle est toujours affichée, même si l'agent
+        // l'a omise de used (le fichier de l'utilisateur doit apparaître parmi les sources de la réponse).
+        current.stream().filter(ConsultedSource::isAttachment).forEach(relied::add);
+        return displayed(relied);
     }
 
     /** Sources à afficher, dans l'ordre de consultation et sans doublons (cf. javadoc de la classe). */

@@ -88,7 +88,7 @@ class BusinessProcessLookupIT extends AbstractDocumentLookupIT {
 
         assertEquals(List.of(A2_FR), ids(fr));
         assertEquals(List.of(A2_DE), ids(de));
-        assertEquals(BusinessProcessLookup.LATEST_ONLY_NOTICE, fr.notice());
+        assertTrue(fr.notice().startsWith(BusinessProcessLookup.LATEST_ONLY_NOTICE), fr.notice());
     }
 
     @Test
@@ -132,7 +132,7 @@ class BusinessProcessLookupIT extends AbstractDocumentLookupIT {
         assertEquals(List.of(A2_FR), ids(byBpmnId));
         assertEquals(List.of(A2_DE), ids(byBpmnIdDe));
         assertEquals(List.of(A2_FR), ids(byBpandaId));
-        assertEquals(BusinessProcessLookup.LATEST_ONLY_NOTICE, byBpmnId.notice());
+        assertTrue(byBpmnId.notice().startsWith(BusinessProcessLookup.LATEST_ONLY_NOTICE), byBpmnId.notice());
     }
 
     @Test
@@ -141,6 +141,18 @@ class BusinessProcessLookupIT extends AbstractDocumentLookupIT {
 
         assertEquals(List.of(A3_FR), ids(result));
         assertNull(result.notice());
+    }
+
+    @Test
+    void latestOnlyNoticeListsTheOtherVersionsOrTheirAbsence() {
+        var a = lookup.find(request(List.of(eq("process_id", "IT-A")), "u", true, "fr"));
+        var b = lookup.find(request(List.of(eq("process_id", "IT-B")), "u", true, "fr"));
+
+        assertTrue(a.notice().contains("Other versions of IT-A: "
+                + "2020.01.01 (expired, Validé, valid 2020-01-01T00:00 to 2021-12-31T23:59); "
+                + "2099.01.01 (future, Validé, valid 2099-01-01T00:00 to open-ended)"), a.notice());
+        assertFalse(a.notice().contains("2022.01.01 ("), "the returned version is not listed");
+        assertTrue(b.notice().contains("No other version of IT-B exists."), b.notice());
     }
 
     @Test

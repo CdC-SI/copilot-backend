@@ -373,6 +373,9 @@ public class ConversationService {
                 : message.suggestions().toArray(String[]::new));
         entity.setWorkspace(message.workspace());
         entity.setConsultedSources(message.turnTrace() != null ? message.turnTrace().toMap() : null);
+        entity.setToolCalls(message.turnTrace() != null ? message.turnTrace().toolCallsAsMaps() : null);
+        entity.setUsage(message.turnTrace() != null && message.turnTrace().usage() != null
+                ? message.turnTrace().usage().toMap() : null);
 
         conversationRepository.save(entity);
     }

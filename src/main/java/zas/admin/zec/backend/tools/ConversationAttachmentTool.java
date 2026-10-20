@@ -194,8 +194,9 @@ public class ConversationAttachmentTool {
             return "Le traitement OCR du fichier « %s » a échoué. Le contenu n'est pas disponible."
                     .formatted(entity.getFilename());
         }
-        return "<attachment filename=\"%s\">%n%s%n</attachment>".formatted(
-                entity.getFilename(), entity.getContent());
+        // L'id (stable) permet à l'agent de citer la pièce jointe dans <turn_meta used="...">.
+        return "<attachment id=\"%s\" filename=\"%s\">%n%s%n</attachment>".formatted(
+                documentId(entity.getId()), entity.getFilename(), entity.getContent());
     }
 
     private static Map<String, Object> contextMap(ToolContext toolContext) {

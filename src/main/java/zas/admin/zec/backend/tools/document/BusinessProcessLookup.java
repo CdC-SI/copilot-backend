@@ -8,7 +8,13 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Recherche exacte par métadonnées dans les processus métier ({@code business_process}).
@@ -22,6 +28,9 @@ import java.util.List;
  *       lexicographiquement. {@code bpmn_id} est stable d'une version et d'une traduction à l'autre : un filtre
  *       sur {@code bpmn_id} (sous-processus appelé) retourne donc la version en vigueur, comme {@code process_id}.
  *       Idem pour {@code bpanda_id} (s'il identifie une seule version, cette version est la seule candidate).</li>
+ *   <li><b>Autres versions</b> : quand seule la dernière version est retournée, la notice liste les autres versions de
+ *       chaque processus retourné (expirée, en vigueur ou à venir, état, validité), ou indique qu'il n'y en a pas : le
+ *       LLM sait ainsi qu'une version future ou passée existe et comment l'obtenir.</li>
  *   <li><b>Langue</b> : la version prime sur la langue. La langue de l'utilisateur ne départage que les
  *       traductions d'une même version ; si la version retenue n'existe pas dans sa langue, elle est retournée
  *       dans une autre langue (avec un avertissement). Un filtre {@code lang} explicite restreint la recherche.</li>
@@ -43,6 +52,9 @@ public class BusinessProcessLookup implements DocumentLookup {
     static final String LATEST_ONLY_NOTICE =
             "Only the latest version (in force if any) of each process is returned. "
                     + "Filter on bpanda_version, valid_from or valid_to to obtain another version.";
+    static final String OTHER_VERSIONS_NOTICE = "Other versions of %s: %s. Filter on bpanda_version to read one.";
+    static final String NO_OTHER_VERSION_NOTICE = "No other version of %s exists.";
+    private static final int MAX_LISTED_VERSIONS = 10;
     static final String OTHER_LANGUAGE_NOTICE =
             "Some results are not in the user's language (%s): the most recent version takes precedence over "
                     + "the language. Answer in the user's language.";
@@ -81,11 +93,66 @@ public class BusinessProcessLookup implements DocumentLookup {
         List<String> notices = new ArrayList<>();
         if (!versionPinned) {
             notices.add(LATEST_ONLY_NOTICE);
+            notices.addAll(otherVersionNotices(documents));
         }
         if (!language.isEmpty() && documents.stream().anyMatch(d -> !language.equals(d.getMetadata().get("lang")))) {
             notices.add(OTHER_LANGUAGE_NOTICE.formatted(language));
         }
         return new LookupResult(documents, truncated, notices.isEmpty() ? null : String.join(" ", notices));
+    }
+
+    /** Pour chaque processus retourné : ses autres versions (toutes langues confondues), ou leur absence. */
+    private List<String> otherVersionNotices(List<Document> documents) {
+        List<String> processIds = documents.stream()
+                .map(d -> d.getMetadata().get("process_id")).filter(Objects::nonNull).map(String::valueOf)
+                .distinct().toList();
+        if (processIds.isEmpty()) {
+            return List.of();
+        }
+        String placeholders = String.join(", ", Collections.nCopies(processIds.size(), "?"));
+        List<Map<String, Object>> versions = jdbcTemplate.queryForList("""
+                SELECT DISTINCT ON (metadata ->> 'process_id', metadata ->> 'bpanda_version')
+                       metadata ->> 'process_id' AS process_id, metadata ->> 'bpanda_version' AS version,
+                       metadata ->> 'process_state' AS state, metadata ->> 'valid_from' AS valid_from,
+                       metadata ->> 'valid_to' AS valid_to
+                FROM business_process
+                WHERE metadata ->> 'process_id' IN (%s)
+                ORDER BY metadata ->> 'process_id', metadata ->> 'bpanda_version', metadata ->> 'valid_from'
+                """.formatted(placeholders), processIds.toArray());
+        String now = LocalDateTime.now().format(ISO_MINUTES);
+        List<String> notices = new ArrayList<>();
+        for (String processId : processIds) {
+            Set<String> returned = documents.stream()
+                    .filter(d -> processId.equals(String.valueOf(d.getMetadata().get("process_id"))))
+                    .map(d -> String.valueOf(d.getMetadata().get("bpanda_version")))
+                    .collect(Collectors.toSet());
+            List<String> others = versions.stream()
+                    .filter(v -> processId.equals(v.get("process_id"))
+                            && !returned.contains(String.valueOf(v.get("version"))))
+                    .sorted(Comparator.comparing(v -> String.valueOf(v.get("valid_from"))))
+                    .map(v -> describeVersion(v, now))
+                    .toList();
+            if (others.isEmpty()) {
+                notices.add(NO_OTHER_VERSION_NOTICE.formatted(processId));
+            } else {
+                String listed = String.join("; ", others.subList(0, Math.min(others.size(), MAX_LISTED_VERSIONS)))
+                        + (others.size() > MAX_LISTED_VERSIONS
+                        ? "; and %d more".formatted(others.size() - MAX_LISTED_VERSIONS) : "");
+                notices.add(OTHER_VERSIONS_NOTICE.formatted(processId, listed));
+            }
+        }
+        return notices;
+    }
+
+    /** Ex. {@code 2099.01.01 (future, Validé, valid 2099-01-01T00:00 to open-ended)}. */
+    static String describeVersion(Map<String, Object> v, String now) {
+        String from = v.get("valid_from") != null ? String.valueOf(v.get("valid_from")) : null;
+        String to = v.get("valid_to") != null ? String.valueOf(v.get("valid_to")) : null;
+        String when = from != null && from.compareTo(now) > 0 ? "future"
+                : to != null && to.compareTo(now) <= 0 ? "expired" : "in force";
+        return "%s (%s, %s, valid %s to %s)".formatted(v.get("version"), when,
+                v.get("state") != null ? v.get("state") : "state unknown",
+                from != null ? from : "?", to != null ? to : "open-ended");
     }
 
     /**

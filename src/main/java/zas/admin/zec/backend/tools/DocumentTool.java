@@ -77,7 +77,9 @@ public class DocumentTool {
             Exemples : lien vers un processus -> collection=BUSINESS_PROCESS, filters=[{key:process_id, op:EQ, \
             value:"CSC AF-61-2-408"}] ; sous-processus appelé (version en vigueur) -> filters=[{key:bpmn_id, op:EQ, value:<called_bpmn_id>}] ; \
             lien vers un document -> collection=DOCUMENTATION, filters=[{key:doc_id, op:EQ, value:<target_doc_id>}] ; \
-            chunks voisins -> filters=[{key:doc_id, op:EQ, value:...}, {key:chunk_index, op:IN, values:["4","6"]}]. \
+            chunks voisins -> filters=[{key:doc_id, op:EQ, value:...}, {key:chunk_index, op:IN, values:["4","6"]}] ; \
+            toutes les versions d'un processus (passées, en vigueur, à venir) -> filters=[{key:process_id, op:EQ, value:...}, \
+            {key:valid_from, op:GTE, value:"1900-01-01T00:00"}]. \
             Ne pas utiliser pour une question générale : utiliser d'abord search_social_insurance_documentation.""")
     public String getDocuments(
             @ToolParam(description = "Collection interrogée : DOCUMENTATION ou BUSINESS_PROCESS.")

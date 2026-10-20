@@ -4,6 +4,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.document.Document;
+import org.springframework.ai.support.ToolCallbacks;
+import org.springframework.ai.tool.ToolCallback;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -15,6 +17,8 @@ import zas.admin.zec.backend.persistence.repository.AttachmentRepository.Attachm
 import zas.admin.zec.backend.rag.ConsultedSource;
 import zas.admin.zec.backend.rag.RAGPrompts;
 import zas.admin.zec.backend.rag.TurnMetaStreamFilter;
+import zas.admin.zec.backend.rag.TurnUsage;
+import zas.admin.zec.backend.rag.UsageTracker;
 import zas.admin.zec.backend.rag.token.SourceToken;
 import zas.admin.zec.backend.rag.token.TextToken;
 import zas.admin.zec.backend.rag.token.Token;
@@ -23,6 +27,7 @@ import zas.admin.zec.backend.rag.token.WorkspaceToken;
 import zas.admin.zec.backend.tools.ConversationAttachmentTool;
 import zas.admin.zec.backend.tools.DocumentTool;
 import zas.admin.zec.backend.tools.RAGTool;
+import zas.admin.zec.backend.tools.ToolCallRecorder;
 import zas.admin.zec.backend.tools.ToolContextKeys;
 import zas.admin.zec.backend.tools.WorkspaceInferenceMonitoringService;
 
@@ -38,8 +43,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * (récupération exacte par métadonnées : liens sortants, chunks voisins, processus métier) et
  * {@link ConversationAttachmentTool} (pièces jointes). Le LLM décide lui-même d'invoquer ces tools via
  * tool-calling, sauf lorsque le workspace est fourni explicitement dans la question (correction d'une
- * inférence précédente) : une consigne prioritaire est alors ajoutée au system prompt pour rendre
- * l'appel à {@link RAGTool} obligatoire.
+ * inférence précédente) : une consigne prioritaire est alors ajoutée au message utilisateur courant pour rendre
+ * l'appel à {@link RAGTool} obligatoire (et non au system prompt, qui reste identique d'un tour à l'autre).
  *
  * <p>Active pour les conversations de type {@link ConversationType#COMPLETE}.</p>
  *
@@ -47,7 +52,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * transitent par le {@code ToolContext}. Les documents récupérés par les tools sont collectés via une
  * liste partagée ; en fin de réponse, la balise {@code <turn_meta>} déclarée par l'agent (retirée du
  * flux) détermine les {@link SourceToken} affichés ({@link SourceDisplayPolicy}), et la trace du tour
- * est transmise pour persistance ({@link TurnTraceToken}).</p>
+ * est transmise pour persistance ({@link TurnTraceToken}), avec le journal des appels de tools
+ * ({@link ToolCallRecorder}).</p>
  *
  * <p>Mémoire inter-tours : chaque message utilisateur de l'historique, ainsi que la question courante,
  * est préfixé par le bloc {@code <retrieved_sources>} des documents consultés au tour précédent. La question
@@ -59,9 +65,8 @@ import java.util.concurrent.atomic.AtomicReference;
 public class RAGChatService extends AbstractChatService {
 
     private final ChatClient internalChatClient;
-    private final RAGTool ragTool;
-    private final DocumentTool documentTool;
-    private final ConversationAttachmentTool attachmentTool;
+    /** Callbacks des tools (sans état), créés une fois ; enveloppés à chaque tour par le {@link ToolCallRecorder}. */
+    private final ToolCallback[] toolCallbacks;
     private final WorkspaceInferenceMonitoringService workspaceInferenceMonitoringService;
     private final DocumentToolProperties documentToolProperties;
     private final AttachmentRepository attachmentRepository;
@@ -74,9 +79,7 @@ public class RAGChatService extends AbstractChatService {
                           DocumentToolProperties documentToolProperties,
                           AttachmentRepository attachmentRepository) {
         this.internalChatClient = ChatClient.create(internalChatModel);
-        this.ragTool = ragTool;
-        this.documentTool = documentTool;
-        this.attachmentTool = attachmentTool;
+        this.toolCallbacks = ToolCallbacks.from(ragTool, attachmentTool, documentTool);
         this.workspaceInferenceMonitoringService = workspaceInferenceMonitoringService;
         this.documentToolProperties = documentToolProperties;
         this.attachmentRepository = attachmentRepository;
@@ -111,6 +114,14 @@ public class RAGChatService extends AbstractChatService {
         // Extrait (et masque) la balise <turn_meta> de fin de réponse.
         TurnMetaStreamFilter turnMetaFilter = new TurnMetaStreamFilter();
 
+        // Journal des appels de tools du tour (persisté avec la réponse).
+        ToolCallRecorder toolCallRecorder = new ToolCallRecorder(retrievedDocuments);
+
+        // Tokens du tour : appels de la boucle agentique (flux) et appels LLM faits par les tools.
+        UsageTracker usageTracker = new UsageTracker();
+        List<TurnUsage.LlmCall> auxiliaryUsage = new CopyOnWriteArrayList<>();
+        toolContext.put(ToolContextKeys.CTX_LLM_USAGE, auxiliaryUsage);
+
         // Un workspace explicitement attaché à la question signale que l'utilisateur a corrigé
         // l'inférence précédente et relance la même question : on renseigne le workspace corrigé
         // dans la ligne de monitoring correspondante, et la recherche documentaire devient obligatoire.
@@ -122,15 +133,14 @@ public class RAGChatService extends AbstractChatService {
 
         Flux<Token> textTokens = internalChatClient
                 .prompt()
-                .system(agenticSystemPrompt(question, workspaceProvided))
+                .system(agenticSystemPrompt(question))
                 .messages(toPromptMessages(conversationHistory))
-                .tools(ragTool, attachmentTool, documentTool)
+                .toolCallbacks(toolCallRecorder.wrap(toolCallbacks))
                 .toolContext(toolContext)
-                .user(withContextBlock(retrievedSourcesForCurrentTurn(conversationHistory),
-                        withContextBlock(ConversationAttachmentsRenderer.render(conversationAttachments(question, userId)),
-                                question.query())))
+                .user(currentUserMessage(question, userId, conversationHistory, workspaceProvided))
                 .stream()
                 .chatResponse()
+                .doOnNext(usageTracker::accept)
                 .map(response -> turnMetaFilter.accept(extractText(response)))
                 // La balise <turn_meta> est retirée du flux ; le reliquat éventuel est émis en fin de flux.
                 .concatWith(Mono.fromSupplier(turnMetaFilter::flush))
@@ -155,7 +165,9 @@ public class RAGChatService extends AbstractChatService {
                     conversationHistory,
                     question.conversationId());
             return Flux.<Token>fromIterable(outcome.displayed())
-                    .concatWithValues(new TurnTraceToken(outcome.trace()));
+                    .concatWithValues(new TurnTraceToken(outcome.trace()
+                            .withToolCalls(toolCallRecorder.calls())
+                            .withUsage(new TurnUsage(usageTracker.agentCalls(), auxiliaryUsage))));
         });
 
         // De même pour le workspace résolu par RAGTool, s'il a été appelé.
@@ -176,15 +188,26 @@ public class RAGChatService extends AbstractChatService {
         return attachmentRepository.findSummariesByConversationIdAndUserIdOrderByIdAsc(question.conversationId(), userId);
     }
 
-    private String agenticSystemPrompt(Question question, boolean workspaceProvided) {
+    /**
+     * Question courante préfixée des blocs ajoutés par le système, dans cet ordre : {@code <retrieved_sources>} du
+     * tour précédent, {@code <conversation_attachments>}, puis, si l'utilisateur a choisi le workspace, la consigne
+     * prioritaire de recherche obligatoire. Ces blocs ne sont pas persistés et ne concernent que le dernier message :
+     * le system prompt et l'historique restent identiques d'un tour à l'autre (prefix caching).
+     */
+    String currentUserMessage(Question question, String userId, List<Message> conversationHistory,
+                              boolean workspaceProvided) {
+        String directive = workspaceProvided
+                ? RAGPrompts.getForcedRetrievalDirective(question.language(), question.workspace()).strip()
+                : "";
+        String message = withContextBlock(directive, question.query());
+        message = withContextBlock(ConversationAttachmentsRenderer.render(conversationAttachments(question, userId)), message);
+        return withContextBlock(retrievedSourcesForCurrentTurn(conversationHistory), message);
+    }
+
+    private String agenticSystemPrompt(Question question) {
         // Prompt non orienté RAG : le LLM décide lui-même d'appeler le tool de recherche
         // documentaire, et répond directement aux demandes situationnelles (résumé, traduction...).
-        // Si le workspace est fourni explicitement, une consigne prioritaire rend l'appel obligatoire.
-        String prompt = RAGPrompts.getAgenticSystemPrompt(question.language())
-                .formatted(question.responseFormat());
-        return workspaceProvided
-                ? prompt + RAGPrompts.getForcedRetrievalDirective(question.language(), question.workspace())
-                : prompt;
+        return RAGPrompts.getAgenticSystemPrompt(question.language()).formatted(question.responseFormat());
     }
 
 }

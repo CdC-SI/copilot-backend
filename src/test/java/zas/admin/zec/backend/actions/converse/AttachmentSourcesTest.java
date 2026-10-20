@@ -67,6 +67,7 @@ class AttachmentSourcesTest {
         tool.getAttachmentContent(null, context(sink));
 
         assertTrue(first.contains("contenu de decompte_2025.pdf"));
+        assertTrue(first.startsWith("<attachment id=\"" + ConversationAttachmentTool.documentId(12L) + "\" filename="), first);
         assertEquals(2, sink.size());
         assertEquals(sink.get(0).getId(), sink.get(1).getId());
         assertEquals(ConversationAttachmentTool.documentId(12L), sink.getFirst().getId());
@@ -105,6 +106,19 @@ class AttachmentSourcesTest {
         String block = RetrievedSourcesRenderer.render(1, outcome.trace().sources());
         assertTrue(block.contains("collection=attachment; filename=\"decompte_2025.pdf\""), block);
         assertFalse(block.contains("title="), block);
+    }
+
+    @Test
+    void attachmentReadInTheTurnIsDisplayedEvenIfLeftOutOfUsed() {
+        var attachment = new ConsultedSource(ConversationAttachmentTool.documentId(12L), MetadataFormatter.COLLECTION_ATTACHMENT,
+                null, "decompte_2025.pdf", null, null, null, null, "personal.uploads", null, null, List.of());
+        var directive = new ConsultedSource("d", "documentation", null, "Directive", "https://x/d", "12", null, null,
+                null, "TEST-DIR", "0", List.of());
+
+        var outcome = SourceDisplayPolicy.decide(Optional.of(new TurnMeta(TurnStatus.ANSWER, List.of("d"))),
+                List.of(attachment, directive), List.of(), "conv");
+
+        assertEquals(List.of("d", attachment.id()), outcome.displayed().stream().map(t -> t.documentId()).toList());
     }
 
     @Test

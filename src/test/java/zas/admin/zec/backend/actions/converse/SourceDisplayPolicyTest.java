@@ -6,6 +6,7 @@ import zas.admin.zec.backend.rag.ConsultedSource;
 import zas.admin.zec.backend.rag.TurnMetaStreamFilter.TurnMeta;
 import zas.admin.zec.backend.rag.TurnStatus;
 import zas.admin.zec.backend.rag.TurnTrace;
+import zas.admin.zec.backend.rag.UsedDocuments;
 import zas.admin.zec.backend.rag.token.SourceToken;
 import zas.admin.zec.backend.rag.token.Token;
 
@@ -46,8 +47,8 @@ class SourceDisplayPolicyTest {
         return tokens.stream().map(SourceToken::documentId).toList();
     }
 
-    private static Optional<TurnMeta> meta(TurnStatus status, String... reuse) {
-        return Optional.of(new TurnMeta(status, List.of(reuse)));
+    private static Optional<TurnMeta> meta(TurnStatus status, String... used) {
+        return Optional.of(new TurnMeta(status, List.of(used)));
     }
 
     @Test
@@ -82,6 +83,60 @@ class SourceDisplayPolicyTest {
         assertEquals(List.of("b", "a", "p"), ids(outcome.displayed()));
         // La trace du tour ne contient que les documents consultés pendant ce tour.
         assertEquals(List.of("b"), outcome.trace().sources().stream().map(ConsultedSource::id).toList());
+    }
+
+    @Test
+    void usedRestrictsDisplayedSourcesToTheDeclaredDocuments() {
+        var outcome = SourceDisplayPolicy.decide(meta(TurnStatus.ANSWER, "p", "a"),
+                List.of(doc("a"), doc("b"), process("p")), List.of(), "c");
+
+        assertEquals(List.of("p", "a"), ids(outcome.displayed()));
+        // La trace conserve tous les documents consultés et les identifiants déclarés.
+        assertEquals(3, outcome.trace().sources().size());
+        assertEquals(List.of("p", "a"), outcome.trace().used().declared());
+        assertEquals(List.of("p", "a"), outcome.trace().used().current());
+    }
+
+    @Test
+    void usedPicksFromFollowupTurnsAndLeavesOutTheirUnusedDocuments() {
+        var history = List.of(
+                user("q1"), assistant("précisez ?", new TurnTrace(TurnStatus.FOLLOWUP, List.of(doc("a"), doc("x"))), List.of()),
+                user("q2"));
+
+        var outcome = SourceDisplayPolicy.decide(meta(TurnStatus.ANSWER, "b", "a"), List.of(doc("b")), history, "c");
+
+        assertEquals(List.of("b", "a"), ids(outcome.displayed()));
+    }
+
+    @Test
+    void usedIdsAreSplitIntoCurrentReusedAndUnknownWhateverTheStatus() {
+        var history = List.of(
+                user("q1"), assistant("a1", new TurnTrace(TurnStatus.ANSWER, List.of(doc("old"))), List.of()),
+                user("q2"));
+
+        var answer = SourceDisplayPolicy.decide(meta(TurnStatus.ANSWER, "b", "old", "ghost", "old"),
+                List.of(doc("b")), history, "c");
+        var followup = SourceDisplayPolicy.decide(meta(TurnStatus.FOLLOWUP, "ghost"), List.of(), history, "c");
+
+        var used = answer.trace().used();
+        assertEquals(List.of("b", "old", "ghost"), used.declared());
+        assertEquals(List.of("b"), used.current());
+        assertEquals(List.of("old"), used.reused());
+        assertEquals(List.of("ghost"), used.unknown());
+        assertEquals(List.of("b", "old"), ids(answer.displayed()));
+        assertEquals(List.of("ghost"), followup.trace().used().unknown());
+        assertTrue(followup.displayed().isEmpty());
+    }
+
+    @Test
+    void unknownUsedIdsAreIgnoredAndOnlyUnknownIdsFallBackToConsultedSources() {
+        var partial = SourceDisplayPolicy.decide(meta(TurnStatus.ANSWER, "invented", "b"),
+                List.of(doc("a"), doc("b")), List.of(), "c");
+        var none = SourceDisplayPolicy.decide(meta(TurnStatus.ANSWER, "invented"),
+                List.of(doc("a"), doc("b")), List.of(), "c");
+
+        assertEquals(List.of("b"), ids(partial.displayed()));
+        assertEquals(List.of("a", "b"), ids(none.displayed()));
     }
 
     @Test
@@ -176,10 +231,15 @@ class SourceDisplayPolicyTest {
 
     @Test
     void traceRoundTripsThroughJsonbMap() {
-        var trace = new TurnTrace(TurnStatus.FOLLOWUP, List.of(doc("a"), process("p")));
+        var used = new UsedDocuments(List.of("p", "x", "ghost"), List.of("p"), List.of("x"), List.of("ghost"));
+        var trace = new TurnTrace(TurnStatus.ANSWER, List.of(doc("a"), process("p")), used, List.of());
         Map<String, Object> map = trace.toMap();
-        assertEquals("followup", map.get("turn_status"));
+        assertEquals("answer", map.get("turn_status"));
+        assertEquals(List.of("p", "x", "ghost"), map.get("used"));
+        assertEquals(List.of("x"), map.get("used_reused"));
+        assertEquals(List.of("ghost"), map.get("used_unknown"));
         assertEquals(trace, TurnTrace.fromMap(map));
+        assertFalse(new TurnTrace(TurnStatus.FOLLOWUP, List.of(doc("a"))).toMap().containsKey("used"));
     }
 
     // ---- mémoire inter-tours (<retrieved_sources>) ----
@@ -218,6 +278,25 @@ class SourceDisplayPolicyTest {
         assertTrue(current.startsWith("<retrieved_sources turn=\"2\">\n- id=p; collection=business_process; type=business_process;"));
         // Rendu déterministe (prefix caching) : le même historique produit le même texte.
         assertEquals(secondUser, SERVICE.toPromptMessages(history).get(2).getText());
+    }
+
+    @Test
+    void pastAnswersShowTheirTurnMetaTagAgainInTheHistory() {
+        var used = new UsedDocuments(List.of("p", "a"), List.of("p", "a"), List.of(), List.of());
+        var history = List.of(
+                user("q1"), assistant("Réponse 1.\n", new TurnTrace(TurnStatus.ANSWER, List.of(process("p")), used, List.of()), List.of()),
+                user("q2"), assistant("Précisez ?", new TurnTrace(TurnStatus.FOLLOWUP, List.of()), List.of()),
+                user("q3"), assistant("Sans balise.", new TurnTrace(TurnStatus.UNKNOWN, List.of()), List.of()),
+                user("q4"), assistant("Historique ancien.", null, List.of()));
+
+        var texts = SERVICE.toPromptMessages(history).stream().map(m -> m.getText()).toList();
+
+        assertEquals("Réponse 1.\n<turn_meta status=\"answer\" used=\"p,a\"/>", texts.get(1));
+        assertEquals("Précisez ?\n<turn_meta status=\"followup\" used=\"\"/>", texts.get(3));
+        assertEquals("Sans balise.\n<turn_meta status=\"answer\" used=\"\"/>", texts.get(5));
+        assertEquals("Historique ancien.", texts.get(7));
+        // Déterministe : le préfixe reste identique d'un tour à l'autre.
+        assertEquals(texts, SERVICE.toPromptMessages(history).stream().map(m -> m.getText()).toList());
     }
 
     @Test

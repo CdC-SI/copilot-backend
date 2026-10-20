@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.openai.OpenAiEmbeddingModel;
 import org.springframework.ai.rag.Query;
+import org.springframework.ai.rag.retrieval.search.VectorStoreDocumentRetriever;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.ai.vectorstore.filter.Filter;
@@ -27,6 +28,7 @@ import zas.admin.zec.backend.persistence.entity.DocumentEntity;
 import zas.admin.zec.backend.persistence.repository.DocumentRepository;
 import zas.admin.zec.backend.persistence.repository.QuestionRepository;
 import zas.admin.zec.backend.rag.retriever.BM25DocumentRetriever;
+import zas.admin.zec.backend.rag.retriever.HybridDocumentRetriever;
 
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
@@ -34,6 +36,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
@@ -171,6 +175,32 @@ class DocumentMetadataIT {
         assertEquals(Set.of("O1", "O5", "U1"), labels(docs));
         var o5 = docs.stream().filter(d -> label(d).equals("O5")).findFirst().orElseThrow();
         assertEquals(List.of("OFAS"), o5.getMetadata().get("organizations"));
+    }
+
+    @Test
+    void hybridRetrievalReturnsDocumentsFoundByBothSearchesOnce() {
+        persistRagToolFixtures();
+        for (int i = 0; i < 30; i++) {
+            save("F" + i + " document de remplissage", Map.of("source", "s9", "organizations", "", "user_uuid", ""));
+        }
+        documentRepository.flush();
+        var vector = VectorStoreDocumentRetriever.builder()
+                .vectorStore(vectorStore).filterExpression(() -> ragToolFilter(false)).topK(50).similarityThreshold(0.0)
+                .build();
+        var bm25 = new BM25DocumentRetriever(jdbcTemplate, 20, () -> ragToolFilter(false));
+        var query = new Query("cotisations");
+
+        var vectorIds = vector.retrieve(query).stream().map(Document::getId).toList();
+        var bm25Ids = bm25.retrieve(query).stream().map(Document::getId).toList();
+        var hybrid = new HybridDocumentRetriever(vector, bm25).retrieve(query);
+        var hybridIds = hybrid.stream().map(Document::getId).toList();
+
+        // Les mêmes lignes sont trouvées par les deux recherches, avec le même identifiant (même format).
+        assertFalse(bm25Ids.isEmpty());
+        assertTrue(vectorIds.containsAll(bm25Ids), () -> "bm25=" + bm25Ids + " vector=" + vectorIds);
+        // Une seule occurrence par document après fusion.
+        assertEquals(hybridIds.size(), new HashSet<>(hybridIds).size());
+        assertEquals(new HashSet<>(vectorIds), new HashSet<>(hybridIds));
     }
 
     @Test
