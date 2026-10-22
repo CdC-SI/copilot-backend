@@ -57,12 +57,18 @@ class EmbeddingServiceClientTest {
     @DisplayName("status queries /jobs/{id} with user_uuid")
     void status_queriesJob() {
         var client = clientReturning(HttpStatus.OK,
-                "{\"job_id\":\"job-1\",\"status\":\"completed_with_errors\",\"pages_total\":3,\"pages_done\":3,\"pages_failed\":1}");
+                """
+                {"job_id":"job-1","status":"completed_with_errors","pages_total":3,"pages_done":3,
+                 "pages_failed":[2],"doc_title":"doc.pdf","priority":"low","created_at":1792057382.5321145,
+                 "duration_seconds":180.15,"error":null,"error_code":null,"result_available":true,
+                 "result_expires_at":1792061162.6791527}
+                """);
 
         var response = client.status("job-1", "user");
 
         assertTrue(response.jobStatus().hasResult());
-        assertEquals(1, response.pagesFailed());
+        assertEquals(List.of(2), response.pagesFailed());
+        assertTrue(response.resultAvailable());
         var request = requests.getFirst();
         assertEquals("/jobs/job-1", request.url().getPath());
         assertEquals("user_uuid=user", request.url().getQuery());

@@ -4,13 +4,19 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.MediaType;
 import org.springframework.web.multipart.MultipartFile;
 import zas.admin.zec.backend.actions.upload.model.*;
 import zas.admin.zec.backend.actions.upload.strategy.AdminDocUploadStrategyFactory;
+import zas.admin.zec.backend.actions.upload.validation.UploadErrorCode;
+import zas.admin.zec.backend.actions.upload.validation.UploadException;
 import zas.admin.zec.backend.persistence.entity.TempSourceDocumentEntity;
 import zas.admin.zec.backend.persistence.repository.TempSourceDocumentRepository;
 
@@ -56,7 +62,29 @@ class UploadServiceTest {
         var result = uploadService.download("test.pdf");
 
         assertEquals("test.pdf", result.filename());
+        assertEquals(MediaType.APPLICATION_PDF, result.mediaType());
         assertNotNull(result.content());
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "rapport.docx, application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "tableau.XLSX, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "slides.pptx, application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            "ancien.doc, application/msword",
+            "ancien.xls, application/vnd.ms-excel",
+            "ancien.ppt, application/vnd.ms-powerpoint",
+            "inconnu.bin, application/octet-stream"
+    })
+    @DisplayName("download returns media type derived from file extension")
+    void download_returnsMediaTypeFromExtension(String filename, String expectedMediaType) {
+        TempSourceDocumentEntity entity = new TempSourceDocumentEntity();
+        entity.setFileName(filename);
+        entity.setContent("hello".getBytes());
+
+        when(tempSourceDocumentRepository.findByFileName(filename)).thenReturn(Optional.of(entity));
+
+        assertEquals(MediaType.parseMediaType(expectedMediaType), uploadService.download(filename).mediaType());
     }
 
     @Test
@@ -84,6 +112,59 @@ class UploadServiceTest {
         uploadService.uploadPersonalDocument(document, "user-uuid");
 
         verify(eventPublisher).publishEvent(new PersonalDocumentUploadedEvent(5L));
+    }
+
+    @Test
+    @DisplayName("uploadPersonalDocument throws FILE_READ_ERROR when the file cannot be read")
+    void uploadPersonalDocument_throwsFileReadError() throws IOException {
+        MultipartFile file = mock(MultipartFile.class);
+        when(file.getOriginalFilename()).thenReturn("doc.pdf");
+        when(file.getBytes()).thenThrow(new IOException("boom"));
+
+        DocumentToUpload document = mock(DocumentToUpload.class);
+        when(document.file()).thenReturn(file);
+
+        var ex = assertThrows(UploadException.class, () -> uploadService.uploadPersonalDocument(document, "user-uuid"));
+
+        assertEquals(UploadErrorCode.FILE_READ_ERROR, ex.getErrorCode());
+        assertEquals("doc.pdf", ex.getFileName());
+        verifyNoInteractions(tempSourceDocumentRepository, eventPublisher);
+    }
+
+    @Test
+    @DisplayName("uploadPersonalDocument throws UPLOAD_FAILED when persistence fails")
+    void uploadPersonalDocument_throwsUploadFailedOnDatabaseError() throws IOException {
+        MultipartFile file = mock(MultipartFile.class);
+        when(file.getOriginalFilename()).thenReturn("doc.pdf");
+        when(file.getBytes()).thenReturn("content".getBytes());
+
+        DocumentToUpload document = mock(DocumentToUpload.class);
+        when(document.file()).thenReturn(file);
+        when(tempSourceDocumentRepository.save(any())).thenThrow(new DataIntegrityViolationException("db"));
+
+        var ex = assertThrows(UploadException.class, () -> uploadService.uploadPersonalDocument(document, "user-uuid"));
+
+        assertEquals(UploadErrorCode.UPLOAD_FAILED, ex.getErrorCode());
+        verifyNoInteractions(eventPublisher);
+    }
+
+    @Test
+    @DisplayName("getUserPersonalDocs exposes the error code of a failed document")
+    void getUserPersonalDocs_exposesErrorCode() {
+        TempSourceDocumentEntity doc = new TempSourceDocumentEntity();
+        doc.setFileName("failed.pdf");
+        doc.setUploadedAt(LocalDateTime.now());
+        doc.setStatus(EmbeddingStatus.FAILED);
+        doc.setErrorCode(UploadErrorCode.EMBEDDING_NO_CONTENT);
+        doc.setAvailabilityStatus(AvailabilityStatus.ACTIVE);
+
+        when(tempSourceDocumentRepository.findAllByUserUuid("uuid")).thenReturn(List.of(doc));
+        when(retentionConfigService.get()).thenReturn(new DocumentRetentionConfig(30, 30));
+
+        var result = uploadService.getUserPersonalDocs("uuid");
+
+        assertEquals(EmbeddingStatus.FAILED, result.get(0).status());
+        assertEquals(UploadErrorCode.EMBEDDING_NO_CONTENT, result.get(0).errorCode());
     }
 
     @Test

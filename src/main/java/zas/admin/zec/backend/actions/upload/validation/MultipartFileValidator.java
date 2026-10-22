@@ -5,19 +5,21 @@ import jakarta.validation.ConstraintValidatorContext;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.tika.Tika;
 import org.springframework.web.multipart.MultipartFile;
+import zas.admin.zec.backend.actions.upload.model.SourceDocumentType;
 
 import java.io.IOException;
-import java.net.URLConnection;
+import java.io.InputStream;
 import java.util.List;
 
 @Slf4j
 public class MultipartFileValidator implements ConstraintValidator<ValidMultipartFile, MultipartFile> {
 
     private static final long LIMIT_SIZE_PER_FILE = 10 * 1024 * 1024L;
+    private static final Tika TIKA = new Tika();
     private final List<String> allowedMimeTypes;
 
     public MultipartFileValidator() {
-        allowedMimeTypes= List.of("application/pdf");
+        allowedMimeTypes = SourceDocumentType.mimeTypes(SourceDocumentType.PDF);
     }
 
     public MultipartFileValidator(List<String> allowedMimeTypes) {
@@ -38,11 +40,9 @@ public class MultipartFileValidator implements ConstraintValidator<ValidMultipar
     }
 
     private String getMimeType(MultipartFile file) {
-        var name = file.getOriginalFilename();
-        if (name != null) {
-            return URLConnection.guessContentTypeFromName(name);
-        }
-        return null;
+        return SourceDocumentType.fromFilename(file.getOriginalFilename())
+                .map(SourceDocumentType::mimeType)
+                .orElse(null);
     }
 
     private boolean isNotTooBig(MultipartFile file, ConstraintValidatorContext context) {
@@ -50,7 +50,7 @@ public class MultipartFileValidator implements ConstraintValidator<ValidMultipar
             return true;
         }
 
-        context.buildConstraintViolationWithTemplate("FILE_TOO_LARGE").addConstraintViolation();
+        context.buildConstraintViolationWithTemplate(UploadErrorCode.FILE_TOO_LARGE.name()).addConstraintViolation();
         return false;
     }
     private boolean isAllowedMimeType(String mimeType, ConstraintValidatorContext context) {
@@ -58,27 +58,27 @@ public class MultipartFileValidator implements ConstraintValidator<ValidMultipar
             return true;
         }
 
-        context.buildConstraintViolationWithTemplate("FILE_TYPE_UNSUPPORTED").addConstraintViolation();
+        context.buildConstraintViolationWithTemplate(UploadErrorCode.FILE_TYPE_UNSUPPORTED.name()).addConstraintViolation();
         return false;
     }
 
     private boolean isMagicNumberMatchingExtension(MultipartFile file, String mimeType, ConstraintValidatorContext context) {
-        if (!mimeType.equals("application/pdf")) {
+        var type = SourceDocumentType.fromMimeType(mimeType).orElse(null);
+        if (type == null || !type.container().requiresContentCheck()) {
             return true;
         }
 
-        var tika = new Tika();
-        try {
-            String mimeTypeFromMagicNumber = tika.detect(file.getInputStream());
+        try (InputStream is = file.getInputStream()) {
+            String mimeTypeFromMagicNumber = TIKA.detect(is);
             log.info("File type detected: {}", mimeTypeFromMagicNumber);
-            if (allowedMimeTypes.contains(mimeTypeFromMagicNumber) && mimeType.equals(mimeTypeFromMagicNumber)) {
+            if (mimeType.equals(mimeTypeFromMagicNumber) || type.container().matches(mimeTypeFromMagicNumber)) {
                 return true;
             }
         } catch (IOException e) {
             log.error("Tika parsing failure !", e);
         }
 
-        context.buildConstraintViolationWithTemplate("FILE_CONTENT_INVALID").addConstraintViolation();
+        context.buildConstraintViolationWithTemplate(UploadErrorCode.FILE_CONTENT_INVALID.name()).addConstraintViolation();
         return false;
     }
 }

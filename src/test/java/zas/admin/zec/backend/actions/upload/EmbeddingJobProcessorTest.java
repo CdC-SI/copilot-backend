@@ -14,6 +14,7 @@ import org.springframework.util.unit.DataSize;
 import zas.admin.zec.backend.actions.upload.model.EmbeddingChunkResponse;
 import zas.admin.zec.backend.actions.upload.model.EmbeddingJobResponse;
 import zas.admin.zec.backend.actions.upload.model.EmbeddingStatus;
+import zas.admin.zec.backend.actions.upload.validation.UploadErrorCode;
 import zas.admin.zec.backend.config.properties.EmbeddingServiceProperties;
 import zas.admin.zec.backend.persistence.entity.TempSourceDocumentEntity;
 import zas.admin.zec.backend.persistence.repository.DocumentRepository;
@@ -73,7 +74,7 @@ class EmbeddingJobProcessorTest {
     }
 
     private static EmbeddingJobResponse job(String jobId, String status) {
-        return new EmbeddingJobResponse(jobId, status, 2, 1, 0, null);
+        return new EmbeddingJobResponse(jobId, status, 2, 1, List.of(), null, null, null);
     }
 
     @Test
@@ -99,6 +100,7 @@ class EmbeddingJobProcessorTest {
         processor.process(DOC_ID);
 
         assertEquals(EmbeddingStatus.FAILED, doc.getStatus());
+        assertEquals(UploadErrorCode.EMBEDDING_REJECTED, doc.getErrorCode());
         assertNull(doc.getJobId());
     }
 
@@ -124,6 +126,7 @@ class EmbeddingJobProcessorTest {
         processor.process(DOC_ID);
 
         assertEquals(EmbeddingStatus.FAILED, doc.getStatus());
+        assertEquals(UploadErrorCode.EMBEDDING_FAILED, doc.getErrorCode());
         verify(client, never()).submit(any(), any(), any());
     }
 
@@ -152,6 +155,7 @@ class EmbeddingJobProcessorTest {
 
         verify(documentRepository).saveAll(argThat(docs -> docs.iterator().hasNext()));
         assertEquals(EmbeddingStatus.PROCESSED, doc.getStatus());
+        assertNull(doc.getErrorCode());
         assertNull(doc.getNextPollAt());
     }
 
@@ -180,6 +184,7 @@ class EmbeddingJobProcessorTest {
         processor.process(DOC_ID);
 
         assertEquals(EmbeddingStatus.FAILED, doc.getStatus());
+        assertEquals(UploadErrorCode.EMBEDDING_FAILED, doc.getErrorCode());
     }
 
     @Test
@@ -236,6 +241,21 @@ class EmbeddingJobProcessorTest {
         verify(client).cancelQuietly("job-1", USER);
         verify(client, never()).status(any(), any());
         assertEquals(EmbeddingStatus.FAILED, doc.getStatus());
+        assertEquals(UploadErrorCode.EMBEDDING_TIMEOUT, doc.getErrorCode());
+    }
+
+    @Test
+    @DisplayName("marks document FAILED with EMBEDDING_NO_CONTENT when the job returns no chunk")
+    void process_failsWhenNoChunkReturned() {
+        givenSubmittedJob("job-1");
+        when(client.status("job-1", USER)).thenReturn(job("job-1", "completed"));
+        when(client.result("job-1", USER)).thenReturn(List.of());
+
+        processor.process(DOC_ID);
+
+        verify(documentRepository, never()).saveAll(any());
+        assertEquals(EmbeddingStatus.FAILED, doc.getStatus());
+        assertEquals(UploadErrorCode.EMBEDDING_NO_CONTENT, doc.getErrorCode());
     }
 
     @Test

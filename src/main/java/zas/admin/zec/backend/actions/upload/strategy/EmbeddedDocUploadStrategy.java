@@ -9,16 +9,14 @@ import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 import zas.admin.zec.backend.actions.upload.model.DocumentToUpload;
+import zas.admin.zec.backend.actions.upload.validation.UploadErrorCode;
 import zas.admin.zec.backend.actions.upload.validation.UploadException;
 import zas.admin.zec.backend.persistence.entity.DocumentEntity;
 import zas.admin.zec.backend.persistence.entity.QuestionEntity;
 import zas.admin.zec.backend.persistence.repository.DocumentRepository;
 import zas.admin.zec.backend.persistence.repository.QuestionRepository;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.Reader;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -52,8 +50,11 @@ public final class EmbeddedDocUploadStrategy implements UploadStrategy {
         try (Reader in = new InputStreamReader(new ByteArrayInputStream(doc.file().getBytes()), StandardCharsets.UTF_8)) {
             if (doc.faqStore()) processQuestionCSV(in);
             else processDocumentCSV(in);
-        } catch (IOException | JacksonException e) {
-            throw new UploadException(doc.file().getOriginalFilename(), ERR_UPLOAD_CSV, e);
+        } catch (IOException e) {
+            throw new UploadException(doc.file().getOriginalFilename(), UploadErrorCode.FILE_READ_ERROR, ERR_UPLOAD_CSV, e);
+        } catch (JacksonException | UncheckedIOException | IllegalArgumentException | IllegalStateException e) {
+            // JSON de métadonnées invalide, CSV mal formé, colonne manquante ou embedding non numérique
+            throw new UploadException(doc.file().getOriginalFilename(), UploadErrorCode.CSV_CONTENT_INVALID, ERR_UPLOAD_CSV, e);
         }
     }
 

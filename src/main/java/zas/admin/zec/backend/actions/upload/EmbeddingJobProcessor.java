@@ -7,6 +7,7 @@ import zas.admin.zec.backend.actions.upload.model.EmbeddingChunkResponse;
 import zas.admin.zec.backend.actions.upload.model.EmbeddingJobResponse;
 import zas.admin.zec.backend.actions.upload.model.EmbeddingStatus;
 import zas.admin.zec.backend.actions.upload.strategy.EmbeddedDocUploadStrategy;
+import zas.admin.zec.backend.actions.upload.validation.UploadErrorCode;
 import zas.admin.zec.backend.config.properties.EmbeddingServiceProperties;
 import zas.admin.zec.backend.persistence.entity.DocumentEntity;
 import zas.admin.zec.backend.persistence.entity.TempSourceDocumentEntity;
@@ -99,7 +100,7 @@ public class EmbeddingJobProcessor {
                 if (job.jobId() != null) {
                     embeddingServiceClient.cancelQuietly(job.jobId(), job.userUuid());
                 }
-                fail(job, "timeout de " + properties.jobTimeout() + " dépassé");
+                fail(job, UploadErrorCode.EMBEDDING_TIMEOUT, "timeout de " + properties.jobTimeout() + " dépassé");
                 return;
             }
 
@@ -123,7 +124,7 @@ public class EmbeddingJobProcessor {
 
     private void submit(JobSnapshot job) {
         if (job.attempts() >= properties.maxSubmitAttempts()) {
-            fail(job, "nombre maximal de soumissions (" + properties.maxSubmitAttempts() + ") atteint");
+            fail(job, UploadErrorCode.EMBEDDING_FAILED, "nombre maximal de soumissions (" + properties.maxSubmitAttempts() + ") atteint");
             return;
         }
 
@@ -139,7 +140,7 @@ public class EmbeddingJobProcessor {
             response = embeddingServiceClient.submit(content, job.userUuid(), job.fileName());
         } catch (EmbeddingServiceException e) {
             if (e.isPermanent()) {
-                fail(job, "soumission refusée : " + e.getMessage());
+                fail(job, UploadErrorCode.EMBEDDING_REJECTED, "soumission refusée : " + e.getMessage());
             } else {
                 log.warn("Soumission du document ID: {} en échec transitoire, nouvel essai dans {} : {}",
                         job.id(), properties.retryDelay(), e.getMessage());
@@ -181,13 +182,15 @@ public class EmbeddingJobProcessor {
             switch (response.jobStatus()) {
                 case QUEUED, RUNNING, UNKNOWN -> reschedule(job, properties.pollInterval());
                 case COMPLETED, COMPLETED_WITH_ERRORS -> {
-                    if (response.pagesFailed() != null && response.pagesFailed() > 0) {
-                        log.warn("Job {} (document ID: {}) terminé avec {} page(s) en échec sur {}",
-                                job.jobId(), job.id(), response.pagesFailed(), response.pagesTotal());
+                    if (!response.pagesFailed().isEmpty()) {
+                        log.warn("Job {} (document ID: {}) terminé avec {} page(s) en échec sur {} : {}",
+                                job.jobId(), job.id(), response.pagesFailed().size(), response.pagesTotal(),
+                                response.pagesFailed());
                     }
                     persist(job, embeddingServiceClient.result(job.jobId(), job.userUuid()));
                 }
-                case FAILED, CANCELLED -> fail(job, "job " + response.status() + " : " + response.error());
+                case FAILED, CANCELLED -> fail(job, UploadErrorCode.EMBEDDING_FAILED, "job " + response.status() + " : " + response.error()
+                        + (response.errorCode() != null ? " (" + response.errorCode() + ")" : ""));
             }
         } catch (EmbeddingServiceException e) {
             if (e.isNotReady()) {
@@ -195,7 +198,7 @@ public class EmbeddingJobProcessor {
             } else if (e.isJobGone()) {
                 resetForResubmission(job, e);
             } else if (e.isPermanent()) {
-                fail(job, e.getMessage());
+                fail(job, UploadErrorCode.EMBEDDING_FAILED, e.getMessage());
             } else {
                 log.warn("Polling du job {} (document ID: {}) en échec transitoire : {}",
                         job.jobId(), job.id(), e.getMessage());
@@ -206,7 +209,7 @@ public class EmbeddingJobProcessor {
 
     private void persist(JobSnapshot job, List<EmbeddingChunkResponse> chunks) {
         if (chunks.isEmpty()) {
-            fail(job, "aucun chunk retourné par le service");
+            fail(job, UploadErrorCode.EMBEDDING_NO_CONTENT, "aucun chunk retourné par le service");
             return;
         }
 
@@ -241,11 +244,12 @@ public class EmbeddingJobProcessor {
         });
     }
 
-    private void fail(JobSnapshot job, String reason) {
-        log.error("Échec de l'embedding du document ID: {} ({}) : {}", job.id(), job.fileName(), reason);
+    private void fail(JobSnapshot job, UploadErrorCode errorCode, String reason) {
+        log.error("Échec de l'embedding du document ID: {} ({}) [{}] : {}", job.id(), job.fileName(), errorCode, reason);
         try {
             updateIfPending(job.id(), job.jobId(), doc -> {
                 doc.setStatus(EmbeddingStatus.FAILED);
+                doc.setErrorCode(errorCode);
                 doc.setNextPollAt(null);
             });
         } catch (Exception ex) {

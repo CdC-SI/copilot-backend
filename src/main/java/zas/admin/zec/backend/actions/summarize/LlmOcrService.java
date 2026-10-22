@@ -52,7 +52,22 @@ public class LlmOcrService {
         } else if (IMAGE_MIME_TYPES.contains(mimeType)) {
             return ocrImage(fileBytes);
         } else {
-            throw new IllegalArgumentException("Type de fichier non supporté: " + mimeType);
+            throw new UnsupportedFileTypeException(mimeType);
+        }
+    }
+
+    /**
+     * Indique si le contenu (type détecté via les magic numbers) peut être traité par {@link #ocrFile(byte[])}.
+     */
+    public boolean isSupported(byte[] fileBytes) throws IOException {
+        var mimeType = detectMimeType(fileBytes);
+        return "application/pdf".equals(mimeType) || IMAGE_MIME_TYPES.contains(mimeType);
+    }
+
+    /** Type de fichier non pris en charge par l'OCR. */
+    public static class UnsupportedFileTypeException extends IllegalArgumentException {
+        public UnsupportedFileTypeException(String mimeType) {
+            super("Type de fichier non supporté: " + mimeType);
         }
     }
 
