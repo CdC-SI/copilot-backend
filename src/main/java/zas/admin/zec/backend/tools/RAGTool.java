@@ -48,7 +48,9 @@ import java.util.stream.Collectors;
  * LLM (identité de l'utilisateur, langue, conversation) transitent par le {@link ToolContext} ; les
  * clés sont définies dans {@link ToolContextKeys}. Le workspace peut être fourni via le contexte
  * (mémorisé depuis un tour précédent de la conversation) ou, à défaut, est inféré ici à partir de
- * la question et de la liste des workspaces disponibles.</p>
+ * la question et de la liste des workspaces disponibles — une seule fois par tour : les appels
+ * suivants du même tour réutilisent le workspace résolu
+ * ({@link ToolContextKeys#CTX_RESOLVED_WORKSPACE}).</p>
  */
 @Slf4j
 @Component
@@ -118,8 +120,9 @@ public class RAGTool {
             un lien sortant, lire les chunks voisins ou ouvrir le contenu complet d'un processus métier.""")
     public String searchSocialInsuranceDocumentation(
             @ToolParam(description = """
-                    La requête de recherche, reformulée de façon autonome et explicite à partir de la \
-                    question de l'utilisateur et du contexte de la conversation.""")
+                    La requête de recherche, reformulée en **phrase complète et autonome** (avec un verbe \
+                    conjugué), reprenant les termes de la question de l'utilisateur et du contexte de la \
+                    conversation, plutôt qu'une suite de mots-clés juxtaposés.""")
             String query,
             ToolContext toolContext) {
 
@@ -134,9 +137,13 @@ public class RAGTool {
         String language = asString(context.get(ToolContextKeys.CTX_LANGUAGE), DEFAULT_LANGUAGE);
         String conversationId = asString(context.get(ToolContextKeys.CTX_CONVERSATION_ID), "");
 
-        // Le workspace peut déjà être connu (mémorisé depuis un tour précédent de la conversation) ;
-        // sinon on l'infère à partir de la question et des workspaces disponibles.
+        // Le workspace peut déjà être connu : fourni avec la question (badge choisi par l'utilisateur,
+        // mémorisé depuis un tour précédent), ou inféré par un appel précédent du même tour.
         String workspace = asString(context.get(ToolContextKeys.CTX_WORKSPACE), "");
+        if (workspace.isBlank()) {
+            workspace = previouslyInferredWorkspace(context);
+        }
+        // Sinon on l'infère à partir de la question et des workspaces disponibles (une seule fois par tour).
         if (workspace.isBlank()) {
             ToolContextKeys.emitStatus(context, ChatStatus.WORKSPACE_INFERENCE, language);
             workspace = inferWorkspace(query, language, context);
@@ -360,6 +367,22 @@ public class RAGTool {
                                 ? ""
                                 : " Exemples de questions : " + String.join(" | ", w.hypotheticalQuestions())))
                 .collect(Collectors.joining(System.lineSeparator()));
+    }
+
+    /**
+     * Workspace déjà résolu au cours du tour par un appel précédent à ce tool, ou chaîne vide si aucun.
+     *
+     * <p>La référence est partagée par tous les appels du tour (clé
+     * {@link ToolContextKeys#CTX_RESOLVED_WORKSPACE}) : sans elle, chaque appel de recherche relancerait
+     * sa propre inférence — un appel LLM pour chaque requête reformulée par le LLM agentique, avec un
+     * risque de filtres différents au sein d'une même réponse.</p>
+     */
+    static String previouslyInferredWorkspace(Map<String, Object> context) {
+        if (context.get(ToolContextKeys.CTX_RESOLVED_WORKSPACE) instanceof AtomicReference<?> ref
+                && ref.get() instanceof String workspace) {
+            return workspace;
+        }
+        return "";
     }
 
     @SuppressWarnings("unchecked")
