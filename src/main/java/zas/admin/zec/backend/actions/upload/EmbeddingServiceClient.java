@@ -34,6 +34,9 @@ import java.util.regex.Pattern;
 @Service
 public class EmbeddingServiceClient {
 
+    /** Mode d'extraction du texte brut page par page (pas de résumé, pas d'embedding). */
+    public static final String MODE_EXTRACT = "extract";
+
     private static final Pattern ERROR_CODE_PATTERN = Pattern.compile("\"code\"\\s*:\\s*\"([^\"]+)\"");
 
     private final WebClient webClient;
@@ -55,7 +58,19 @@ public class EmbeddingServiceClient {
      * @return la réponse contenant le {@code job_id}
      */
     public EmbeddingJobResponse submit(byte[] pdf, String userUuid, String docTitle) {
-        log.info("Soumission du document {} au service externe d'embedding", docTitle);
+        return submit(pdf, userUuid, docTitle, null);
+    }
+
+    /**
+     * Soumet un PDF au traitement asynchrone dans le mode donné : {@code full} (défaut du service : chunks
+     * contextualisés + embeddings) ou {@link #MODE_EXTRACT} (texte brut page par page, sans LLM ni embedding).
+     *
+     * @param mode mode de traitement, {@code null} pour le mode par défaut du service
+     * @return la réponse contenant le {@code job_id}
+     */
+    public EmbeddingJobResponse submit(byte[] pdf, String userUuid, String docTitle, String mode) {
+        log.info("Soumission du document {} au service externe d'embedding (mode {})", docTitle,
+                mode == null ? "par défaut" : mode);
 
         var multipart = new MultipartBodyBuilder();
         multipart.part("file", new ByteArrayResource(pdf))
@@ -63,6 +78,9 @@ public class EmbeddingServiceClient {
                 .contentType(MediaType.APPLICATION_PDF);
         multipart.part("user_uuid", userUuid);
         multipart.part("doc_title", docTitle);
+        if (mode != null) {
+            multipart.part("mode", mode);
+        }
 
         var response = call(webClient.post()
                 .uri("/jobs")

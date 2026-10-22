@@ -23,7 +23,8 @@ import zas.admin.zec.backend.config.properties.*;
 @EnableJpaAuditing
 @EnableConfigurationProperties({ApplicationProperties.class, FAQSearchProperties.class,
         RerankingProperties.class, DeepLProperties.class, ProxyProperties.class,
-        IdentityCheckProperties.class, RetrievingProperties.class, EmbeddingServiceProperties.class})
+        IdentityCheckProperties.class, RetrievingProperties.class, EmbeddingServiceProperties.class,
+        AttachmentOcrProperties.class})
 public class WebClientConfig {
     private final ProxyProperties proxyProperties;
     private final IdentityCheckProperties identityCheckProperties;

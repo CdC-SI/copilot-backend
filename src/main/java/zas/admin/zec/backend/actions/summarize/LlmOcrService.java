@@ -59,6 +59,10 @@ public class LlmOcrService {
     /**
      * Indique si le contenu (type détecté via les magic numbers) peut être traité par {@link #ocrFile(byte[])}.
      */
+    public boolean isPdf(byte[] fileBytes) throws IOException {
+        return "application/pdf".equals(detectMimeType(fileBytes));
+    }
+
     public boolean isSupported(byte[] fileBytes) throws IOException {
         var mimeType = detectMimeType(fileBytes);
         return "application/pdf".equals(mimeType) || IMAGE_MIME_TYPES.contains(mimeType);

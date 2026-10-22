@@ -1,6 +1,7 @@
 package zas.admin.zec.backend.actions.converse;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pdfbox.Loader;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -21,6 +22,7 @@ import zas.admin.zec.backend.actions.upload.UploadService;
 import zas.admin.zec.backend.actions.upload.validation.UploadErrorCode;
 import zas.admin.zec.backend.actions.upload.validation.UploadException;
 import zas.admin.zec.backend.actions.workspace.WorkspaceService;
+import zas.admin.zec.backend.config.properties.AttachmentOcrProperties;
 import zas.admin.zec.backend.persistence.entity.AttachmentEntity;
 import zas.admin.zec.backend.persistence.entity.ConversationTitleEntity;
 import zas.admin.zec.backend.persistence.entity.MessageEntity;
@@ -51,6 +53,7 @@ public class ConversationService {
     private final WorkspaceService workspaceService;
     private final ApplicationEventPublisher eventPublisher;
     private final TransactionTemplate transactionTemplate;
+    private final AttachmentOcrProperties attachmentOcrProperties;
 
 
     public ConversationService(ConversationRepository conversationRepository,
@@ -61,7 +64,8 @@ public class ConversationService {
                                LlmOcrService ocrService,
                                WorkspaceService workspaceService,
                                ApplicationEventPublisher eventPublisher,
-                               TransactionTemplate transactionTemplate) {
+                               TransactionTemplate transactionTemplate,
+                               AttachmentOcrProperties attachmentOcrProperties) {
 
         this.conversationRepository = conversationRepository;
         this.conversationTitleRepository = conversationTitleRepository;
@@ -72,6 +76,7 @@ public class ConversationService {
         this.workspaceService = workspaceService;
         this.eventPublisher = eventPublisher;
         this.transactionTemplate = transactionTemplate;
+        this.attachmentOcrProperties = attachmentOcrProperties;
     }
 
     public List<Source> getSourcesByMessageUuid(String conversationUuid, String messageUuid) {
@@ -117,6 +122,7 @@ public class ConversationService {
     }
 
     public void delete(String userId, String conversationId) {
+        cancelPendingJobs(userId, attachmentRepository.findPendingJobIdsByConversation(userId, conversationId));
         attachmentRepository.deleteByUserIdAndConversationId(userId, conversationId);
         conversationRepository.deleteByUserIdAndConversationId(userId, conversationId);
         conversationTitleRepository.deleteByUserIdAndConversationId(userId, conversationId);
@@ -217,7 +223,8 @@ public class ConversationService {
      * {@code MultipartFile}, dont le stockage temporaire peut être libéré dès le 202.</p>
      *
      * @throws UploadException si aucun fichier n'est fourni, si un fichier est vide, illisible ou d'un type
-     *                         non pris en charge par l'OCR (PDF ou image), ou si la persistance échoue
+     *                         non pris en charge par l'OCR (PDF ou image), si un PDF dépasse le nombre maximal de
+     *                         pages ({@code attachment-ocr.max-pages}), ou si la persistance échoue
      */
     public ConversationAttachments attachFilesToConversation(String conversationId, String userId, List<MultipartFile> files) {
         if (files == null || files.isEmpty()) {
@@ -225,16 +232,16 @@ public class ConversationService {
         }
         var convId = conversationId == null ? UUID.randomUUID().toString() : conversationId;
 
-        // Lire et valider tous les fichiers AVANT la transaction : échec rapide si un fichier est illisible
-        // ou non pris en charge par l'OCR, et garantit que le MultipartFile n'est plus accédé après le retour HTTP 202.
-        record FileData(String filename, long size, byte[] bytes) {}
+        // Lire et valider tous les fichiers AVANT la transaction : échec rapide si un fichier est illisible,
+        // non pris en charge par l'OCR ou dépasse le nombre de pages autorisé, et garantit que le MultipartFile
+        // n'est plus accédé après le retour HTTP 202.
         var filesData = new ArrayList<FileData>(files.size());
         for (var file : files) {
-            filesData.add(new FileData(file.getOriginalFilename(), file.getSize(), readAttachment(file)));
+            filesData.add(readAttachment(file));
         }
 
         // Transaction : persister les entités PENDING — commit garanti avant le dispatch async.
-        record PersistResult(Long id, String filename, long size) {}
+        record PersistResult(Long id, String filename, long size, boolean pipeline) {}
         List<PersistResult> results;
         try {
             results = transactionTemplate.execute(status -> {
@@ -247,9 +254,12 @@ public class ConversationService {
                     entity.setFileSize(data.size());
                     entity.setFileBytes(data.bytes());
                     entity.setStatus(AttachmentStatus.PENDING);
-                    // content est null : sera renseigné par AttachmentAsyncProcessor après l'OCR
+                    // next_poll_at renseigné : la pièce jointe est prise en charge par le poller du pipeline,
+                    // y compris si le backend redémarre avant la soumission
+                    entity.setNextPollAt(data.pipeline() ? LocalDateTime.now() : null);
+                    // content est null : sera renseigné après l'extraction (pipeline) ou l'OCR LLM
                     var persisted = attachmentRepository.save(entity);
-                    saved.add(new PersistResult(persisted.getId(), data.filename(), data.size()));
+                    saved.add(new PersistResult(persisted.getId(), data.filename(), data.size(), data.pipeline()));
                 }
                 return saved;
             });
@@ -257,9 +267,9 @@ public class ConversationService {
             throw new UploadException(null, UploadErrorCode.UPLOAD_FAILED, "Error while saving attachments", e);
         }
 
-        // Publier un événement par pièce jointe : l'OCR async est déclenché AFTER_COMMIT
+        // Publier un événement par pièce jointe : l'extraction async est déclenchée AFTER_COMMIT
         // (jamais le MultipartFile, uniquement l'ID), garantissant la visibilité de la ligne.
-        results.forEach(r -> eventPublisher.publishEvent(new AttachmentUploadedEvent(r.id())));
+        results.forEach(r -> eventPublisher.publishEvent(new AttachmentUploadedEvent(r.id(), r.pipeline())));
 
         var attachments = results.stream()
                 .map(r -> new Attachment(r.id(), r.filename(), r.size(), AttachmentStatus.PENDING, null))
@@ -292,19 +302,47 @@ public class ConversationService {
                 .toList();
     }
 
-    private byte[] readAttachment(MultipartFile file) {
+    private record FileData(String filename, long size, byte[] bytes, boolean pipeline) {}
+
+    private FileData readAttachment(MultipartFile file) {
         var filename = file.getOriginalFilename();
+        byte[] bytes;
+        boolean pdf;
         try {
-            var bytes = file.getBytes();
+            bytes = file.getBytes();
             if (bytes.length == 0) {
                 throw new UploadException(filename, UploadErrorCode.FILE_CONTENT_INVALID, "Empty attachment");
             }
             if (!ocrService.isSupported(bytes)) {
                 throw new UploadException(filename, UploadErrorCode.FILE_TYPE_UNSUPPORTED, "Attachment type not supported by OCR");
             }
-            return bytes;
+            pdf = ocrService.isPdf(bytes);
         } catch (IOException e) {
             throw new UploadException(filename, UploadErrorCode.FILE_READ_ERROR, "Failed to read attachment bytes", e);
+        }
+        if (pdf) {
+            checkPageCount(filename, bytes);
+        }
+        return new FileData(filename, file.getSize(), bytes, pdf && attachmentOcrProperties.usePipeline());
+    }
+
+    private void checkPageCount(String filename, byte[] pdf) {
+        int pages;
+        try (var document = Loader.loadPDF(pdf)) {
+            pages = document.getNumberOfPages();
+        } catch (IOException e) {
+            // PDF corrompu ou chiffré : illisible aussi bien par le pipeline que par l'OCR LLM
+            throw new UploadException(filename, UploadErrorCode.FILE_CONTENT_INVALID, "Unreadable PDF attachment", e);
+        }
+        if (pages > attachmentOcrProperties.maxPages()) {
+            throw new UploadException(filename, UploadErrorCode.TOO_MANY_PAGES,
+                    "PDF attachment has " + pages + " pages (max " + attachmentOcrProperties.maxPages() + ")");
+        }
+    }
+
+    private void cancelPendingJobs(String userId, List<String> jobIds) {
+        if (!jobIds.isEmpty()) {
+            eventPublisher.publishEvent(new AttachmentJobsCancelledEvent(userId, jobIds));
         }
     }
 
@@ -313,6 +351,7 @@ public class ConversationService {
     }
 
     public void deleteAttachment(Long attachmentId, String userId) {
+        cancelPendingJobs(userId, attachmentRepository.findPendingJobIds(attachmentId, userId));
         attachmentRepository.deleteByIdAndUserId(attachmentId, userId);
     }
 
