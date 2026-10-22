@@ -4,11 +4,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.MediaType;
 import org.springframework.web.multipart.MultipartFile;
 import zas.admin.zec.backend.actions.upload.model.*;
 import zas.admin.zec.backend.actions.upload.strategy.AdminDocUploadStrategyFactory;
@@ -59,7 +62,29 @@ class UploadServiceTest {
         var result = uploadService.download("test.pdf");
 
         assertEquals("test.pdf", result.filename());
+        assertEquals(MediaType.APPLICATION_PDF, result.mediaType());
         assertNotNull(result.content());
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "rapport.docx, application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "tableau.XLSX, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "slides.pptx, application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            "ancien.doc, application/msword",
+            "ancien.xls, application/vnd.ms-excel",
+            "ancien.ppt, application/vnd.ms-powerpoint",
+            "inconnu.bin, application/octet-stream"
+    })
+    @DisplayName("download returns media type derived from file extension")
+    void download_returnsMediaTypeFromExtension(String filename, String expectedMediaType) {
+        TempSourceDocumentEntity entity = new TempSourceDocumentEntity();
+        entity.setFileName(filename);
+        entity.setContent("hello".getBytes());
+
+        when(tempSourceDocumentRepository.findByFileName(filename)).thenReturn(Optional.of(entity));
+
+        assertEquals(MediaType.parseMediaType(expectedMediaType), uploadService.download(filename).mediaType());
     }
 
     @Test

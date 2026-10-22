@@ -32,7 +32,7 @@ public final class SourceDocUploadStrategy implements UploadStrategy {
             sourceRepository.save(doc);
         } catch (IOException e) {
             throw new UploadException(document.file().getOriginalFilename(), UploadErrorCode.FILE_READ_ERROR,
-                    "Error while uploading PDF", e);
+                    "Error while uploading source document", e);
         }
     }
 }

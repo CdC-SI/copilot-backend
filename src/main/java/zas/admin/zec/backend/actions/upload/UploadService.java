@@ -7,6 +7,7 @@ import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.dao.DataAccessException;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import zas.admin.zec.backend.actions.upload.model.*;
@@ -47,12 +48,12 @@ public class UploadService {
         this.retentionConfigService = retentionConfigService;
     }
 
-    public record Doc(String filename, ByteArrayResource content) {}
+    public record Doc(String filename, MediaType mediaType, ByteArrayResource content) {}
     public Doc download(String filename) {
         TempSourceDocumentEntity byFileName = sourceDocumentRepository.findByFileName(filename)
                 .orElseThrow(() -> new IllegalArgumentException("Document not found: " + filename));
 
-        return new Doc(filename, new ByteArrayResource(byFileName.getContent()));
+        return new Doc(filename, SourceDocumentType.mediaTypeOf(filename), new ByteArrayResource(byFileName.getContent()));
     }
 
     @Transactional

@@ -8,6 +8,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.Limit;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -273,7 +274,7 @@ public class ConversationService {
         var entity = attachmentRepository.findByIdAndConversationIdAndUserId(attachmentId, conversationId, userUuid)
                 .orElseThrow(() -> new NoSuchElementException("Attachment not found"));
 
-        return new UploadService.Doc(entity.getFilename(), new ByteArrayResource(entity.getFileBytes()));
+        return new UploadService.Doc(entity.getFilename(), MediaType.APPLICATION_OCTET_STREAM, new ByteArrayResource(entity.getFileBytes()));
     }
 
     public List<Attachment> getAttachmentsForConversation(String conversationId, String userId) {

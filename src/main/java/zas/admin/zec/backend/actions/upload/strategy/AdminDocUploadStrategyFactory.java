@@ -2,6 +2,7 @@ package zas.admin.zec.backend.actions.upload.strategy;
 
 import org.springframework.stereotype.Component;
 import zas.admin.zec.backend.actions.upload.model.DocumentToUpload;
+import zas.admin.zec.backend.actions.upload.model.SourceDocumentType;
 import zas.admin.zec.backend.persistence.repository.DocumentRepository;
 import zas.admin.zec.backend.persistence.repository.QuestionRepository;
 import zas.admin.zec.backend.persistence.repository.TempSourceDocumentRepository;
@@ -20,7 +21,8 @@ public class AdminDocUploadStrategyFactory {
     }
 
     public UploadStrategy getUploadStrategy(DocumentToUpload doc) {
-        return "text/csv".equals(doc.file().getContentType())
+        // Détection par extension : sous Windows, les navigateurs envoient souvent un .csv en application/vnd.ms-excel
+        return SourceDocumentType.CSV.matches(doc.file().getOriginalFilename())
                 ? new EmbeddedDocUploadStrategy(documentRepository, questionRepository)
                 : new SourceDocUploadStrategy(sourceRepository);
     }
