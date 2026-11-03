@@ -7,13 +7,16 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.transaction.support.TransactionTemplate;
 import zas.admin.zec.backend.actions.summarize.LlmOcrService;
+import zas.admin.zec.backend.actions.upload.EmbeddingServiceClient;
 import zas.admin.zec.backend.actions.upload.validation.UploadErrorCode;
 import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
 
 import java.io.IOException;
 
 /**
- * Service dédié au traitement OCR asynchrone des pièces jointes.
+ * Service dédié au traitement asynchrone des pièces jointes : OCR LLM des images (et des PDF si
+ * {@code attachment-ocr.engine=llm}), déclenchement de l'extraction des PDF par le pdf-ocr-pipeline
+ * ({@link AttachmentJobProcessor}) et annulation de ses jobs à la suppression.
  * Séparé de {@link ConversationService} pour permettre l'utilisation correcte du proxy Spring avec {@code @Async}.
  *
  * <p>Utilise {@link TransactionTemplate} (transactions programmatiques) plutôt que {@code @Transactional}
@@ -34,25 +37,49 @@ public class AttachmentAsyncProcessor {
     private final AttachmentRepository attachmentRepository;
     private final LlmOcrService ocrService;
     private final TransactionTemplate transactionTemplate;
+    private final AttachmentJobProcessor jobProcessor;
+    private final EmbeddingServiceClient pipelineClient;
 
     public AttachmentAsyncProcessor(AttachmentRepository attachmentRepository,
                                     LlmOcrService ocrService,
-                                    TransactionTemplate transactionTemplate) {
+                                    TransactionTemplate transactionTemplate,
+                                    AttachmentJobProcessor jobProcessor,
+                                    EmbeddingServiceClient pipelineClient) {
 
         this.attachmentRepository = attachmentRepository;
         this.ocrService = ocrService;
         this.transactionTemplate = transactionTemplate;
+        this.jobProcessor = jobProcessor;
+        this.pipelineClient = pipelineClient;
     }
 
     /**
      * Listener déclenché après le commit de la transaction d'attache des pièces jointes.
      * Garantit que l'entité {@code PENDING} est visible en base avant le traitement async,
      * et évite tout OCR orphelin si la transaction a été rollback.
+     * <p>
+     * Les PDF routés vers le pdf-ocr-pipeline sont soumis immédiatement s'ils ne sont pas déjà réservés par
+     * {@link AttachmentJobPoller}, qui assure ensuite le suivi (et la reprise après redémarrage).
      */
     @Async("asyncExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onAttachmentUploaded(AttachmentUploadedEvent event) {
+        if (event.pipeline()) {
+            if (jobProcessor.claim(event.attachmentId())) {
+                jobProcessor.process(event.attachmentId());
+            }
+            return;
+        }
         processOcr(event.attachmentId());
+    }
+
+    /**
+     * Annule (best-effort) les jobs pdf-ocr-pipeline des pièces jointes supprimées, après commit de la suppression.
+     */
+    @Async("asyncExecutor")
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onAttachmentJobsCancelled(AttachmentJobsCancelledEvent event) {
+        event.jobIds().forEach(jobId -> pipelineClient.cancelQuietly(jobId, event.userId()));
     }
 
     /**

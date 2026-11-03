@@ -127,6 +127,13 @@ embedding-service:
   job-timeout: ${EMBEDDING_SERVICE_JOB_TIMEOUT:6h}
   request-timeout: ${EMBEDDING_SERVICE_REQUEST_TIMEOUT:60s}
   max-response-size: ${EMBEDDING_SERVICE_MAX_RESPONSE_SIZE:64MB}
+# Extraction du texte des pièces jointes : PDF via le pdf-ocr-pipeline (embedding-service.base-url, mode=extract)
+# ou l'OCR LLM (engine: llm) ; les images passent toujours par l'OCR LLM.
+attachment-ocr:
+  engine: ${ATTACHMENT_OCR_ENGINE:pipeline}
+  max-pages: ${ATTACHMENT_MAX_PAGES:1000}
+  poll-interval: ${ATTACHMENT_OCR_POLL_INTERVAL:5s}
+  job-timeout: ${ATTACHMENT_OCR_JOB_TIMEOUT:1h}
 identity-check:
   baseUrl: ${IDENTITY_CHECK_BASE_URL:https://api.int.adnovum-vips.ch}
   call-back-url: ${IDENTITY_CHECK_CALL_BACK_URL:http://localhost:4200/tools}

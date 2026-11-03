@@ -15,6 +15,8 @@ import org.springframework.http.HttpStatus;
 public enum UploadErrorCode {
     NO_FILE(HttpStatus.BAD_REQUEST),
     FILE_TOO_LARGE(HttpStatus.PAYLOAD_TOO_LARGE),
+    /** Le PDF dépasse le nombre maximal de pages autorisé. */
+    TOO_MANY_PAGES(HttpStatus.PAYLOAD_TOO_LARGE),
     FILE_TYPE_UNSUPPORTED(HttpStatus.BAD_REQUEST),
     FILE_CONTENT_INVALID(HttpStatus.BAD_REQUEST),
     CSV_CONTENT_INVALID(HttpStatus.BAD_REQUEST),
