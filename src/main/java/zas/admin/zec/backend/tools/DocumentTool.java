@@ -61,6 +61,9 @@ public class DocumentTool {
             lire les chunks voisins d'un chunk (doc_id + chunk_index) ; relire un document listé dans \
             <retrieved_sources> par son id ; consulter un processus métier interne (étapes, rôles, \
             décisions) ou ses métadonnées (version, état, validité). \
+            À appeler directement, sans recherche préalable, lorsque l'utilisateur désigne un processus par son nom \
+            ou son identifiant (CONTAINS sur process_name, EQ sur process_id) ou un document par son identifiant \
+            (EQ sur doc_id ou id) : la recherche sémantique ne retrouve pas un document par son identifiant. \
             Collections et clés filtrables : \
             DOCUMENTATION (chunks de documentation) : id, doc_id, chunk_index (numérique), title, source, url, \
             doc_type, process_id, bpmn_id, lang, version. \

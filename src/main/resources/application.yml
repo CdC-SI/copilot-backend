@@ -175,6 +175,13 @@ rag:
     top-k: ${RERANKING_TOP_K:5}
   document-tool:
     max-tool-calls-per-turn: ${RAG_MAX_TOOL_CALLS_PER_TURN:10}
+  agent:
+    reasoning-effort: ${RAG_AGENT_REASONING_EFFORT:medium}
+    temperature: ${RAG_AGENT_TEMPERATURE:1.0}
+  linked-processes:
+    enabled: ${RAG_LINKED_PROCESSES_ENABLED:true}
+    max-processes: ${RAG_LINKED_PROCESSES_MAX:1}
+    max-chars: ${RAG_LINKED_PROCESSES_MAX_CHARS:20000}
 logging:
   level:
     zas.admin.zec: DEBUG

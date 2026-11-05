@@ -34,6 +34,7 @@ import zas.admin.zec.backend.rag.joiner.RankedDocumentJoiner;
 import zas.admin.zec.backend.rag.reranker.DocumentReranker;
 import zas.admin.zec.backend.rag.retriever.BM25DocumentRetriever;
 import zas.admin.zec.backend.rag.retriever.HybridDocumentRetriever;
+import zas.admin.zec.backend.tools.document.DocumentCollection;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
@@ -63,6 +64,8 @@ public class RAGTool {
     private static final String META_SOURCE = "source";
     private static final String META_ORGANIZATIONS = "organizations";
     private static final String META_USER_UUID = "user_uuid";
+    private static final String META_PROCESS_ID = "process_id";
+    private static final String META_DOC_ID = "doc_id";
     private static final String ORG_ZAS = "ZAS";
     /** Appel sans requête (le LLM a omis l'argument) : message exploitable plutôt qu'une exception. */
     static final String MISSING_QUERY = "<error>The 'query' argument is required: rephrase the user's question as a "
@@ -85,6 +88,7 @@ public class RAGTool {
     private final SourceResolver sourceResolver;
     private final WorkspaceService workspaceService;
     private final WorkspaceInferenceMonitoringService workspaceInferenceMonitoringService;
+    private final LinkedProcessAttacher linkedProcessAttacher;
 
     public RAGTool(
             @Qualifier("internalChatModel") ChatModel internalChatModel,
@@ -95,7 +99,8 @@ public class RAGTool {
             JdbcTemplate jdbcTemplate,
             SourceResolver sourceResolver,
             WorkspaceService workspaceService,
-            WorkspaceInferenceMonitoringService workspaceInferenceMonitoringService) {
+            WorkspaceInferenceMonitoringService workspaceInferenceMonitoringService,
+            LinkedProcessAttacher linkedProcessAttacher) {
 
         this.internalChatClient = ChatClient.create(internalChatModel);
         this.documentStore = documentStore;
@@ -106,6 +111,7 @@ public class RAGTool {
         this.sourceResolver = sourceResolver;
         this.workspaceService = workspaceService;
         this.workspaceInferenceMonitoringService = workspaceInferenceMonitoringService;
+        this.linkedProcessAttacher = linkedProcessAttacher;
     }
 
     @Tool(name = TOOL_NAME, description = """
@@ -117,7 +123,10 @@ public class RAGTool {
             Retourne les extraits pertinents, chacun encadré par une balise <document id="..." collection="..."> \
             et suivi de ses métadonnées JSON dans une balise <metadata> (doc_id, chunk_index, title, url, \
             outgoing_links, process_id...). Ces métadonnées permettent d'appeler get_documents pour suivre \
-            un lien sortant, lire les chunks voisins ou ouvrir le contenu complet d'un processus métier.""")
+            un lien sortant, lire les chunks voisins ou ouvrir le contenu complet d'un processus métier. \
+            Le résultat peut contenir un bloc <linked_sources> qui liste les processus métier et documents liés aux \
+            extraits retournés, pas encore lus pendant ce tour, et se terminer par un bloc <linked_processes> \
+            (contenu du processus métier lié, à appliquer au cas).""")
     public String searchSocialInsuranceDocumentation(
             @ToolParam(description = """
                     La requête de recherche, reformulée en **phrase complète et autonome** (avec un verbe \
@@ -163,15 +172,137 @@ public class RAGTool {
 
         List<Document> documents = retrieve(query, language, workspace, userId, hasAccessToInternalDocuments);
 
-        // Remonter les documents (avec leurs métadonnées) à l'appelant pour reconstruire les sources.
+        // Remonter les documents (avec leurs métadonnées) à l'appelant pour reconstruire les sources. Sans liste
+        // partagée (appel hors boucle agentique), une liste locale tient lieu de documents lus pendant le tour.
+        Collection<Document> turnDocuments = new ArrayList<>();
         if (context.get(ToolContextKeys.CTX_RETRIEVED_DOCUMENTS) instanceof Collection<?> sink) {
             @SuppressWarnings("unchecked")
             var documentSink = (Collection<Document>) sink;
-            documentSink.addAll(documents);
+            turnDocuments = documentSink;
         }
+        turnDocuments.addAll(documents);
 
         log.debug("RAGTool retrieved {} documents for query '{}'", documents.size(), query);
-        return formatDocuments(documents);
+
+        // Processus liés joints d'office (contenu), ajoutés aux documents du tour : ils ne figurent donc plus dans
+        // <linked_sources>. Le bloc <linked_processes> vient en dernier, après des extraits souvent longs, pour que le
+        // LLM ne le survole pas avant de répondre.
+        var attachment = linkedProcessAttacher.forSearch(
+                linkedSources(documents, turnDocuments), userId, hasAccessToInternalDocuments, language);
+        turnDocuments.addAll(attachment.documents());
+        String processes = LinkedProcessAttacher.format(attachment);
+        if (!processes.isEmpty()) {
+            log.debug("RAGTool : processus liés joints {}", attachment.documents().stream()
+                    .map(d -> d.getMetadata().get(META_PROCESS_ID)).toList());
+            processes = System.lineSeparator() + processes;
+        }
+        String linked = formatLinkedSources(linkedSources(documents, turnDocuments));
+        if (!linked.isEmpty()) {
+            log.debug("RAGTool : sources liées non lues{}{}", System.lineSeparator(), linked);
+        }
+        return formatDocuments(documents) + linked + processes;
+    }
+
+    /**
+     * Cible d'un lien d'un document retourné, à lire avec {@code get_documents}.
+     *
+     * @param from       id du document qui porte le lien (ou qui décrit le processus)
+     * @param collection collection de la cible
+     * @param key        clé de filtre de la cible ({@code process_id} ou {@code doc_id})
+     * @param value      valeur de cette clé
+     * @param title      titre du lien, s'il est connu
+     */
+    record LinkedSource(String from, DocumentCollection collection, String key, String value, String title) {}
+
+    /**
+     * Processus métier et documents auxquels renvoient les documents retournés, dans l'ordre de pertinence et sans
+     * doublon : description d'un processus ({@code doc_type = business_process}), lien sortant avec {@code process_id}
+     * ou avec {@code target_doc_id}. Les cibles déjà lues pendant le tour ({@code alreadyRetrieved}, qui contient les
+     * documents retournés) sont exclues ; au plus {@link DocumentTool#MAX_DOCUMENTS_PER_CALL} cibles par collection,
+     * soit un seul appel {@code get_documents} (filtre IN) par collection.
+     */
+    static List<LinkedSource> linkedSources(List<Document> documents, Collection<?> alreadyRetrieved) {
+        Set<String> readProcesses = new HashSet<>();
+        Set<String> readDocuments = new HashSet<>();
+        for (Object retrieved : alreadyRetrieved) {
+            if (retrieved instanceof Document document) {
+                boolean process = MetadataFormatter.collectionOf(document) == DocumentCollection.BUSINESS_PROCESS;
+                Object id = document.getMetadata().get(process ? META_PROCESS_ID : META_DOC_ID);
+                if (id != null) {
+                    (process ? readProcesses : readDocuments).add(String.valueOf(id));
+                }
+            }
+        }
+        Map<String, LinkedSource> targets = new LinkedHashMap<>();
+        Map<DocumentCollection, Integer> perCollection = new EnumMap<>(DocumentCollection.class);
+        for (Document document : documents) {
+            Map<String, Object> metadata = document.getMetadata();
+            List<LinkedSource> candidates = new ArrayList<>();
+            if (MetadataFormatter.DOC_TYPE_BUSINESS_PROCESS.equals(metadata.get(MetadataFormatter.META_DOC_TYPE))) {
+                candidates.add(processTarget(document.getId(), metadata.get(META_PROCESS_ID), metadata.get("process_name")));
+            }
+            if (metadata.get("outgoing_links") instanceof Collection<?> links) {
+                for (Object link : links) {
+                    if (link instanceof Map<?, ?> target) {
+                        candidates.add(target.get(META_PROCESS_ID) != null
+                                ? processTarget(document.getId(), target.get(META_PROCESS_ID), target.get("title"))
+                                : documentTarget(document.getId(), target.get("target_doc_id"), target.get("title")));
+                    }
+                }
+            }
+            for (LinkedSource candidate : candidates) {
+                if (candidate == null
+                        || (candidate.collection() == DocumentCollection.BUSINESS_PROCESS ? readProcesses : readDocuments)
+                                .contains(candidate.value())
+                        || targets.containsKey(candidate.collection().key() + '|' + candidate.value())
+                        || perCollection.getOrDefault(candidate.collection(), 0) >= DocumentTool.MAX_DOCUMENTS_PER_CALL) {
+                    continue;
+                }
+                targets.put(candidate.collection().key() + '|' + candidate.value(), candidate);
+                perCollection.merge(candidate.collection(), 1, Integer::sum);
+            }
+        }
+        return List.copyOf(targets.values());
+    }
+
+    /**
+     * Bloc {@code <linked_sources>} (déclaré dans le prompt système comme ajouté par le système) : une ligne par
+     * cible, au format de {@code <retrieved_sources>}, sans consigne ; chaîne vide sans cible.
+     */
+    static String formatLinkedSources(List<LinkedSource> sources) {
+        if (sources.isEmpty()) {
+            return "";
+        }
+        String nl = System.lineSeparator();
+        var sb = new StringBuilder(nl).append("<linked_sources>").append(nl);
+        for (LinkedSource source : sources) {
+            sb.append("- from=").append(source.from())
+                    .append("; collection=").append(source.collection().key())
+                    .append("; ").append(source.key()).append('=').append(source.value());
+            if (source.title() != null) {
+                sb.append("; title=\"").append(source.title()).append('"');
+            }
+            sb.append(nl);
+        }
+        return sb.append("</linked_sources>").toString();
+    }
+
+    private static LinkedSource processTarget(String from, Object processId, Object title) {
+        return target(from, DocumentCollection.BUSINESS_PROCESS, META_PROCESS_ID, processId, title);
+    }
+
+    private static LinkedSource documentTarget(String from, Object docId, Object title) {
+        return target(from, DocumentCollection.DOCUMENTATION, META_DOC_ID, docId, title);
+    }
+
+    private static LinkedSource target(String from, DocumentCollection collection, String key, Object value, Object title) {
+        if (!(value instanceof String id) || id.isBlank()) {
+            return null;
+        }
+        String cleanTitle = title instanceof String s && !s.isBlank()
+                ? s.replace('"', '\'').replace('\n', ' ').strip()
+                : null;
+        return new LinkedSource(from, collection, key, id.strip(), cleanTitle);
     }
 
     private List<Document> retrieve(String query, String language, String workspace,
