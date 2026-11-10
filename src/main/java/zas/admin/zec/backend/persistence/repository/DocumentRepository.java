@@ -17,9 +17,9 @@ public interface DocumentRepository extends JpaRepository<DocumentEntity, UUID> 
     String TAGS_FROM = """
         FROM vector_store v
         CROSS JOIN LATERAL (
-            SELECT json_array_elements_text(v.metadata -> 'tags') WHERE json_typeof(v.metadata -> 'tags') = 'array'
+            SELECT jsonb_array_elements_text(v.metadata -> 'tags') WHERE jsonb_typeof(v.metadata -> 'tags') = 'array'
             UNION ALL
-            SELECT v.metadata ->> 'tags' WHERE json_typeof(v.metadata -> 'tags') IS DISTINCT FROM 'array'
+            SELECT v.metadata ->> 'tags' WHERE jsonb_typeof(v.metadata -> 'tags') IS DISTINCT FROM 'array'
         ) AS t(tag)
         """;
 

@@ -33,6 +33,8 @@ public class ChatModelsConfig {
                 .temperature(0.0)
                 .maxTokens(16384)
                 .reasoningEffort("low")
+                // Usage (tokens) dans le dernier chunk de chaque appel streamé : persisté par tour (chat_history.usage).
+                .streamUsage(true)
                 .build();
 
         return OpenAiChatModel.builder()
