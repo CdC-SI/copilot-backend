@@ -17,11 +17,13 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import zas.admin.zec.backend.actions.summarize.LlmOcrService;
 import zas.admin.zec.backend.actions.workspace.WorkspaceService;
+import zas.admin.zec.backend.config.properties.AttachmentOcrProperties;
 import zas.admin.zec.backend.persistence.entity.ConversationTitleEntity;
 import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
 import zas.admin.zec.backend.persistence.repository.ConversationRepository;
 import zas.admin.zec.backend.persistence.repository.ConversationTitleRepository;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 
@@ -53,7 +55,9 @@ class ConversationServiceTitleTest {
         service = new ConversationService(mock(ConversationRepository.class), titleRepository,
                 mock(AttachmentRepository.class), mock(ChatServiceFactory.class), chatModel, mock(LlmOcrService.class),
                 mock(WorkspaceService.class), mock(ApplicationEventPublisher.class),
-                new TransactionTemplate(mock(PlatformTransactionManager.class)));
+                new TransactionTemplate(mock(PlatformTransactionManager.class)),
+                new AttachmentOcrProperties(AttachmentOcrProperties.Engine.PIPELINE, 1000,
+                        Duration.ofSeconds(5), Duration.ofHours(1)));
     }
 
     @Test
