@@ -40,6 +40,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class ConversationService {
 
     private static final String DELIM = "|";
+    private static final int PLACEHOLDER_TITLE_MAX_LENGTH = 100;
 
     private final ConversationRepository conversationRepository;
     private final ConversationTitleRepository conversationTitleRepository;
@@ -450,26 +451,49 @@ public class ConversationService {
         return String.join("#", Arrays.stream(sourceParts).filter(part -> part != null && !part.isEmpty()).toList());
     }
 
+    /**
+     * Crée le titre de la conversation lors de son premier échange. La ligne {@code chat_title} est
+     * d'abord insérée de façon atomique avec un titre provisoire (la question), puis mise à jour avec
+     * le titre généré par le LLM : une question de suivi posée pendant cette génération retrouve donc
+     * la conversation (et son type) sans créer de second titre.
+     */
     private void generateConversationTitle(String initialQuery, String initialResponse, String userId, String conversationId,
                                             String language, ConversationType conversationType) {
-        if (conversationTitleRepository.findByUserIdAndConversationId(userId, conversationId).isEmpty()) {
-            var title = chatClient.prompt()
+        // Type figé à la création de la conversation : immuable pour toute question suivante.
+        int inserted = conversationTitleRepository.insertIfAbsent(userId, conversationId, placeholderTitle(initialQuery),
+                LocalDateTime.now(), conversationType.name());
+        if (inserted == 0) {
+            return;
+        }
+
+        String title;
+        try {
+            title = chatClient.prompt()
                     .system(ConversationPrompts.getConversationTitlePrompt(language)
                             .formatted(initialResponse))
                     .user(initialQuery)
                     .call()
                     .content();
-
-            var entity = new ConversationTitleEntity();
-            entity.setUserId(userId);
-            entity.setConversationId(conversationId);
-            entity.setTitle(title);
-            entity.setTimestamp(LocalDateTime.now());
-            // Type figé à la création de la conversation : immuable pour toute question suivante.
-            entity.setConversationType(conversationType);
-
-            conversationTitleRepository.save(entity);
+        } catch (RuntimeException e) {
+            log.error("Génération du titre de la conversation {} impossible, titre provisoire conservé", conversationId, e);
+            return;
         }
+        if (title == null || title.isBlank()) {
+            return;
+        }
+
+        conversationTitleRepository.findByUserIdAndConversationId(userId, conversationId)
+                .ifPresent(entity -> {
+                    entity.setTitle(title);
+                    conversationTitleRepository.save(entity);
+                });
+    }
+
+    private static String placeholderTitle(String query) {
+        var title = query == null ? "" : query.strip();
+        return title.length() > PLACEHOLDER_TITLE_MAX_LENGTH
+                ? title.substring(0, PLACEHOLDER_TITLE_MAX_LENGTH) + "…"
+                : title;
     }
 
     public List<String> getWorkspaces() {
