@@ -6,13 +6,13 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>5.0.0-SNAPSHOT</version>
+        <version>4.1.1</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
 
     <groupId>zas.admin.zec</groupId>
     <artifactId>copilot-backend</artifactId>
-    <version>4.1.0</version>
+    <version>5.0.0-SNAPSHOT</version>
     <name>copilot-backend</name>
     <description>copilot-backend</description>
 
