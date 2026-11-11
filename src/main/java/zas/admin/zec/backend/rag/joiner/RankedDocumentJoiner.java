@@ -18,19 +18,16 @@ public class RankedDocumentJoiner implements DocumentJoiner {
     private final DocumentReranker reranker;
     private final float scoreThreshold;
     private final int topK;
-    private final List<Document> conversationDocuments;
 
-    public RankedDocumentJoiner(DocumentReranker reranker, List<Document> conversationDocuments) {
+    public RankedDocumentJoiner(DocumentReranker reranker) {
         this.reranker = Objects.requireNonNull(reranker, "reranker must not be null");
         this.scoreThreshold = reranker.getScoreThreshold();
         this.topK = reranker.getTopK();
-        this.conversationDocuments = withoutNulls(conversationDocuments);
     }
 
     @Override
     public @NonNull List<Document> join(@NonNull Map<Query, List<List<Document>>> documentsForQuery) {
-        var rankedDocuments = rankRetrievedDocuments(documentsForQuery);
-        return combineWithConversationDocuments(rankedDocuments);
+        return rankRetrievedDocuments(documentsForQuery);
     }
 
     private List<Document> rankRetrievedDocuments(Map<Query, List<List<Document>>> documentsForQuery) {
@@ -69,13 +66,6 @@ public class RankedDocumentJoiner implements DocumentJoiner {
 
     private long resultLimit() {
         return reranker.isEnabled() ? topK : DEFAULT_LIMIT_WHEN_RERANKER_DISABLED;
-    }
-
-    private List<Document> combineWithConversationDocuments(List<Document> rankedDocuments) {
-        var result = new ArrayList<Document>(conversationDocuments.size() + rankedDocuments.size());
-        result.addAll(conversationDocuments);
-        result.addAll(rankedDocuments);
-        return result;
     }
 
     private static Document highestScore(Document existing, Document duplicate) {
