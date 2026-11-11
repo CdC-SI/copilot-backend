@@ -3,6 +3,7 @@ package zas.admin.zec.backend.tools;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.document.Document;
@@ -26,9 +27,9 @@ import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.actions.workspace.WorkspaceDto;
 import zas.admin.zec.backend.actions.workspace.WorkspaceService;
 import zas.admin.zec.backend.config.properties.RetrievingProperties;
-import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
 import zas.admin.zec.backend.rag.ChatStatus;
 import zas.admin.zec.backend.rag.RAGPrompts;
+import zas.admin.zec.backend.rag.TurnUsage;
 import zas.admin.zec.backend.rag.joiner.RankedDocumentJoiner;
 import zas.admin.zec.backend.rag.reranker.DocumentReranker;
 import zas.admin.zec.backend.rag.retriever.BM25DocumentRetriever;
@@ -47,21 +48,26 @@ import java.util.stream.Collectors;
  * LLM (identité de l'utilisateur, langue, conversation) transitent par le {@link ToolContext} ; les
  * clés sont définies dans {@link ToolContextKeys}. Le workspace peut être fourni via le contexte
  * (mémorisé depuis un tour précédent de la conversation) ou, à défaut, est inféré ici à partir de
- * la question et de la liste des workspaces disponibles.</p>
+ * la question et de la liste des workspaces disponibles — une seule fois par tour : les appels
+ * suivants du même tour réutilisent le workspace résolu
+ * ({@link ToolContextKeys#CTX_RESOLVED_WORKSPACE}).</p>
  */
 @Slf4j
 @Component
 public class RAGTool {
 
+    public static final String TOOL_NAME = "search_social_insurance_documentation";
+
     private static final String DEFAULT_LANGUAGE = "fr";
 
-    private static final String META_TITLE = "title";
-    private static final String META_STATE = "state";
     private static final String META_SOURCE = "source";
     private static final String META_ORGANIZATIONS = "organizations";
     private static final String META_USER_UUID = "user_uuid";
-    private static final String STATE_PERSONAL_UPLOADS = "personal.uploads";
     private static final String ORG_ZAS = "ZAS";
+    /** Appel sans requête (le LLM a omis l'argument) : message exploitable plutôt qu'une exception. */
+    static final String MISSING_QUERY = "<error>The 'query' argument is required: rephrase the user's question as a "
+            + "standalone search query and call the tool again.</error>";
+
     private static final String NO_DOCS_FOUND = """
             <no_documentation_found>
             The knowledge base search returned NO relevant documents for this query.
@@ -75,7 +81,6 @@ public class RAGTool {
     private final UserService userService;
     private final DocumentReranker reranker;
     private final RetrievingProperties retrievingProperties;
-    private final AttachmentRepository attachmentRepository;
     private final JdbcTemplate jdbcTemplate;
     private final SourceResolver sourceResolver;
     private final WorkspaceService workspaceService;
@@ -87,7 +92,6 @@ public class RAGTool {
             UserService userService,
             DocumentReranker reranker,
             RetrievingProperties retrievingProperties,
-            AttachmentRepository attachmentRepository,
             JdbcTemplate jdbcTemplate,
             SourceResolver sourceResolver,
             WorkspaceService workspaceService,
@@ -98,37 +102,51 @@ public class RAGTool {
         this.userService = userService;
         this.reranker = reranker;
         this.retrievingProperties = retrievingProperties;
-        this.attachmentRepository = attachmentRepository;
         this.jdbcTemplate = jdbcTemplate;
         this.sourceResolver = sourceResolver;
         this.workspaceService = workspaceService;
         this.workspaceInferenceMonitoringService = workspaceInferenceMonitoringService;
     }
 
-    @Tool(name = "search_social_insurance_documentation", description = """
+    @Tool(name = TOOL_NAME, description = """
             Recherche dans la documentation officielle des assurances sociales suisses (AVS, AI, APG, PC, \
-            allocations familiales, etc.) les passages pertinents pour répondre à une question. \
+            allocations familiales, etc.) et dans les descriptions des processus métier internes les \
+            passages pertinents pour répondre à une question. \
             À utiliser dès qu'une question porte sur les prestations, cotisations, réglementations, \
             procédures ou tout autre sujet relatif aux assurances sociales suisses. \
-            Retourne les extraits de documents pertinents, chacun encadré par des balises <document>.""")
+            Retourne les extraits pertinents, chacun encadré par une balise <document id="..." collection="..."> \
+            et suivi de ses métadonnées JSON dans une balise <metadata> (doc_id, chunk_index, title, url, \
+            outgoing_links, process_id...). Ces métadonnées permettent d'appeler get_documents pour suivre \
+            un lien sortant, lire les chunks voisins ou ouvrir le contenu complet d'un processus métier.""")
     public String searchSocialInsuranceDocumentation(
             @ToolParam(description = """
-                    La requête de recherche, reformulée de façon autonome et explicite à partir de la \
-                    question de l'utilisateur et du contexte de la conversation.""")
+                    La requête de recherche, reformulée en **phrase complète et autonome** (avec un verbe \
+                    conjugué), reprenant les termes de la question de l'utilisateur et du contexte de la \
+                    conversation, plutôt qu'une suite de mots-clés juxtaposés.""")
             String query,
             ToolContext toolContext) {
 
         Map<String, Object> context = toolContext != null ? toolContext.getContext() : Map.of();
+        if (!ToolCallBudget.tryAcquire(context, TOOL_NAME)) {
+            return ToolCallBudget.EXHAUSTED_MESSAGE;
+        }
+        if (query == null || query.isBlank()) {
+            return MISSING_QUERY;
+        }
         String userId = asString(context.get(ToolContextKeys.CTX_USER_ID), "");
         String language = asString(context.get(ToolContextKeys.CTX_LANGUAGE), DEFAULT_LANGUAGE);
         String conversationId = asString(context.get(ToolContextKeys.CTX_CONVERSATION_ID), "");
 
-        // Le workspace peut déjà être connu (mémorisé depuis un tour précédent de la conversation) ;
-        // sinon on l'infère à partir de la question et des workspaces disponibles.
+        // Le workspace peut déjà être connu : fourni avec la question (badge choisi par l'utilisateur,
+        // mémorisé depuis un tour précédent), ou inféré par un appel précédent du même tour.
         String workspace = asString(context.get(ToolContextKeys.CTX_WORKSPACE), "");
         if (workspace.isBlank()) {
+            workspace = previouslyInferredWorkspace(context);
+        }
+        // Sinon on l'infère à partir de la question et des workspaces disponibles (une seule fois par tour).
+        if (workspace.isBlank()) {
             ToolContextKeys.emitStatus(context, ChatStatus.WORKSPACE_INFERENCE, language);
-            workspace = inferWorkspace(query, language);
+            workspace = inferWorkspace(query, language, context);
 
             // Monitoring : journaliser l'inférence (question originale de l'utilisateur, stable),
             // afin d'aider à améliorer la classification des workspaces pour les questions futures.
@@ -143,7 +161,7 @@ public class RAGTool {
         boolean hasAccessToInternalDocuments = !userId.isBlank()
                 && userService.hasAccessToInternalDocuments(userId);
 
-        List<Document> documents = retrieve(query, language, workspace, conversationId, userId, hasAccessToInternalDocuments);
+        List<Document> documents = retrieve(query, language, workspace, userId, hasAccessToInternalDocuments);
 
         // Remonter les documents (avec leurs métadonnées) à l'appelant pour reconstruire les sources.
         if (context.get(ToolContextKeys.CTX_RETRIEVED_DOCUMENTS) instanceof Collection<?> sink) {
@@ -157,7 +175,7 @@ public class RAGTool {
     }
 
     private List<Document> retrieve(String query, String language, String workspace,
-                                    String conversationId, String userId, boolean hasAccessToInternalDocuments) {
+                                    String userId, boolean hasAccessToInternalDocuments) {
 
         Supplier<Filter.Expression> filterExpressionSupplier =
                 () -> buildExpression(workspace, userId, hasAccessToInternalDocuments);
@@ -185,9 +203,9 @@ public class RAGTool {
             documentsForQuery.put(expandedQuery, List.of(documentRetriever.retrieve(expandedQuery)));
         }
 
-        // 4. Join, rerank and combine with the conversation attachments.
-        var conversationDocuments = getConversationDocuments(conversationId, userId);
-        var documentJoiner = new RankedDocumentJoiner(reranker, conversationDocuments);
+        // 4. Join and rerank. Les pièces jointes de la conversation ne sont pas ajoutées aux résultats : l'agent
+        //    les lit via get_attachment_content (liste fournie par le bloc <conversation_attachments>).
+        var documentJoiner = new RankedDocumentJoiner(reranker);
         return documentJoiner.join(documentsForQuery);
     }
 
@@ -197,8 +215,7 @@ public class RAGTool {
         }
 
         return documents.stream()
-                .map(Document::getText)
-                .map(text -> "<document>" + System.lineSeparator() + text + System.lineSeparator() + "</document>")
+                .map(document -> MetadataFormatter.format(document, true, true))
                 .collect(Collectors.joining(System.lineSeparator()));
     }
 
@@ -215,33 +232,28 @@ public class RAGTool {
         return vectorRetriever;
     }
 
-    private List<Document> getConversationDocuments(String conversationId, String userId) {
-        if (conversationId.isBlank() || userId.isBlank()) {
-            return List.of();
-        }
-        return attachmentRepository.findAllByConversationIdAndUserId(conversationId, userId)
-                .stream()
-                .filter(a -> a.getContent() != null && !a.getContent().isBlank())
-                .map(attachmentEntity -> new Document(
-                        attachmentEntity.getContent(),
-                        Map.of(
-                                META_TITLE, attachmentEntity.getFilename(),
-                                META_STATE, STATE_PERSONAL_UPLOADS)
-                ))
-                .toList();
+    private Filter.Expression buildExpression(String workspace, String userId, boolean userHasAccessToInternalDocuments) {
+        return metadataFilter(sourceResolver.resolve(workspace), userId, userHasAccessToInternalDocuments);
     }
 
-    private Filter.Expression buildExpression(String workspace, String userId, boolean userHasAccessToInternalDocuments) {
+    /**
+     * Filtre sur les métadonnées : sources du workspace, exclusion des documents internes ({@code organizations}
+     * contenant {@code ZAS}, valeur scalaire ou tableau) sauf droits, documents publics ou propres à l'utilisateur.
+     */
+    public static Filter.Expression metadataFilter(Collection<String> sources, String userId,
+                                                   boolean userHasAccessToInternalDocuments) {
         FilterExpressionBuilder builder = new FilterExpressionBuilder();
         List<FilterExpressionBuilder.Op> ops = new ArrayList<>();
 
-        var sources = sourceResolver.resolve(workspace);
         if (!CollectionUtils.isEmpty(sources)) {
             ops.add(builder.in(META_SOURCE, List.copyOf(sources)));
         }
 
         if (!userHasAccessToInternalDocuments) {
-            ops.add(builder.ne(META_ORGANIZATIONS, ORG_ZAS));
+            // ne() seul ne suffit pas : sur un tableau, "!=" est vrai dès qu'un élément diffère (["ZAS","OFAS"]
+            // passerait) ; nin() exclut tout tableau contenant ZAS. ne() conserve l'exclusion historique des
+            // documents sans clé "organizations" (isNotNull() n'est pas supporté par le converter PgVector).
+            ops.add(builder.and(builder.ne(META_ORGANIZATIONS, ORG_ZAS), builder.nin(META_ORGANIZATIONS, ORG_ZAS)));
         }
 
         ops.add(builder.group(builder.or(builder.eq(META_USER_UUID, userId), builder.eq(META_USER_UUID, ""))));
@@ -298,7 +310,7 @@ public class RAGTool {
      * (catch-all, sans filtrage par source) si la réponse du LLM est vide, inconnue, ou en cas
      * d'erreur.
      */
-    private String inferWorkspace(String query, String language) {
+    private String inferWorkspace(String query, String language, Map<String, Object> context) {
         String defaultWorkspace = workspaceService.getDefaultWorkspace();
         try {
             List<WorkspaceDto> workspaces = workspaceService.getAll();
@@ -309,11 +321,14 @@ public class RAGTool {
             String systemPrompt = RAGPrompts.getWorkspaceInferenceTemplate(language)
                     .formatted(describeWorkspaces(workspaces), defaultWorkspace);
 
-            String answer = internalChatClient.prompt()
+            ChatResponse response = internalChatClient.prompt()
                     .system(systemPrompt)
                     .user(query)
                     .call()
-                    .content();
+                    .chatResponse();
+            recordUsage(context, "workspace_inference", response);
+            String answer = response != null && response.getResult() != null
+                    ? response.getResult().getOutput().getText() : null;
 
             String resolved = answer != null ? answer.trim() : "";
             boolean isKnown = workspaces.stream().anyMatch(w -> w.name().equals(resolved));
@@ -329,6 +344,20 @@ public class RAGTool {
         }
     }
 
+    /** Dépose l'usage d'un appel LLM du tool dans {@link ToolContextKeys#CTX_LLM_USAGE}, si l'appelant l'a fourni. */
+    private static void recordUsage(Map<String, Object> context, String purpose, ChatResponse response) {
+        if (!(context.get(ToolContextKeys.CTX_LLM_USAGE) instanceof Collection<?> sink) || response == null
+                || response.getMetadata() == null || response.getMetadata().getUsage() == null
+                || response.getMetadata().getUsage().getPromptTokens() == null) {
+            return;
+        }
+        var usage = response.getMetadata().getUsage();
+        @SuppressWarnings("unchecked")
+        var calls = (Collection<TurnUsage.LlmCall>) sink;
+        calls.add(new TurnUsage.LlmCall(purpose, usage.getPromptTokens(),
+                usage.getCompletionTokens() != null ? usage.getCompletionTokens() : 0, usage.getCacheReadInputTokens()));
+    }
+
     private String describeWorkspaces(List<WorkspaceDto> workspaces) {
         return workspaces.stream()
                 .map(w -> "- %s : %s%s".formatted(
@@ -338,6 +367,22 @@ public class RAGTool {
                                 ? ""
                                 : " Exemples de questions : " + String.join(" | ", w.hypotheticalQuestions())))
                 .collect(Collectors.joining(System.lineSeparator()));
+    }
+
+    /**
+     * Workspace déjà résolu au cours du tour par un appel précédent à ce tool, ou chaîne vide si aucun.
+     *
+     * <p>La référence est partagée par tous les appels du tour (clé
+     * {@link ToolContextKeys#CTX_RESOLVED_WORKSPACE}) : sans elle, chaque appel de recherche relancerait
+     * sa propre inférence — un appel LLM pour chaque requête reformulée par le LLM agentique, avec un
+     * risque de filtres différents au sein d'une même réponse.</p>
+     */
+    static String previouslyInferredWorkspace(Map<String, Object> context) {
+        if (context.get(ToolContextKeys.CTX_RESOLVED_WORKSPACE) instanceof AtomicReference<?> ref
+                && ref.get() instanceof String workspace) {
+            return workspace;
+        }
+        return "";
     }
 
     @SuppressWarnings("unchecked")

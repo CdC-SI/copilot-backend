@@ -3,7 +3,7 @@
 
 mavenDockerBuild{
     displayParameters=true
-    jdk='jdk21(x64)'
+    jdk='jdk25(x64)'
     mvnArgs='-B clean verify'
     dockerConfig = [
         dockerfilePath: 'Dockerfile',

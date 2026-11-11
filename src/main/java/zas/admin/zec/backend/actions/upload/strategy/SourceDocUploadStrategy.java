@@ -3,6 +3,7 @@ package zas.admin.zec.backend.actions.upload.strategy;
 import lombok.extern.slf4j.Slf4j;
 import zas.admin.zec.backend.actions.upload.model.DocumentToUpload;
 import zas.admin.zec.backend.actions.upload.model.EmbeddingStatus;
+import zas.admin.zec.backend.actions.upload.validation.UploadErrorCode;
 import zas.admin.zec.backend.actions.upload.validation.UploadException;
 import zas.admin.zec.backend.persistence.entity.TempSourceDocumentEntity;
 import zas.admin.zec.backend.persistence.repository.TempSourceDocumentRepository;
@@ -30,7 +31,8 @@ public final class SourceDocUploadStrategy implements UploadStrategy {
 
             sourceRepository.save(doc);
         } catch (IOException e) {
-            throw new UploadException(document.file().getOriginalFilename(), "Error while uploading PDF", e);
+            throw new UploadException(document.file().getOriginalFilename(), UploadErrorCode.FILE_READ_ERROR,
+                    "Error while uploading source document", e);
         }
     }
 }

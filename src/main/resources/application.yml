@@ -46,7 +46,7 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: false
-        show_sql: true
+        show_sql: ${HIBERNATE_SHOW_SQL:false}
     open-in-view: false
   activemq:
     broker-url: ${ACTIVEMQ_BROKER_URL}
@@ -58,6 +58,10 @@ spring:
     pub-sub-domain: true
     template:
       default-destination: ${JMS_DEFAULT_TOPIC:gaime.webapp}
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:25}
+    protocol: smtp
   h2:
     console:
       enabled: true
@@ -115,6 +119,21 @@ py-backend:
   baseUrl: http://copilot:8000
 embedding-service:
   base-url: ${EMBEDDING_SERVICE_BASE_URL}
+  poll-interval: ${EMBEDDING_SERVICE_POLL_INTERVAL:3s}
+  retry-delay: ${EMBEDDING_SERVICE_RETRY_DELAY:30s}
+  lease: ${EMBEDDING_SERVICE_LEASE:5m}
+  batch-size: ${EMBEDDING_SERVICE_BATCH_SIZE:10}
+  max-submit-attempts: ${EMBEDDING_SERVICE_MAX_SUBMIT_ATTEMPTS:3}
+  job-timeout: ${EMBEDDING_SERVICE_JOB_TIMEOUT:6h}
+  request-timeout: ${EMBEDDING_SERVICE_REQUEST_TIMEOUT:60s}
+  max-response-size: ${EMBEDDING_SERVICE_MAX_RESPONSE_SIZE:64MB}
+# Extraction du texte des pièces jointes : PDF via le pdf-ocr-pipeline (embedding-service.base-url, mode=extract)
+# ou l'OCR LLM (engine: llm) ; les images passent toujours par l'OCR LLM.
+attachment-ocr:
+  engine: ${ATTACHMENT_OCR_ENGINE:pipeline}
+  max-pages: ${ATTACHMENT_MAX_PAGES:1000}
+  poll-interval: ${ATTACHMENT_OCR_POLL_INTERVAL:5s}
+  job-timeout: ${ATTACHMENT_OCR_JOB_TIMEOUT:1h}
 identity-check:
   baseUrl: ${IDENTITY_CHECK_BASE_URL:https://api.int.adnovum-vips.ch}
   call-back-url: ${IDENTITY_CHECK_CALL_BACK_URL:http://localhost:4200/tools}
@@ -154,6 +173,8 @@ rag:
     enabled: ${RERANKING_ENABLED:true}
     truncate-prompt-tokens: ${RERANKING_TRUNCATE_PROMPT_TOKENS:16384}
     top-k: ${RERANKING_TOP_K:5}
+  document-tool:
+    max-tool-calls-per-turn: ${RAG_MAX_TOOL_CALLS_PER_TURN:10}
 logging:
   level:
     zas.admin.zec: DEBUG
@@ -184,6 +205,15 @@ nuxeo:
   url: ${NUXEO_URL}
   username: ${NUXEO_USERNAME}
   password: ${NUXEO_PASSWORD}
+
+feedback:
+  mail:
+    enabled: ${FEEDBACK_MAIL_ENABLED:false}
+    from: ${FEEDBACK_MAIL_FROM:no-reply-local@zas.admin.ch}
+    recipients: ${FEEDBACK_MAIL_RECIPIENTS:}
+    subject-prefix: ${FEEDBACK_MAIL_SUBJECT_PREFIX:[ZAS Copilot]}
+    app-base-url: ${FEEDBACK_MAIL_APP_BASE_URL:http://localhost:4200}
+    log-content: ${FEEDBACK_MAIL_LOG_CONTENT:false}
 
 management:
   observations:

@@ -4,6 +4,7 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.document.Document;
 import zas.admin.zec.backend.actions.converse.Question;
+import zas.admin.zec.backend.persistence.MetadataValues;
 import zas.admin.zec.backend.rag.PublicDocument;
 
 public class SourceValidator {
@@ -73,7 +74,7 @@ public class SourceValidator {
     private String systemMessage(String query, String lang, Document doc) {
         return switch (lang) {
             default -> SOURCE_VALIDATION_SYSTEM_MESSAGE_FR.formatted(
-                    doc.getMetadata().get("tags") == null ? "" : doc.getMetadata().get("tags"),
+                    MetadataValues.getString(doc.getMetadata(), "tags", ""),
                     doc.getText(),
                     query);
         };

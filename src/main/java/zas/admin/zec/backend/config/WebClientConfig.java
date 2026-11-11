@@ -2,8 +2,8 @@ package zas.admin.zec.backend.config;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.boot.autoconfigure.web.client.RestClientSsl;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.restclient.autoconfigure.RestClientSsl;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -23,7 +23,8 @@ import zas.admin.zec.backend.config.properties.*;
 @EnableJpaAuditing
 @EnableConfigurationProperties({ApplicationProperties.class, FAQSearchProperties.class,
         RerankingProperties.class, DeepLProperties.class, ProxyProperties.class,
-        IdentityCheckProperties.class, RetrievingProperties.class, EmbeddingServiceProperties.class})
+        IdentityCheckProperties.class, RetrievingProperties.class, EmbeddingServiceProperties.class,
+        AttachmentOcrProperties.class})
 public class WebClientConfig {
     private final ProxyProperties proxyProperties;
     private final IdentityCheckProperties identityCheckProperties;
@@ -75,6 +76,17 @@ public class WebClientConfig {
         executor.setMaxPoolSize(10);
         executor.setQueueCapacity(50);
         executor.setThreadNamePrefix("AsyncExecutor-");
+        executor.initialize();
+        return executor;
+    }
+
+    @Bean(name = "embeddingJobExecutor")
+    public TaskExecutor embeddingJobExecutor() {
+        var executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(4);
+        executor.setMaxPoolSize(10);
+        executor.setQueueCapacity(50);
+        executor.setThreadNamePrefix("EmbeddingJobExecutor-");
         executor.initialize();
         return executor;
     }

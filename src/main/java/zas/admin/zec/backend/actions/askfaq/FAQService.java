@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import zas.admin.zec.backend.config.properties.FAQSearchProperties;
+import zas.admin.zec.backend.persistence.MetadataValues;
 import zas.admin.zec.backend.persistence.entity.DocumentEntity;
 import zas.admin.zec.backend.persistence.entity.QuestionEntity;
 import zas.admin.zec.backend.persistence.repository.DocumentRepository;
@@ -71,9 +72,7 @@ public class FAQService {
 
     private FAQItem create(FAQItemLight faqItemLight) {
         var answerId = UUID.randomUUID().toString();
-        var tags = faqItemLight.tags() != null
-                ? String.join(",", faqItemLight.tags())
-                : "";
+        var tags = tags(faqItemLight);
 
         DocumentEntity answer = new DocumentEntity();
         answer.setContent(faqItemLight.answer());
@@ -102,13 +101,11 @@ public class FAQService {
     }
 
     private FAQItem update(FAQItemLight faqItemLight) {
-        var tags = faqItemLight.tags() != null
-                ? String.join(",", faqItemLight.tags())
-                : "";
+        var tags = tags(faqItemLight);
 
         QuestionEntity question = questionRepository.findById(Objects.requireNonNull(faqItemLight.id()))
                 .orElseThrow(() -> new IllegalArgumentException("No FAQItem found for id : " + faqItemLight.id()));
-        var answerId = question.getMetadata().get(METADATA_ANSWER_ID);
+        var answerId = MetadataValues.getString(question.getMetadata(), METADATA_ANSWER_ID);
         question.setContent(faqItemLight.text());
         question.setEmbedding(embeddingModel.embed(faqItemLight.text()));
         question.setMetadata(Map.of(
@@ -153,7 +150,7 @@ public class FAQService {
     private List<FAQItem> questionsToFAQItems(List<QuestionEntity> questions) {
         return questions.stream()
                 .map(question -> {
-                    var answerId = question.getMetadata().get(METADATA_ANSWER_ID);
+                    var answerId = MetadataValues.getString(question.getMetadata(), METADATA_ANSWER_ID);
                     var answer = documentRepository.findByAnswerId(answerId);
                     if (answer == null) {
                         return null;
@@ -166,5 +163,14 @@ public class FAQService {
 
     private String getFAQItemTextEmbedding(String question) {
         return Arrays.toString(embeddingModel.embed(question));
+    }
+
+    /**
+     * Tags stockés en tableau JSON (les anciennes entrées peuvent encore contenir une chaîne {@code "a,b"}).
+     */
+    private static List<String> tags(FAQItemLight faqItemLight) {
+        return faqItemLight.tags() != null
+                ? faqItemLight.tags().stream().filter(Objects::nonNull).toList()
+                : List.of();
     }
 }

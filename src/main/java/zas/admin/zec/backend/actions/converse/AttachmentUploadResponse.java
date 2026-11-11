@@ -31,9 +31,4 @@ public record AttachmentUploadResponse(AttachmentStatus status, String message, 
         }
         return new AttachmentUploadResponse(aggregated, aggregated.getDescription(), conversationAttachments);
     }
-
-    /** Erreur synchrone (ex. lecture des bytes impossible). */
-    public static AttachmentUploadResponse failed(String message) {
-        return new AttachmentUploadResponse(AttachmentStatus.FAILED, message, null);
-    }
 }

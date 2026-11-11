@@ -17,7 +17,7 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 @Constraint(validatedBy = MultipartFileValidator.class)
 @Target({ElementType.FIELD, ElementType.PARAMETER, ElementType.METHOD})
 public @interface ValidMultipartFile {
-    String message() default "Invalid file value";
+    String message() default "NO_FILE";
     Class<?>[] groups() default {};
     Class<? extends Payload>[] payload() default {};
 }

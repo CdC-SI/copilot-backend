@@ -1,12 +1,15 @@
 package zas.admin.zec.backend.actions.converse;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pdfbox.Loader;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.Limit;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -16,13 +19,17 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import zas.admin.zec.backend.actions.summarize.LlmOcrService;
 import zas.admin.zec.backend.actions.upload.UploadService;
+import zas.admin.zec.backend.actions.upload.validation.UploadErrorCode;
+import zas.admin.zec.backend.actions.upload.validation.UploadException;
 import zas.admin.zec.backend.actions.workspace.WorkspaceService;
+import zas.admin.zec.backend.config.properties.AttachmentOcrProperties;
 import zas.admin.zec.backend.persistence.entity.AttachmentEntity;
 import zas.admin.zec.backend.persistence.entity.ConversationTitleEntity;
 import zas.admin.zec.backend.persistence.entity.MessageEntity;
 import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
 import zas.admin.zec.backend.persistence.repository.ConversationRepository;
 import zas.admin.zec.backend.persistence.repository.ConversationTitleRepository;
+import zas.admin.zec.backend.rag.TurnTrace;
 import zas.admin.zec.backend.rag.token.*;
 
 import java.io.IOException;
@@ -36,6 +43,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class ConversationService {
 
     private static final String DELIM = "|";
+    private static final int PLACEHOLDER_TITLE_MAX_LENGTH = 100;
 
     private final ConversationRepository conversationRepository;
     private final ConversationTitleRepository conversationTitleRepository;
@@ -46,6 +54,7 @@ public class ConversationService {
     private final WorkspaceService workspaceService;
     private final ApplicationEventPublisher eventPublisher;
     private final TransactionTemplate transactionTemplate;
+    private final AttachmentOcrProperties attachmentOcrProperties;
 
 
     public ConversationService(ConversationRepository conversationRepository,
@@ -56,7 +65,8 @@ public class ConversationService {
                                LlmOcrService ocrService,
                                WorkspaceService workspaceService,
                                ApplicationEventPublisher eventPublisher,
-                               TransactionTemplate transactionTemplate) {
+                               TransactionTemplate transactionTemplate,
+                               AttachmentOcrProperties attachmentOcrProperties) {
 
         this.conversationRepository = conversationRepository;
         this.conversationTitleRepository = conversationTitleRepository;
@@ -67,13 +77,14 @@ public class ConversationService {
         this.workspaceService = workspaceService;
         this.eventPublisher = eventPublisher;
         this.transactionTemplate = transactionTemplate;
+        this.attachmentOcrProperties = attachmentOcrProperties;
     }
 
     public List<Source> getSourcesByMessageUuid(String conversationUuid, String messageUuid) {
         return conversationRepository.findByConversationIdAndMessageId(conversationUuid, messageUuid)
                 .map(MessageEntity::getSources)
                 .map(source -> Arrays.stream(source)
-                        .map(this::fromSourceString)
+                        .map(ConversationService::fromSourceString)
                         .toList()
                 )
                 .orElse(List.of());
@@ -112,6 +123,7 @@ public class ConversationService {
     }
 
     public void delete(String userId, String conversationId) {
+        cancelPendingJobs(userId, attachmentRepository.findPendingJobIdsByConversation(userId, conversationId));
         attachmentRepository.deleteByUserIdAndConversationId(userId, conversationId);
         conversationRepository.deleteByUserIdAndConversationId(userId, conversationId);
         conversationTitleRepository.deleteByUserIdAndConversationId(userId, conversationId);
@@ -145,9 +157,16 @@ public class ConversationService {
         AtomicReference<String> workspace = new AtomicReference<>(
                 question.workspace() != null && !question.workspace().isBlank() ? question.workspace() : null);
 
+        // Trace du tour (statut déclaré + documents consultés), émise en interne par l'agent.
+        AtomicReference<TurnTrace> turnTrace = new AtomicReference<>();
+
         return getTokenStream(question, userId, conversationType)
                 .flatMap(token -> switch (token) {
                     case StatusToken statusToken -> Flux.just(statusToken.content());
+                    case TurnTraceToken turnTraceToken -> {
+                        turnTrace.set(turnTraceToken.trace());
+                        yield Flux.empty();
+                    }
                     case SuggestionToken suggestionToken -> {
                         if (suggestions.add(suggestionToken.suggestion())) {
                             yield Flux.just(suggestionToken.content());
@@ -172,7 +191,7 @@ public class ConversationService {
                 .concatWithValues("<message_uuid>%s</message_uuid>".formatted(assistantMessageId))
                 .concatWith(
                         Mono.fromRunnable(() -> saveExchange(question, userId, assistantMessageId, assistantMessage.toString(),
-                                        sources, suggestions, timestamp, workspace.get(), conversationType))
+                                        sources, suggestions, timestamp, workspace.get(), conversationType, turnTrace.get()))
                                 .subscribeOn(Schedulers.boundedElastic())
                                 .then(Mono.empty()))
                 .onErrorResume(err -> {
@@ -203,43 +222,58 @@ public class ConversationService {
      * <p><strong>Cycle de vie MultipartFile :</strong> les bytes sont lus et commités en base <em>avant</em>
      * le retour de cette méthode. L'async ne reçoit que l'ID de l'entité et ne touche jamais au
      * {@code MultipartFile}, dont le stockage temporaire peut être libéré dès le 202.</p>
+     *
+     * @throws UploadException si aucun fichier n'est fourni, si un fichier est vide, illisible ou d'un type
+     *                         non pris en charge par l'OCR (PDF ou image), si un PDF dépasse le nombre maximal de
+     *                         pages ({@code attachment-ocr.max-pages}), ou si la persistance échoue
      */
-    public ConversationAttachments attachFilesToConversation(String conversationId, String userId, List<MultipartFile> files) throws IOException {
+    public ConversationAttachments attachFilesToConversation(String conversationId, String userId, List<MultipartFile> files) {
+        if (files == null || files.isEmpty()) {
+            throw new UploadException(null, UploadErrorCode.NO_FILE, "No attachment provided");
+        }
         var convId = conversationId == null ? UUID.randomUUID().toString() : conversationId;
 
-        // Lire tous les bytes AVANT la transaction : échec rapide si un fichier est illisible,
-        // et garantit que le MultipartFile n'est plus accédé après le retour HTTP 202.
-        record FileData(String filename, long size, byte[] bytes) {}
+        // Lire et valider tous les fichiers AVANT la transaction : échec rapide si un fichier est illisible,
+        // non pris en charge par l'OCR ou dépasse le nombre de pages autorisé, et garantit que le MultipartFile
+        // n'est plus accédé après le retour HTTP 202.
         var filesData = new ArrayList<FileData>(files.size());
         for (var file : files) {
-            filesData.add(new FileData(file.getOriginalFilename(), file.getSize(), file.getBytes()));
+            filesData.add(readAttachment(file));
         }
 
         // Transaction : persister les entités PENDING — commit garanti avant le dispatch async.
-        record PersistResult(Long id, String filename, long size) {}
-        List<PersistResult> results = transactionTemplate.execute(status -> {
-            var saved = new ArrayList<PersistResult>(filesData.size());
-            for (var data : filesData) {
-                var entity = new AttachmentEntity();
-                entity.setConversationId(convId);
-                entity.setUserId(userId);
-                entity.setFilename(data.filename());
-                entity.setFileSize(data.size());
-                entity.setFileBytes(data.bytes());
-                entity.setStatus(AttachmentStatus.PENDING);
-                // content est null : sera renseigné par AttachmentAsyncProcessor après l'OCR
-                var persisted = attachmentRepository.save(entity);
-                saved.add(new PersistResult(persisted.getId(), data.filename(), data.size()));
-            }
-            return saved;
-        });
+        record PersistResult(Long id, String filename, long size, boolean pipeline) {}
+        List<PersistResult> results;
+        try {
+            results = transactionTemplate.execute(status -> {
+                var saved = new ArrayList<PersistResult>(filesData.size());
+                for (var data : filesData) {
+                    var entity = new AttachmentEntity();
+                    entity.setConversationId(convId);
+                    entity.setUserId(userId);
+                    entity.setFilename(data.filename());
+                    entity.setFileSize(data.size());
+                    entity.setFileBytes(data.bytes());
+                    entity.setStatus(AttachmentStatus.PENDING);
+                    // next_poll_at renseigné : la pièce jointe est prise en charge par le poller du pipeline,
+                    // y compris si le backend redémarre avant la soumission
+                    entity.setNextPollAt(data.pipeline() ? LocalDateTime.now() : null);
+                    // content est null : sera renseigné après l'extraction (pipeline) ou l'OCR LLM
+                    var persisted = attachmentRepository.save(entity);
+                    saved.add(new PersistResult(persisted.getId(), data.filename(), data.size(), data.pipeline()));
+                }
+                return saved;
+            });
+        } catch (DataAccessException e) {
+            throw new UploadException(null, UploadErrorCode.UPLOAD_FAILED, "Error while saving attachments", e);
+        }
 
-        // Publier un événement par pièce jointe : l'OCR async est déclenché AFTER_COMMIT
+        // Publier un événement par pièce jointe : l'extraction async est déclenchée AFTER_COMMIT
         // (jamais le MultipartFile, uniquement l'ID), garantissant la visibilité de la ligne.
-        results.forEach(r -> eventPublisher.publishEvent(new AttachmentUploadedEvent(r.id())));
+        results.forEach(r -> eventPublisher.publishEvent(new AttachmentUploadedEvent(r.id(), r.pipeline())));
 
         var attachments = results.stream()
-                .map(r -> new Attachment(r.id(), r.filename(), r.size(), AttachmentStatus.PENDING))
+                .map(r -> new Attachment(r.id(), r.filename(), r.size(), AttachmentStatus.PENDING, null))
                 .toList();
         return new ConversationAttachments(convId, attachments);
     }
@@ -250,7 +284,7 @@ public class ConversationService {
     public AttachmentUploadResponse getAttachmentsStatus(String conversationId, String userId) {
         var attachments = attachmentRepository.findAllByConversationIdAndUserId(conversationId, userId)
                 .stream()
-                .map(entity -> new Attachment(entity.getId(), entity.getFilename(), entity.getFileSize(), entity.getStatus()))
+                .map(entity -> toAttachment(entity))
                 .toList();
         return AttachmentUploadResponse.fromAttachments(new ConversationAttachments(conversationId, attachments));
     }
@@ -259,17 +293,66 @@ public class ConversationService {
         var entity = attachmentRepository.findByIdAndConversationIdAndUserId(attachmentId, conversationId, userUuid)
                 .orElseThrow(() -> new NoSuchElementException("Attachment not found"));
 
-        return new UploadService.Doc(entity.getFilename(), new ByteArrayResource(entity.getFileBytes()));
+        return new UploadService.Doc(entity.getFilename(), MediaType.APPLICATION_OCTET_STREAM, new ByteArrayResource(entity.getFileBytes()));
     }
 
     public List<Attachment> getAttachmentsForConversation(String conversationId, String userId) {
         return attachmentRepository.findAllByConversationIdAndUserId(conversationId, userId)
                 .stream()
-                .map(entity -> new Attachment(entity.getId(), entity.getFilename(), entity.getFileSize(), entity.getStatus()))
+                .map(entity -> toAttachment(entity))
                 .toList();
     }
 
+    private record FileData(String filename, long size, byte[] bytes, boolean pipeline) {}
+
+    private FileData readAttachment(MultipartFile file) {
+        var filename = file.getOriginalFilename();
+        byte[] bytes;
+        boolean pdf;
+        try {
+            bytes = file.getBytes();
+            if (bytes.length == 0) {
+                throw new UploadException(filename, UploadErrorCode.FILE_CONTENT_INVALID, "Empty attachment");
+            }
+            if (!ocrService.isSupported(bytes)) {
+                throw new UploadException(filename, UploadErrorCode.FILE_TYPE_UNSUPPORTED, "Attachment type not supported by OCR");
+            }
+            pdf = ocrService.isPdf(bytes);
+        } catch (IOException e) {
+            throw new UploadException(filename, UploadErrorCode.FILE_READ_ERROR, "Failed to read attachment bytes", e);
+        }
+        if (pdf) {
+            checkPageCount(filename, bytes);
+        }
+        return new FileData(filename, file.getSize(), bytes, pdf && attachmentOcrProperties.usePipeline());
+    }
+
+    private void checkPageCount(String filename, byte[] pdf) {
+        int pages;
+        try (var document = Loader.loadPDF(pdf)) {
+            pages = document.getNumberOfPages();
+        } catch (IOException e) {
+            // PDF corrompu ou chiffré : illisible aussi bien par le pipeline que par l'OCR LLM
+            throw new UploadException(filename, UploadErrorCode.FILE_CONTENT_INVALID, "Unreadable PDF attachment", e);
+        }
+        if (pages > attachmentOcrProperties.maxPages()) {
+            throw new UploadException(filename, UploadErrorCode.TOO_MANY_PAGES,
+                    "PDF attachment has " + pages + " pages (max " + attachmentOcrProperties.maxPages() + ")");
+        }
+    }
+
+    private void cancelPendingJobs(String userId, List<String> jobIds) {
+        if (!jobIds.isEmpty()) {
+            eventPublisher.publishEvent(new AttachmentJobsCancelledEvent(userId, jobIds));
+        }
+    }
+
+    private static Attachment toAttachment(AttachmentEntity entity) {
+        return new Attachment(entity.getId(), entity.getFilename(), entity.getFileSize(), entity.getStatus(), entity.getErrorCode());
+    }
+
     public void deleteAttachment(Long attachmentId, String userId) {
+        cancelPendingJobs(userId, attachmentRepository.findPendingJobIds(attachmentId, userId));
         attachmentRepository.deleteByIdAndUserId(attachmentId, userId);
     }
 
@@ -281,12 +364,13 @@ public class ConversationService {
 
     private void saveExchange(Question question, String userId, String assistantMessageId, String answer, Set<Source> sources,
                               Set<String> suggestions, LocalDateTime userMessageTimestamp, String resolvedWorkspace,
-                              ConversationType conversationType) {
+                              ConversationType conversationType, TurnTrace turnTrace) {
 
         var userMessage = new Message(UUID.randomUUID().toString(), userId, question.conversationId(), null,
                 question.language(), question.query(), "USER", null, null, userMessageTimestamp, resolvedWorkspace);
         var assistantMessage = new Message(assistantMessageId, userId, question.conversationId(), null,
-                question.language(), answer, "LLM", sources.stream().toList(), suggestions.stream().toList(), LocalDateTime.now(), resolvedWorkspace);
+                question.language(), answer, "LLM", sources.stream().toList(), suggestions.stream().toList(),
+                LocalDateTime.now(), resolvedWorkspace, turnTrace);
 
         save(userMessage, userId, question.conversationId());
         save(assistantMessage, userId, question.conversationId());
@@ -305,11 +389,12 @@ public class ConversationService {
                         message.getMessage(),
                         getRole(message),
                         Arrays.stream(message.getSources())
-                                .map(this::fromSourceString)
+                                .map(ConversationService::fromSourceString)
                                 .toList(),
                         List.of(message.getSuggestions()),
                         message.getTimestamp(),
-                        message.getWorkspace()
+                        message.getWorkspace(),
+                        message.getConsultedSources() != null ? TurnTrace.fromMap(message.getConsultedSources()) : null
                 ))
                 .toList();
     }
@@ -334,7 +419,7 @@ public class ConversationService {
                 ? new String[0]
                 : message.sources()
                     .stream()
-                    .map(this::toSourceString)
+                    .map(ConversationService::toSourceString)
                     .distinct()
                     .toArray(String[]::new));
 
@@ -355,20 +440,25 @@ public class ConversationService {
                 ? new String[0]
                 : message.sources()
                     .stream()
-                    .map(this::toSourceString)
+                    .map(ConversationService::toSourceString)
                     .distinct()
                     .toArray(String[]::new));
         entity.setSuggestions(Objects.isNull(message.suggestions())
                 ? new String[0]
                 : message.suggestions().toArray(String[]::new));
         entity.setWorkspace(message.workspace());
+        entity.setConsultedSources(message.turnTrace() != null ? message.turnTrace().toMap() : null);
+        entity.setToolCalls(message.turnTrace() != null ? message.turnTrace().toolCallsAsMaps() : null);
+        entity.setUsage(message.turnTrace() != null && message.turnTrace().usage() != null
+                ? message.turnTrace().usage().toMap() : null);
 
         conversationRepository.save(entity);
     }
 
-    private String toSourceString(Source src) {
+    static String toSourceString(Source src) {
         // Old format for strings that still have only link or FILE:link
-        if (src.pageNumber() == null
+        if (src.type() != SourceType.BUSINESS_PROCESS
+            && src.pageNumber() == null
             && src.subsection() == null
             && src.version() == null) {
             return src.type() == SourceType.FILE
@@ -376,18 +466,35 @@ public class ConversationService {
                     : src.link();
         }
 
-        // New extended format: TYPE|link|page|subsection|version|documentId   (URL-encoded parts)
+        // New extended format: TYPE|link|page|subsection|version|documentId|title
         return String.join(DELIM,
                 src.type().name(),
-                src.link(),
-                src.pageNumber(),
-                src.subsection(),
-                src.version(),
-                src.documentId() == null ? "" : src.documentId()
+                sanitize(src.link()),
+                sanitize(src.pageNumber()),
+                sanitize(src.subsection()),
+                sanitize(src.version()),
+                src.documentId() == null ? "" : src.documentId(),
+                sanitize(src.title())
                 );
     }
 
-    private Source fromSourceString(String raw) {
+    /**
+     * Le séparateur "|" ne doit pas apparaître dans les champs ; {@code null} est écrit comme une chaîne vide
+     * (et non "null", que {@link String#join} produirait).
+     */
+    private static String sanitize(String value) {
+        return value == null ? "" : value.replace(DELIM, "/");
+    }
+
+    /** Champ optionnel relu : absent, vide ou "null" (lignes écrites avant correction) → {@code null}. */
+    private static String optionalPart(String[] parts, int index) {
+        if (parts.length <= index || parts[index].isEmpty() || "null".equals(parts[index])) {
+            return null;
+        }
+        return parts[index];
+    }
+
+    static Source fromSourceString(String raw) {
         /* -------- legacy strings -------- */
         if (!raw.contains(DELIM)) {                 // no “|” → old style
             if (raw.startsWith(SourceType.FILE.name() + ":")) {
@@ -399,42 +506,66 @@ public class ConversationService {
 
         /* -------- new strings (pipe-separated) -------- */
         String[] parts = raw.split("\\|", -1);      // keep empty tail segments
-        //       0       1      2         3          4          5
-        //      TYPE | link | page | subsection | version | documentId
+        //       0       1      2         3          4          5          6
+        //      TYPE | link | page | subsection | version | documentId | title
         SourceType type       = SourceType.valueOf(parts[0]);
         String link           = parts[1];
-        String pageNumber     = parts.length > 2 ? parts[2] : null;
-        String subsection     = parts.length > 3 ? parts[3] : null;
-        String version        = parts.length > 4 ? parts[4] : null;
+        String pageNumber     = optionalPart(parts, 2);
+        String subsection     = optionalPart(parts, 3);
+        String version        = optionalPart(parts, 4);
         String documentId     = parts.length > 5 ? parts[5] : generateLegacyDocId(parts);
+        String title          = optionalPart(parts, 6);
 
-        return new Source(documentId, type, link, pageNumber, subsection, version);
+        return new Source(documentId, type, link, pageNumber, subsection, version, title);
     }
 
-    private String generateLegacyDocId(String[] sourceParts) {
+    private static String generateLegacyDocId(String[] sourceParts) {
         return String.join("#", Arrays.stream(sourceParts).filter(part -> part != null && !part.isEmpty()).toList());
     }
 
+    /**
+     * Crée le titre de la conversation lors de son premier échange. La ligne {@code chat_title} est
+     * d'abord insérée de façon atomique avec un titre provisoire (la question), puis mise à jour avec
+     * le titre généré par le LLM : une question de suivi posée pendant cette génération retrouve donc
+     * la conversation (et son type) sans créer de second titre.
+     */
     private void generateConversationTitle(String initialQuery, String initialResponse, String userId, String conversationId,
                                             String language, ConversationType conversationType) {
-        if (conversationTitleRepository.findByUserIdAndConversationId(userId, conversationId).isEmpty()) {
-            var title = chatClient.prompt()
+        // Type figé à la création de la conversation : immuable pour toute question suivante.
+        int inserted = conversationTitleRepository.insertIfAbsent(userId, conversationId, placeholderTitle(initialQuery),
+                LocalDateTime.now(), conversationType.name());
+        if (inserted == 0) {
+            return;
+        }
+
+        String title;
+        try {
+            title = chatClient.prompt()
                     .system(ConversationPrompts.getConversationTitlePrompt(language)
                             .formatted(initialResponse))
                     .user(initialQuery)
                     .call()
                     .content();
-
-            var entity = new ConversationTitleEntity();
-            entity.setUserId(userId);
-            entity.setConversationId(conversationId);
-            entity.setTitle(title);
-            entity.setTimestamp(LocalDateTime.now());
-            // Type figé à la création de la conversation : immuable pour toute question suivante.
-            entity.setConversationType(conversationType);
-
-            conversationTitleRepository.save(entity);
+        } catch (RuntimeException e) {
+            log.error("Génération du titre de la conversation {} impossible, titre provisoire conservé", conversationId, e);
+            return;
         }
+        if (title == null || title.isBlank()) {
+            return;
+        }
+
+        conversationTitleRepository.findByUserIdAndConversationId(userId, conversationId)
+                .ifPresent(entity -> {
+                    entity.setTitle(title);
+                    conversationTitleRepository.save(entity);
+                });
+    }
+
+    private static String placeholderTitle(String query) {
+        var title = query == null ? "" : query.strip();
+        return title.length() > PLACEHOLDER_TITLE_MAX_LENGTH
+                ? title.substring(0, PLACEHOLDER_TITLE_MAX_LENGTH) + "…"
+                : title;
     }
 
     public List<String> getWorkspaces() {

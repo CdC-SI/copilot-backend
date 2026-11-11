@@ -1,7 +1,5 @@
 package zas.admin.zec.backend.actions.api;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -11,6 +9,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import zas.admin.zec.backend.config.api.RequireExternalClient;
 
 import java.util.Map;
@@ -49,7 +49,7 @@ public class PublicChatController {
     private String toJson(Object payload) {
         try {
             return mapper.writeValueAsString(payload);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             // Ne jamais casser le stream pour un souci de sérialisation: on fallback en texte simple
             return "{\"_unserializable\":true}";
         }

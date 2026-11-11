@@ -3,6 +3,7 @@ package zas.admin.zec.backend.actions.upload;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +20,7 @@ import zas.admin.zec.backend.config.security.RequireAdmin;
 import zas.admin.zec.backend.config.security.RequireInternalUser;
 import zas.admin.zec.backend.config.security.RequireUser;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @Slf4j
@@ -42,9 +44,12 @@ public class DocumentController {
     @GetMapping
     public ResponseEntity<Resource> getDocument(@RequestParam String filename) {
         var download = uploadService.download(filename);
+        var contentDisposition = ContentDisposition.attachment()
+                .filename(download.filename(), StandardCharsets.UTF_8)
+                .build();
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=%s".formatted(download.filename()))
-                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition.toString())
+                .contentType(download.mediaType())
                 .body(download.content());
     }
 

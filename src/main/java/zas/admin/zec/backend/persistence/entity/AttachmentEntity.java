@@ -4,6 +4,9 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import zas.admin.zec.backend.actions.converse.AttachmentStatus;
+import zas.admin.zec.backend.actions.upload.validation.UploadErrorCode;
+
+import java.time.LocalDateTime;
 
 @Getter
 @Setter
@@ -37,5 +40,21 @@ public class AttachmentEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private AttachmentStatus status;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "error_code")
+    private UploadErrorCode errorCode;
+
+    @Column(name = "job_id")
+    private String jobId;
+
+    @Column(name = "job_submitted_at")
+    private LocalDateTime jobSubmittedAt;
+
+    @Column(name = "job_attempts", nullable = false)
+    private int jobAttempts;
+
+    @Column(name = "next_poll_at")
+    private LocalDateTime nextPollAt;
 
 }

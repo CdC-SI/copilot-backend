@@ -1,6 +1,7 @@
 package zas.admin.zec.backend.actions.analyze;
 
 import org.springframework.stereotype.Service;
+import zas.admin.zec.backend.persistence.MetadataValues;
 import zas.admin.zec.backend.persistence.repository.DocumentRepository;
 
 import java.util.Optional;
@@ -19,7 +20,9 @@ public class DocumentCatalogService {
     Optional<Doc> findById(String documentId) {
         try {
             return documentRepository.findById(UUID.fromString(documentId))
-                .map(doc -> new Doc(doc.getMetadata().getOrDefault("title", ""), doc.getMetadata().getOrDefault("url", "")));
+                .map(doc -> new Doc(
+                        MetadataValues.getString(doc.getMetadata(), "title", ""),
+                        MetadataValues.getString(doc.getMetadata(), "url", "")));
         } catch (IllegalArgumentException e) {
             //Legacy IDs are not UUIDs
             return Optional.empty();

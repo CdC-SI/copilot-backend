@@ -2,11 +2,9 @@ package zas.admin.zec.backend.config.api;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.web.authentication.AuthenticationConverter;
-import org.springframework.stereotype.Component;
 
 import java.util.Optional;
 
-@Component
 public class ApiKeyAuthenticationConverter implements AuthenticationConverter {
 
     // Attend: X-API-Key: ak_<keyId>.<secret>

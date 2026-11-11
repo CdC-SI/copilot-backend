@@ -4,26 +4,11 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
-
 @Getter
 @Setter
 @Entity
 @Table(name = "source_feedback")
-public class SourceFeedbackEntity {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(name = "user_uuid", nullable = false)
-    private String userId;
-
-    @Column(name = "conversation_uuid", nullable = false)
-    private String conversationId;
-
-    @Column(name = "message_uuid", nullable = false)
-    private String messageId;
+public class SourceFeedbackEntity extends AbstractFeedbackEntity {
 
     @Column(name = "document_id", nullable = false)
     private String documentId;
@@ -32,17 +17,10 @@ public class SourceFeedbackEntity {
     @Column(name = "feedback_type", nullable = false)
     private FeedbackType feedbackType;
 
-    @Column(name = "comment", columnDefinition = "text")
-    private String comment;
-
-    @Column(name = "timestamp")
-    private LocalDateTime timestamp;
-
-    @Column(name = "question", columnDefinition = "text")
-    private String question;
-
-    @Column(name = "answer", columnDefinition = "text")
-    private String answer;
+    @Override
+    public boolean isNegative() {
+        return feedbackType == FeedbackType.NEGATIVE;
+    }
 
     public enum FeedbackType {
         POSITIVE,

@@ -4,6 +4,7 @@ import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 
 import java.util.Collection;
+import java.util.List;
 
 // Avant validation: principal = keyId (String), credentials = rawSecret (String)
 // Après validation: principal = ApiClientPrincipal (avec id, name, etc.), credentials = null
@@ -13,7 +14,7 @@ public class ApiKeyAuthenticationToken extends AbstractAuthenticationToken {
     private final transient Object credentials;
 
     public ApiKeyAuthenticationToken(String keyId, String rawSecret) {
-        super(null);
+        super(List.of());
         this.principal = keyId;
         this.credentials = rawSecret;
         setAuthenticated(false);

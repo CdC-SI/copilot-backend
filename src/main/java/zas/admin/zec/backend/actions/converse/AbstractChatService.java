@@ -3,14 +3,20 @@ package zas.admin.zec.backend.actions.converse;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.model.Generation;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
+import zas.admin.zec.backend.rag.TurnStatus;
+import zas.admin.zec.backend.rag.TurnTrace;
 import zas.admin.zec.backend.rag.token.TextToken;
 import zas.admin.zec.backend.rag.token.Token;
 import zas.admin.zec.backend.tools.ToolContextKeys;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Base commune aux implémentations de {@link ChatService}, regroupant les helpers partagés :
@@ -34,13 +40,70 @@ abstract class AbstractChatService implements ChatService {
     }
 
     protected Flux<Token> toTextToken(ChatResponse response) {
-        if (response == null) {
-            return Flux.just(new TextToken(""));
-        } else {
-            response.getResult();
+        return Flux.just(new TextToken(extractText(response)));
+    }
+
+    protected String extractText(ChatResponse response) {
+        return Optional.ofNullable(response)
+                .map(ChatResponse::getResult)
+                .map(Generation::getOutput)
+                .map(AssistantMessage::getText)
+                .orElse("");
+    }
+
+    /**
+     * Convertit l'historique en messages Spring AI en préfixant chaque message utilisateur par le bloc
+     * {@code <retrieved_sources>} des documents consultés lors du tour assistant précédent.
+     * Le rendu est déterministe : un même historique produit toujours le même préfixe (prefix caching).
+     */
+    protected List<org.springframework.ai.chat.messages.Message> toPromptMessages(List<Message> history) {
+        List<org.springframework.ai.chat.messages.Message> messages = new ArrayList<>(history.size());
+        String pendingBlock = "";
+        int assistantTurn = 0;
+        for (Message message : history) {
+            if ("USER".equals(message.role())) {
+                messages.add(new UserMessage(withContextBlock(pendingBlock, message.message())));
+                pendingBlock = "";
+            } else {
+                assistantTurn++;
+                messages.add(new AssistantMessage(withTurnMeta(message)));
+                pendingBlock = RetrievedSourcesRenderer.render(assistantTurn,
+                        RetrievedSourcesRenderer.consultedSources(message));
+            }
         }
-        var text = response.getResult().getOutput().getText();
-        return Flux.just(new TextToken(text != null ? text : ""));
+        return messages;
+    }
+
+    /**
+     * Texte d'une réponse passée tel que le modèle l'a produit : la balise {@code <turn_meta>}, retirée du texte
+     * affiché et persisté, est rétablie à partir de la trace du tour (statut et {@code used}). Sans elle, l'historique
+     * montre au modèle des réponses sans balise et il cesse de l'émettre dans les tours suivants. Un tour dont la
+     * balise manquait ({@link TurnStatus#UNKNOWN}, sources affichées comme pour une réponse) est rendu en
+     * {@code answer}. Rendu déterministe (prefix caching). Historique antérieur à la trace : texte inchangé.
+     */
+    static String withTurnMeta(Message message) {
+        TurnTrace trace = message.turnTrace();
+        if (trace == null) {
+            return message.message();
+        }
+        TurnStatus status = trace.status() == TurnStatus.UNKNOWN ? TurnStatus.ANSWER : trace.status();
+        return message.message().stripTrailing() + "\n<turn_meta status=\"" + status.key() + "\" used=\""
+                + String.join(",", trace.used().declared()) + "\"/>";
+    }
+
+    /** Bloc {@code <retrieved_sources>} du dernier tour assistant, à préfixer à la question courante. */
+    protected String retrievedSourcesForCurrentTurn(List<Message> history) {
+        if (history.isEmpty() || "USER".equals(history.getLast().role())) {
+            return "";
+        }
+        long assistantTurns = history.stream().filter(m -> !"USER".equals(m.role())).count();
+        return RetrievedSourcesRenderer.render((int) assistantTurns,
+                RetrievedSourcesRenderer.consultedSources(history.getLast()));
+    }
+
+    /** Préfixe {@code text} par un bloc ajouté par le système ({@code <retrieved_sources>}, {@code <conversation_attachments>}). */
+    protected static String withContextBlock(String block, String text) {
+        return block == null || block.isEmpty() ? text : block + "\n\n" + text;
     }
 
     protected org.springframework.ai.chat.messages.Message convertToMessage(Message message) {
