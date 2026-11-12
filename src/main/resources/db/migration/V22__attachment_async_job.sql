@@ -18,6 +18,6 @@ SET next_poll_at = NOW()
 WHERE status = 'PENDING'
   AND substring(file_bytes FROM 1 FOR 5) = '\x255044462d'::bytea;
 
-CREATE INDEX idx_attachment_pending_poll
+CREATE INDEX IF NOT EXISTS idx_attachment_pending_poll
     ON attachment (next_poll_at)
     WHERE status = 'PENDING' AND next_poll_at IS NOT NULL;
