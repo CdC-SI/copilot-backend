@@ -7,10 +7,10 @@
 --                   NULL pour les pièces jointes traitées par l'OCR LLM (images) : le poller les ignore.
 
 ALTER TABLE attachment
-    ADD COLUMN job_id VARCHAR(255),
-    ADD COLUMN job_submitted_at TIMESTAMP(6),
-    ADD COLUMN job_attempts INT NOT NULL DEFAULT 0,
-    ADD COLUMN next_poll_at TIMESTAMP(6);
+    ADD COLUMN IF NOT EXISTS job_id VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS job_submitted_at TIMESTAMP(6),
+    ADD COLUMN IF NOT EXISTS job_attempts INT NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS next_poll_at TIMESTAMP(6);
 
 -- Les PDF restés PENDING (OCR LLM interrompu par un redémarrage) sont repris par le poller.
 UPDATE attachment
