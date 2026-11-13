@@ -4,6 +4,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -38,6 +40,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -48,8 +51,8 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 /**
- * F3 : enregistrement de la réponse interrompue (Stop) et remplacement du dernier échange
- * (régénération / édition) dans {@link ConversationService#streamAnswer}.
+ * F3/F3b : enregistrement de la réponse interrompue (Stop, déconnexion), remplacement du dernier échange
+ * (régénération / édition) et sérialisation des générations dans {@link ConversationService#streamAnswer}.
  */
 @ExtendWith(MockitoExtension.class)
 class ConversationServiceStreamTest {
@@ -69,6 +72,7 @@ class ConversationServiceStreamTest {
     @Mock
     private ChatModel chatModel;
 
+    private final GenerationRegistry registry = new GenerationRegistry();
     private ConversationService service;
     private final List<ChatStreamEvent> emitted = new CopyOnWriteArrayList<>();
 
@@ -81,7 +85,7 @@ class ConversationServiceStreamTest {
                 mock(WorkspaceService.class), mock(ApplicationEventPublisher.class),
                 new TransactionTemplate(mock(PlatformTransactionManager.class)),
                 new AttachmentOcrProperties(AttachmentOcrProperties.Engine.PIPELINE, 1000,
-                        Duration.ofSeconds(5), Duration.ofHours(1)));
+                        Duration.ofSeconds(5), Duration.ofHours(1)), registry);
     }
 
     @Test
@@ -94,7 +98,7 @@ class ConversationServiceStreamTest {
             return invocation.getArgument(0);
         });
 
-        var output = service.streamAnswer(question(false), USER).doOnNext(emitted::add).collectList().block(ASYNC);
+        var output = service.streamAnswer(question(null), USER).doOnNext(emitted::add).collectList().block(ASYNC);
 
         assertEquals(List.of("start", "text_delta", "text_delta", "done"), types(output));
         var start = (ChatStreamEvent.Start) output.get(0).data();
@@ -120,7 +124,7 @@ class ConversationServiceStreamTest {
                 new StatusToken(ChatStatus.RETRIEVAL, "fr"), new WorkspaceToken("AVS"), source, source,
                 new SuggestionToken("Et ensuite ?"), new SuggestionToken("Et ensuite ?"), text("Réponse")));
 
-        var output = service.streamAnswer(question(false), USER).collectList().block(ASYNC);
+        var output = service.streamAnswer(question(null), USER).collectList().block(ASYNC);
 
         assertEquals(List.of("start", "status", "workspace", "source", "suggestion", "text_delta", "done"), types(output));
         assertEquals(new ChatStreamEvent.Status("retrieval", "Recherche des documents pertinents"), output.get(1).data());
@@ -141,22 +145,22 @@ class ConversationServiceStreamTest {
         var title = new ConversationTitleEntity();
         when(titleRepository.findByUserIdAndConversationId(USER, CONVERSATION)).thenReturn(Optional.of(title));
 
-        var output = service.streamAnswer(question(false), USER).doOnNext(emitted::add).collectList().block(ASYNC);
+        var output = service.streamAnswer(question(null), USER).doOnNext(emitted::add).collectList().block(ASYNC);
 
         assertEquals(ChatStreamEvent.DONE, output.getLast().type());
         assertEquals("Titre", title.getTitle());
     }
 
     @Test
-    @DisplayName("Stop : annulation propagée au LLM, question + réponse partielle enregistrées une seule fois, marquée interrompue")
+    @DisplayName("déconnexion : annulation propagée au LLM, question + réponse partielle enregistrées une seule fois, marquée interrompue")
     void cancel_savesPartialInterruptedAnswerOnce() throws InterruptedException {
         var llmCancelled = new CountDownLatch(1);
         when(chatService.answer(any(), eq(USER), any())).thenReturn(
                 Flux.concat(Flux.just(text("Réponse "), text("partielle")), Flux.<Token>never())
                         .doOnCancel(llmCancelled::countDown));
 
-        // take(3) annule l'abonnement après start et les deux premiers tokens, comme un Stop côté client.
-        var output = service.streamAnswer(question(false), USER).take(3).collectList().block(ASYNC);
+        // take(3) annule l'abonnement après start et les deux premiers tokens, comme une déconnexion du client.
+        var output = service.streamAnswer(question(null), USER).take(3).collectList().block(ASYNC);
 
         assertEquals(List.of("start", "text_delta", "text_delta"), types(output));
 
@@ -172,13 +176,13 @@ class ConversationServiceStreamTest {
     }
 
     @Test
-    @DisplayName("Stop avant le premier token : question + réponse vide interrompue enregistrées")
+    @DisplayName("déconnexion avant le premier token : question + réponse vide interrompue enregistrées")
     void cancelBeforeAnyToken_savesEmptyInterruptedAnswer() {
         when(chatService.answer(any(), eq(USER), any())).thenReturn(Flux.never());
         when(conversationRepository.findByConversationIdAndUserIdOrderByTimestamp(eq(CONVERSATION), eq(USER), any()))
                 .thenReturn(List.of());
 
-        var subscription = service.streamAnswer(question(false), USER).subscribe();
+        var subscription = service.streamAnswer(question(null), USER).subscribe();
         verify(chatService, timeout(ASYNC.toMillis())).answer(any(), any(), any());
         subscription.dispose();
 
@@ -189,8 +193,8 @@ class ConversationServiceStreamTest {
     }
 
     @Test
-    @DisplayName("replaceLastTurn : dernier échange exclu du contexte puis supprimé dans la transaction d'enregistrement")
-    void replaceLastTurn_excludesAndDeletesLastExchange() {
+    @DisplayName("régénération : dernier échange exclu du contexte puis supprimé dans la transaction d'enregistrement")
+    void regenerate_excludesAndDeletesLastExchange() {
         when(conversationRepository.findByConversationIdAndUserIdOrderByTimestamp(eq(CONVERSATION), eq(USER), any()))
                 .thenReturn(history());
         var context = new AtomicReference<List<Message>>();
@@ -199,7 +203,7 @@ class ConversationServiceStreamTest {
             return Flux.just(text("Nouvelle réponse"));
         });
 
-        service.streamAnswer(question(true), USER).collectList().block(ASYNC);
+        service.streamAnswer(question("a2"), USER).collectList().block(ASYNC);
 
         assertEquals(List.of("u1", "a1"), context.get().stream().map(Message::messageId).toList());
         var inOrder = inOrder(conversationRepository);
@@ -211,15 +215,15 @@ class ConversationServiceStreamTest {
     }
 
     @Test
-    @DisplayName("replaceLastTurn + Stop : dernier échange supprimé et réponse partielle enregistrée interrompue")
-    void replaceLastTurn_cancel_deletesLastExchange() {
+    @DisplayName("régénération + déconnexion : dernier échange supprimé et réponse partielle enregistrée interrompue")
+    void regenerate_cancel_deletesLastExchange() {
         when(conversationRepository.findByConversationIdAndUserIdOrderByTimestamp(eq(CONVERSATION), eq(USER), any()))
                 .thenReturn(history());
         when(chatService.answer(any(), eq(USER), any()))
                 .thenReturn(Flux.concat(Flux.just(text("Début")), Flux.<Token>never()));
 
         assertEquals(List.of("start", "text_delta"),
-                types(service.streamAnswer(question(true), USER).take(2).collectList().block(ASYNC)));
+                types(service.streamAnswer(question("a2"), USER).take(2).collectList().block(ASYNC)));
 
         verify(conversationRepository, timeout(ASYNC.toMillis()))
                 .deleteByUserIdAndConversationIdAndMessageIdIn(USER, CONVERSATION, List.of("u2", "a2"));
@@ -236,7 +240,7 @@ class ConversationServiceStreamTest {
         when(chatService.answer(any(), eq(USER), any()))
                 .thenReturn(Flux.concat(Flux.just(text("Début")), Flux.error(new IllegalStateException("boom"))));
 
-        var output = service.streamAnswer(question(true), USER).collectList().block(ASYNC);
+        var output = service.streamAnswer(question("a2"), USER).collectList().block(ASYNC);
 
         assertEquals(List.of("start", "text_delta", "error"), types(output));
         assertEquals(new ChatStreamEvent.Error(ChatStreamEvent.GENERATION_FAILED, "boom"), output.get(2).data());
@@ -244,17 +248,124 @@ class ConversationServiceStreamTest {
         verify(conversationRepository, never()).save(any(MessageEntity.class));
     }
 
-    @Test
-    @DisplayName("replaceLastTurn sans échange précédent : comportement normal")
-    void replaceLastTurn_withoutPreviousExchange_behavesNormally() {
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"a1", "u2", "inconnu"})
+    @DisplayName("régénération d'un message qui n'est pas la dernière réponse : 409 avant tout streaming, registre libéré")
+    void regenerate_notLastAnswer_isRejected(String replaceMessageId) {
         when(conversationRepository.findByConversationIdAndUserIdOrderByTimestamp(eq(CONVERSATION), eq(USER), any()))
-                .thenReturn(List.of());
-        when(chatService.answer(any(), eq(USER), any())).thenReturn(Flux.just(text("Réponse")));
+                .thenReturn(history());
 
-        service.streamAnswer(question(true), USER).collectList().block(ASYNC);
+        var conflict = assertThrows(ConversationConflictException.class,
+                () -> service.streamAnswer(question(replaceMessageId), USER));
 
-        verify(conversationRepository, never()).deleteByUserIdAndConversationIdAndMessageIdIn(any(), any(), any());
-        assertEquals("Réponse", savedMessages(2).get(1).getMessage());
+        assertEquals(ConversationConflictException.TURN_NOT_REPLACEABLE, conflict.getCode());
+        verifyNoInteractions(chatService);
+        assertDoesNotThrow(() -> registry.finish(registry.begin("next", USER, CONVERSATION)));
+    }
+
+    @Test
+    @DisplayName("régénération sans échange précédent : 409")
+    void regenerate_withoutPreviousExchange_isRejected() {
+        var conflict = assertThrows(ConversationConflictException.class,
+                () -> service.streamAnswer(question("a2"), USER));
+
+        assertEquals(ConversationConflictException.TURN_NOT_REPLACEABLE, conflict.getCode());
+    }
+
+    @Test
+    @DisplayName("Stop : production arrêtée, réponse partielle enregistrée puis done {interrupted: true}, registre libéré")
+    void stop_savesPartialAnswerThenEmitsInterruptedDone() {
+        var llmCancelled = new CountDownLatch(1);
+        when(chatService.answer(any(), eq(USER), any())).thenReturn(
+                Flux.concat(Flux.just(text("Réponse "), text("partielle")), Flux.<Token>never())
+                        .doOnCancel(llmCancelled::countDown));
+        when(conversationRepository.save(any(MessageEntity.class))).thenAnswer(invocation -> {
+            assertTrue(emitted.stream().noneMatch(e -> e.type().equals(ChatStreamEvent.DONE)));
+            return invocation.getArgument(0);
+        });
+
+        var output = service.streamAnswer(question(null), USER)
+                .doOnNext(emitted::add)
+                .doOnNext(event -> {
+                    if (emitted.size() == 3) {
+                        var start = (ChatStreamEvent.Start) emitted.getFirst().data();
+                        assertTrue(service.stopGeneration(USER, CONVERSATION, start.messageId()));
+                    }
+                })
+                .collectList().block(ASYNC);
+
+        assertEquals(List.of("start", "text_delta", "text_delta", "done"), types(output));
+        var start = (ChatStreamEvent.Start) output.getFirst().data();
+        assertEquals(new ChatStreamEvent.Done(start.messageId(), true), output.getLast().data());
+        assertEquals(0, llmCancelled.getCount(), "le Stop doit annuler l'appel LLM");
+        var saved = savedMessages(2);
+        assertEquals("Réponse partielle", saved.get(1).getMessage());
+        assertTrue(saved.get(1).isInterrupted());
+        assertFalse(service.stopGeneration(USER, CONVERSATION, start.messageId()), "génération terminée");
+        assertDoesNotThrow(() -> registry.finish(registry.begin("next", USER, CONVERSATION)));
+    }
+
+    @Test
+    @DisplayName("Stop : refusé pour un autre utilisateur, une autre conversation ou une génération inconnue")
+    void stop_otherOwnerOrUnknown_isRejected() {
+        when(chatService.answer(any(), eq(USER), any())).thenReturn(Flux.never());
+
+        var subscription = service.streamAnswer(question(null), USER).doOnNext(emitted::add).subscribe();
+        try {
+            var messageId = ((ChatStreamEvent.Start) emitted.getFirst().data()).messageId();
+            assertFalse(service.stopGeneration("other", CONVERSATION, messageId));
+            assertFalse(service.stopGeneration(USER, "other", messageId));
+            assertFalse(service.stopGeneration(USER, CONVERSATION, "inconnu"));
+        } finally {
+            subscription.dispose();
+        }
+    }
+
+    @Test
+    @DisplayName("nouvelle question pendant qu'une réponse est produite : 409 GENERATION_IN_PROGRESS")
+    void secondGeneration_whileStreaming_isRejected() {
+        when(chatService.answer(any(), eq(USER), any())).thenReturn(Flux.never());
+
+        var subscription = service.streamAnswer(question(null), USER).subscribe();
+        try {
+            var conflict = assertThrows(ConversationConflictException.class,
+                    () -> service.streamAnswer(question(null), USER));
+            assertEquals(ConversationConflictException.GENERATION_IN_PROGRESS, conflict.getCode());
+        } finally {
+            subscription.dispose();
+        }
+    }
+
+    @Test
+    @DisplayName("régénération pendant l'enregistrement de la réponse interrompue : attend le commit avant de relire l'historique")
+    void regenerate_whileSaving_waitsForCommit() throws Exception {
+        var release = new CountDownLatch(1);
+        var saved = new CopyOnWriteArrayList<MessageEntity>();
+        when(conversationRepository.save(any(MessageEntity.class))).thenAnswer(invocation -> {
+            assertTrue(release.await(ASYNC.toMillis(), TimeUnit.MILLISECONDS));
+            saved.add(invocation.getArgument(0));
+            return invocation.getArgument(0);
+        });
+        when(conversationRepository.findByConversationIdAndUserIdOrderByTimestamp(eq(CONVERSATION), eq(USER), any()))
+                .thenAnswer(invocation -> List.copyOf(saved));
+        when(chatService.answer(any(), eq(USER), any()))
+                .thenReturn(Flux.concat(Flux.just(text("Début")), Flux.<Token>never()))
+                .thenReturn(Flux.just(text("Nouvelle réponse")));
+
+        // Déconnexion après le premier token : l'enregistrement (bloqué) démarre.
+        var first = service.streamAnswer(question(null), USER).take(2).collectList().block(ASYNC);
+        var interruptedId = ((ChatStreamEvent.Start) first.getFirst().data()).messageId();
+
+        var regenerate = CompletableFuture.supplyAsync(() -> service.streamAnswer(question(interruptedId), USER));
+        Thread.sleep(200);
+        assertFalse(regenerate.isDone(), "la régénération doit attendre la fin de l'enregistrement");
+
+        release.countDown();
+        var output = regenerate.get(ASYNC.toMillis(), TimeUnit.MILLISECONDS).collectList().block(ASYNC);
+
+        assertEquals(ChatStreamEvent.DONE, output.getLast().type());
+        verify(conversationRepository).deleteByUserIdAndConversationIdAndMessageIdIn(eq(USER), eq(CONVERSATION),
+                argThat(ids -> ids.contains(interruptedId) && ids.size() == 2));
     }
 
     @Test
@@ -271,13 +382,13 @@ class ConversationServiceStreamTest {
         assertTrue(messages.get(1).interrupted());
     }
 
-    private static Question question(boolean replaceLastTurn) {
+    private static Question question(String replaceMessageId) {
         return Question.builder()
                 .query("Question ?")
                 .language("fr")
                 .conversationId(CONVERSATION)
                 .ragEnabled(true)
-                .replaceLastTurn(replaceLastTurn)
+                .replaceMessageId(replaceMessageId)
                 .build()
                 .withDefaults();
     }
