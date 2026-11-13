@@ -25,7 +25,7 @@ basé sur Spring AI, avec une boucle agentique (le LLM appelle des tools `@Tool`
 - `actions/<cas d'usage>/` : controllers REST + services applicatifs (`converse`, `upload`, `authorize`,
   `api`, `summarize`, `workspace`, `alert`, `rate`…).
 - `tools/` : tools Spring AI (`@Tool`) et services utilitaires (ex. `RAGTool`, `TariffService`, `document/`).
-- `rag/` : pipeline RAG (`retriever`, `reranker`, `joiner`, `advisor`, `token`, `validation`, prompts).
+- `rag/` : pipeline RAG (`retriever`, `reranker`, `joiner`, `token`, `validation`, prompts).
 - `config/` (dont `security/`, `properties/`), `persistence/` (`entity/`, `repository/`).
 
 ## Conventions de code
@@ -41,7 +41,7 @@ basé sur Spring AI, avec une boucle agentique (le LLM appelle des tools `@Tool`
 
 ## Bonnes pratiques
 
-- Ne pas casser les chemins publics existants (`PublicChatController`) ni `ConversationService` lors de
+- Ne pas casser les chemins existants (sécurité par clé d'API de `/api/public/v1/**`, API publique à reconstruire en V5) ni `ConversationService` lors de
   refactorings progressifs.
 - Lors d'un remplacement par étapes, marquer l'ancien code `@Deprecated(forRemoval = true)` avec un
   commentaire expliquant la suite, plutôt que de tout supprimer d'un coup.

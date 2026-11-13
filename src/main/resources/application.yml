@@ -115,8 +115,6 @@ spring:
         max-size: 50
         queue-capacity: 100
       thread-name-prefix: async-exec-
-py-backend:
-  baseUrl: http://copilot:8000
 embedding-service:
   base-url: ${EMBEDDING_SERVICE_BASE_URL}
   poll-interval: ${EMBEDDING_SERVICE_POLL_INTERVAL:3s}

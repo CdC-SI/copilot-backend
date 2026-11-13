@@ -16,7 +16,7 @@ import java.util.Set;
 /**
  * Service d'administration des Workspaces. Fournit également les opérations de résolution
  * (workspace &rarr; sources) qui remplacent l'ancienne configuration statique
- * {@link WorkspaceProperties}.
+ * {@code workspace.sources} ({@link WorkspaceProperties} ne porte plus que le workspace par défaut).
  */
 @Slf4j
 @Service
@@ -90,7 +90,7 @@ public class WorkspaceService {
 
     /**
      * Résout la liste des noms de sources d'un workspace. Remplace
-     * {@code WorkspaceProperties.getSources().get(workspace)}.
+     * l'ancienne propriété statique {@code workspace.sources}.
      */
     public List<String> resolveSources(String workspace) {
         if (workspace == null || workspace.isBlank()) {
