@@ -6,8 +6,8 @@ decorator:
   datasource:
     flexy-pool:
       threshold.connection:
-        acquire: 1
-        lease: 0
+        acquire: 50
+        lease: 1000
 spring:
   profiles:
     include: workspace
@@ -137,6 +137,11 @@ attachment-ocr:
 identity-check:
   baseUrl: ${IDENTITY_CHECK_BASE_URL:https://api.int.adnovum-vips.ch}
   call-back-url: ${IDENTITY_CHECK_CALL_BACK_URL:http://localhost:4200/tools}
+  # Client keystore (mTLS), mounted outside the classpath (e.g. file:/mnt/secrets/identity-check.p12); ignored when empty
+  keystore:
+    location: ${IDENTITY_CHECK_KEYSTORE_LOCATION:}
+    password: ${IDENTITY_CHECK_KEYSTORE_PASSWORD:}
+    type: PKCS12
 server:
   tomcat:
     max-swallow-size: -1
@@ -177,13 +182,10 @@ rag:
     max-tool-calls-per-turn: ${RAG_MAX_TOOL_CALLS_PER_TURN:10}
 logging:
   level:
-    zas.admin.zec: DEBUG
-    org:
-      apache.catalina.core: DEBUG
-      springframework:
-        boot.web.servlet: TRACE
-        ai: DEBUG
-        security: DEBUG
+    zas.admin.zec: ${LOG_LEVEL_ZEC:INFO}
+    org.springframework.ai: ${LOG_LEVEL_SPRING_AI:INFO}
+    org.springframework.security: ${LOG_LEVEL_SPRING_SECURITY:INFO}
+    com.vladmihalcea.flexypool: WARN
 deepl:
   auth-key: ${DEEPL_API_KEY:deepl_auth_key}
   default-target-lang: 'fr'
