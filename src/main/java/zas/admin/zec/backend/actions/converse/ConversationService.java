@@ -39,6 +39,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 @Slf4j
 @Service
@@ -112,8 +113,10 @@ public class ConversationService {
         }
 
         // Flux FAQ : pas de notion de ragEnabled, conversation toujours de type COMPLETE.
-        generateConversationTitle(messages.get(0).message(), messages.get(1).message(), userId, conversationId,
-                messages.get(0).lang(), ConversationType.COMPLETE);
+        if (insertPlaceholderTitle(userId, conversationId, messages.get(0).message(), ConversationType.COMPLETE)) {
+            generateConversationTitle(messages.get(0).message(), messages.get(1).message(), userId, conversationId,
+                    messages.get(0).lang());
+        }
     }
 
     public void update(String userUuid, String conversationId, List<FAQMessage> messages) {
@@ -141,7 +144,11 @@ public class ConversationService {
                 });
     }
 
-    public Flux<String> streamAnswer(Question question, String userId) {
+    /**
+     * Flux de réponse typé (T1) : {@code start}, contenu, puis {@code done} une fois l'échange enregistré (ou
+     * {@code error}). Le titre d'une nouvelle conversation est généré après {@code done}, avant la fin du flux.
+     */
+    public Flux<ChatStreamEvent> streamAnswer(Question question, String userId) {
         var timestamp = LocalDateTime.now();
         String assistantMessageId = UUID.randomUUID().toString();
         // Structures thread-safe : relues par le thread d'annulation (Stop) pendant que le flux de tokens écrit.
@@ -168,52 +175,73 @@ public class ConversationService {
 
         // Trace du tour (statut déclaré + documents consultés), émise en interne par l'agent.
         AtomicReference<TurnTrace> turnTrace = new AtomicReference<>();
+        // Réponse servant à générer le titre, renseignée après l'enregistrement d'une nouvelle conversation.
+        AtomicReference<String> titleToGenerate = new AtomicReference<>();
 
         return getTokenStream(question, userId, conversationType, replacedMessageIds)
                 .flatMap(token -> switch (token) {
-                    case StatusToken statusToken -> Flux.just(statusToken.content());
+                    case StatusToken statusToken -> Flux.just(ChatStreamEvent.status(statusToken.tag(), statusToken.label()));
                     case TurnTraceToken turnTraceToken -> {
                         turnTrace.set(turnTraceToken.trace());
-                        yield Flux.empty();
+                        yield Flux.<ChatStreamEvent>empty();
                     }
                     case SuggestionToken suggestionToken -> {
                         if (suggestions.add(suggestionToken.suggestion())) {
-                            yield Flux.just(suggestionToken.content());
+                            yield Flux.just(ChatStreamEvent.suggestion(suggestionToken.suggestion()));
                         }
-                        yield Flux.empty();
+                        yield Flux.<ChatStreamEvent>empty();
                     }
                     case SourceToken sourceToken -> {
-                        if (sources.add(Source.fromToken(sourceToken))) {
-                            yield Flux.just(sourceToken.content());
+                        var source = Source.fromToken(sourceToken);
+                        if (sources.add(source)) {
+                            yield Flux.just(ChatStreamEvent.source(source));
                         }
-                        yield Flux.empty();
+                        yield Flux.<ChatStreamEvent>empty();
                     }
                     case WorkspaceToken workspaceToken -> {
                         workspace.set(workspaceToken.name());
-                        yield Flux.just(workspaceToken.content());
+                        yield Flux.just(ChatStreamEvent.workspace(workspaceToken.name()));
                     }
                     case TextToken textToken -> {
                         assistantMessage.append(textToken.content());
-                        yield Flux.just(textToken.content());
+                        yield Flux.just(ChatStreamEvent.textDelta(textToken.content()));
                     }
                 })
-                .concatWithValues("<message_uuid>%s</message_uuid>".formatted(assistantMessageId))
+                .startWith(ChatStreamEvent.start(question.conversationId(), assistantMessageId))
                 .concatWith(Mono.defer(() -> {
                     if (!persisted.compareAndSet(false, true)) {
-                        return Mono.<String>empty();
+                        return Mono.<ChatStreamEvent>empty();
                     }
                     var exchange = new StreamedExchange(assistantMessage.toString(), List.copyOf(sources),
                             List.copyOf(suggestions), workspace.get(), turnTrace.get());
-                    // suppressCancel : un Stop pendant l'enregistrement ne l'annule pas.
-                    return Mono.fromFuture(persistAsync(() -> saveExchange(question, userId, assistantMessageId, exchange,
+                    // suppressCancel : un Stop pendant l'enregistrement ne l'annule pas. done n'est émis qu'après le commit.
+                    return Mono.fromFuture(callAsync(() -> saveExchange(question, userId, assistantMessageId, exchange,
                                     timestamp, conversationType, false, replacedMessageIds.get())), true)
-                            .then(Mono.<String>empty());
+                            .map(newConversation -> {
+                                titleToGenerate.set(newConversation ? exchange.answer() : null);
+                                return ChatStreamEvent.done(assistantMessageId, false);
+                            });
                 }))
                 .onErrorResume(err -> {
                     persisted.set(true);
                     log.error(err.getMessage(), err);
-                    return Flux.just("<error>%s</error>".formatted(err.getMessage()));
+                    return Flux.just(ChatStreamEvent.error(ChatStreamEvent.GENERATION_FAILED, err.getMessage()));
                 })
+                // Après done : génération du titre d'une nouvelle conversation, le flux se termine ensuite
+                // (le front recharge alors les titres). Une erreur ici est journalisée sans affecter la réponse.
+                .concatWith(Mono.defer(() -> {
+                    var answer = titleToGenerate.getAndSet(null);
+                    if (answer == null) {
+                        return Mono.<ChatStreamEvent>empty();
+                    }
+                    return Mono.fromFuture(persistAsync(() -> generateConversationTitle(question.query(), answer, userId,
+                                    question.conversationId(), question.language())), true)
+                            .onErrorResume(err -> {
+                                log.error("Génération du titre de la conversation {} impossible", question.conversationId(), err);
+                                return Mono.empty();
+                            })
+                            .then(Mono.<ChatStreamEvent>empty());
+                }))
                 // Stop côté client : l'annulation remonte jusqu'à l'appel LLM ; la question et la réponse partielle
                 // déjà streamée sont enregistrées (réponse marquée interrompue), une seule fois.
                 .doOnCancel(() -> {
@@ -222,14 +250,18 @@ public class ConversationService {
                     }
                     var exchange = new StreamedExchange(assistantMessage.toString(), List.copyOf(sources),
                             List.copyOf(suggestions), workspace.get(), turnTrace.get());
-                    persistAsync(() -> saveExchange(question, userId, assistantMessageId, exchange, timestamp,
-                            conversationType, true, replacedMessageIds.get()))
-                            .whenComplete((ignored, err) -> {
-                                if (err != null) {
-                                    log.error("Enregistrement de la réponse interrompue impossible (conversation {})",
-                                            question.conversationId(), err);
-                                }
-                            });
+                    persistAsync(() -> {
+                        if (saveExchange(question, userId, assistantMessageId, exchange, timestamp,
+                                conversationType, true, replacedMessageIds.get())) {
+                            generateConversationTitle(question.query(), exchange.answer(), userId,
+                                    question.conversationId(), question.language());
+                        }
+                    }).whenComplete((ignored, err) -> {
+                        if (err != null) {
+                            log.error("Enregistrement de la réponse interrompue impossible (conversation {})",
+                                    question.conversationId(), err);
+                        }
+                    });
                 });
     }
 
@@ -239,6 +271,10 @@ public class ConversationService {
 
     private static CompletableFuture<Void> persistAsync(Runnable task) {
         return CompletableFuture.runAsync(task, runnable -> Schedulers.boundedElastic().schedule(runnable));
+    }
+
+    private static <T> CompletableFuture<T> callAsync(Supplier<T> task) {
+        return CompletableFuture.supplyAsync(task, runnable -> Schedulers.boundedElastic().schedule(runnable));
     }
 
     /**
@@ -436,14 +472,16 @@ public class ConversationService {
     }
 
     /**
-     * Enregistre l'échange (question + réponse, éventuellement partielle si {@code interrupted}) puis génère le titre
-     * d'une nouvelle conversation. Avec {@link Question#replaceLastTurn()}, le dernier échange existant est supprimé
+     * Enregistre l'échange (question + réponse, éventuellement partielle si {@code interrupted}) et, pour une nouvelle
+     * conversation, son titre provisoire. Avec {@link Question#replaceLastTurn()}, le dernier échange existant est supprimé
      * dans la même transaction (identifiants déterminés au chargement de l'historique, sinon relus ici si le flux a été
      * annulé avant ce chargement) ; la recherche est limitée aux messages de l'utilisateur.
+     *
+     * @return {@code true} si la conversation vient d'être créée (son titre reste à générer)
      */
-    private void saveExchange(Question question, String userId, String assistantMessageId, StreamedExchange exchange,
-                              LocalDateTime userMessageTimestamp, ConversationType conversationType, boolean interrupted,
-                              List<String> replacedMessageIds) {
+    private boolean saveExchange(Question question, String userId, String assistantMessageId, StreamedExchange exchange,
+                                 LocalDateTime userMessageTimestamp, ConversationType conversationType, boolean interrupted,
+                                 List<String> replacedMessageIds) {
 
         var userMessage = new Message(UUID.randomUUID().toString(), userId, question.conversationId(), null,
                 question.language(), question.query(), "USER", null, null, userMessageTimestamp, exchange.workspace());
@@ -463,8 +501,18 @@ public class ConversationService {
             save(userMessage, userId, question.conversationId());
             save(assistantMessage, userId, question.conversationId());
         });
-        generateConversationTitle(question.query(), exchange.answer(), userId, question.conversationId(),
-                question.language(), conversationType);
+        return insertPlaceholderTitle(userId, question.conversationId(), question.query(), conversationType);
+    }
+
+    /**
+     * Insère de façon atomique le titre provisoire (la question) d'une nouvelle conversation, avec son type, figé à la
+     * création : une question de suivi posée pendant la génération du titre retrouve la conversation sans second titre.
+     *
+     * @return {@code true} si la conversation vient d'être créée
+     */
+    private boolean insertPlaceholderTitle(String userId, String conversationId, String query, ConversationType conversationType) {
+        return conversationTitleRepository.insertIfAbsent(userId, conversationId, placeholderTitle(query),
+                LocalDateTime.now(), conversationType.name()) > 0;
     }
 
     private List<Message> getConversationHistory(String conversationId, String userId, Limit limit) {
@@ -616,20 +664,11 @@ public class ConversationService {
     }
 
     /**
-     * Crée le titre de la conversation lors de son premier échange. La ligne {@code chat_title} est
-     * d'abord insérée de façon atomique avec un titre provisoire (la question), puis mise à jour avec
-     * le titre généré par le LLM : une question de suivi posée pendant cette génération retrouve donc
-     * la conversation (et son type) sans créer de second titre.
+     * Remplace le titre provisoire d'une nouvelle conversation (inséré par {@link #saveExchange}) par le titre généré
+     * par le LLM. En cas d'échec, le titre provisoire est conservé.
      */
     private void generateConversationTitle(String initialQuery, String initialResponse, String userId, String conversationId,
-                                            String language, ConversationType conversationType) {
-        // Type figé à la création de la conversation : immuable pour toute question suivante.
-        int inserted = conversationTitleRepository.insertIfAbsent(userId, conversationId, placeholderTitle(initialQuery),
-                LocalDateTime.now(), conversationType.name());
-        if (inserted == 0) {
-            return;
-        }
-
+                                            String language) {
         String title;
         try {
             title = chatClient.prompt()

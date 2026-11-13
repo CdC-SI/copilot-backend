@@ -18,6 +18,16 @@ public final class StatusToken implements Token {
         return "<%s>%s</%s>".formatted(tag, content, tag);
     }
 
+    /** Identifiant stable de l'étape ({@link ChatStatus#tag()}). */
+    public String tag() {
+        return tag;
+    }
+
+    /** Texte localisé de l'étape. */
+    public String label() {
+        return content;
+    }
+
     @Override
     public Map<String, String> metadata() {
         return Map.of();
