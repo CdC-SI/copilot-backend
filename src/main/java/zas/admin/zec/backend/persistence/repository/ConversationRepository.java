@@ -4,11 +4,13 @@ import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
 import zas.admin.zec.backend.persistence.entity.MessageEntity;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
 public interface ConversationRepository extends JpaRepository<MessageEntity, Long> {
     List<MessageEntity> findByConversationIdAndUserIdOrderByTimestamp(String conversationId, String userId, Limit limit);
     void deleteByUserIdAndConversationId(String userId, String conversationId);
+    void deleteByUserIdAndConversationIdAndMessageIdIn(String userId, String conversationId, Collection<String> messageIds);
     Optional<MessageEntity> findByConversationIdAndMessageId(String conversationId, String messageId);
 }

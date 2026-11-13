@@ -85,4 +85,8 @@ public class MessageEntity {
      */
     @Column(name = "workspace")
     private String workspace;
+
+    /** Réponse assistant interrompue par l'utilisateur (Stop) : seul le texte streamé avant l'arrêt est enregistré. */
+    @Column(name = "interrupted", nullable = false)
+    private boolean interrupted;
 }

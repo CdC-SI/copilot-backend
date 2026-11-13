@@ -58,7 +58,7 @@ class RAGChatServiceTest {
                     new TurnTrace(TurnStatus.ANSWER, List.of(PROCESS, CHUNK))));
 
     private static Question question(String workspace) {
-        return new Question("Résume ta réponse.", "fr", workspace, "DETAILED", "COMPLETE", "conv", true);
+        return new Question("Résume ta réponse.", "fr", workspace, "DETAILED", "COMPLETE", "conv", true, false);
     }
 
     private static ChatResponse chunk(String text) {
