@@ -107,9 +107,10 @@ class MigrationStartupIT {
             assertEquals(200, health.statusCode(), health.body());
             assertEquals("UP", mapper.readTree(health.body()).path("status").asText());
 
-            var api = client.send(request("/api/public/v1/chat")
+            // L'espace /api/public/v1/** reste protégé par clé d'API, même sans endpoint (API publique à reconstruire en V5).
+            var api = client.send(request("/api/public/v1/anything")
                             .header("Content-Type", "application/json")
-                            .POST(HttpRequest.BodyPublishers.ofString("{\"input\":\"hello\"}")).build(),
+                            .POST(HttpRequest.BodyPublishers.ofString("{}")).build(),
                     HttpResponse.BodyHandlers.ofString());
             assertEquals(403, api.statusCode());
 
