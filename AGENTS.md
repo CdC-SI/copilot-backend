@@ -17,7 +17,7 @@ basé sur Spring AI, avec une boucle agentique (le LLM appelle des tools `@Tool`
 - Tests : `mvn -o test` ; un seul test : `mvn -o test -Dtest=NomDeLaClasseTest`
 - Build complet (référence, utilisé par le `Jenkinsfile`) : `mvn clean verify`
 - Tests d'intégration `*IT` (Testcontainers, **Docker requis**) : ex. `mvn -o test -Dtest=MigrationStartupIT`.
-  `MigrationStartupIT` contient un stub HTTP du LLM réutilisable.
+  `ChatModelsConfigTest` (`src/test/java/zas/admin/zec/backend/config/ChatModelsConfigTest.java`) contient un stub HTTP du LLM réutilisable.
 - Après une modification, valider au minimum avec `mvn -o compile` avant de conclure.
 
 ## Organisation du code (`zas.admin.zec.backend`)
