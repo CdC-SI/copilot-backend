@@ -4,10 +4,12 @@ import ch.admin.zas.jweb.securityevents.core.utils.OPDOOperation;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
 import org.springframework.http.*;
+import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import reactor.core.publisher.Flux;
+import tools.jackson.databind.json.JsonMapper;
 import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.config.security.RequireUser;
 import zas.admin.zec.backend.tools.OpdoPersonalData;
@@ -22,6 +24,8 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/conversations")
 public class ConversationController {
+
+    private static final JsonMapper JSON = JsonMapper.builder().build();
 
     private final UserService userService;
     private final ConversationService conversationService;
@@ -93,9 +97,14 @@ public class ConversationController {
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<String> askQuestion(@ModelAttribute Question question, Authentication authentication) {
+    public Flux<ServerSentEvent<String>> askQuestion(@ModelAttribute Question question, Authentication authentication) {
         var userUuid = userService.getUuid(authentication.getName());
-        return conversationService.streamAnswer(question.withDefaults(), userUuid);
+        return conversationService.streamAnswer(question.withDefaults(), userUuid).map(ConversationController::toServerSentEvent);
+    }
+
+    /** T1 : {@code event: <type>} et {@code data: <json>}. */
+    static ServerSentEvent<String> toServerSentEvent(ChatStreamEvent event) {
+        return ServerSentEvent.builder(JSON.writeValueAsString(event.data())).event(event.type()).build();
     }
 
     @GetMapping("/{conversationId}/attachments/{attachmentId}")
