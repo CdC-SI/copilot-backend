@@ -102,6 +102,21 @@ public class ConversationController {
         return conversationService.streamAnswer(question.withDefaults(), userUuid).map(ConversationController::toServerSentEvent);
     }
 
+    /**
+     * F3b : arrête une génération en cours. Le flux de la réponse se poursuit jusqu'à l'enregistrement de la réponse
+     * partielle et se termine par {@code done {interrupted: true}}.
+     *
+     * @return 202 si l'arrêt est demandé, 404 si la génération est inconnue, déjà terminée ou d'un autre utilisateur
+     */
+    @PostMapping("/{conversationId}/generations/{messageId}/stop")
+    public ResponseEntity<Void> stopGeneration(@PathVariable String conversationId, @PathVariable String messageId,
+                                               Authentication authentication) {
+        var userUuid = userService.getUuid(authentication.getName());
+        return conversationService.stopGeneration(userUuid, conversationId, messageId)
+                ? ResponseEntity.accepted().build()
+                : ResponseEntity.notFound().build();
+    }
+
     /** T1 : {@code event: <type>} et {@code data: <json>}. */
     static ServerSentEvent<String> toServerSentEvent(ChatStreamEvent event) {
         return ServerSentEvent.builder(JSON.writeValueAsString(event.data())).event(event.type()).build();

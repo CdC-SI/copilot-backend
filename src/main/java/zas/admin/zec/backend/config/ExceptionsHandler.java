@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSourceResolvable;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import zas.admin.zec.backend.actions.converse.ConversationConflictException;
 import zas.admin.zec.backend.actions.upload.validation.UploadException;
 
 import java.util.Collection;
@@ -65,6 +67,14 @@ public class ExceptionsHandler {
             log.warn("Upload rejected for file {} ({}): {}", e.getFileName(), e.getErrorCode(), e.getMessage());
         }
         return ResponseEntity.status(status).body(body(status, e.getErrorCode().name(), request, e.getFileName()));
+    }
+
+    @ExceptionHandler(ConversationConflictException.class)
+    public ResponseEntity<Map<String, Object>> handleConversationConflict(HttpServletRequest request, ConversationConflictException e) {
+        log.warn("Génération refusée ({}) : {}", e.getCode(), request.getRequestURI());
+        // Content-Type explicite : la requête de streaming accepte text/event-stream, pas le JSON de l'erreur.
+        return ResponseEntity.status(HttpStatus.CONFLICT).contentType(MediaType.APPLICATION_JSON)
+                .body(body(HttpStatus.CONFLICT, e.getCode(), request, null));
     }
 
     private static String joinMessages(Collection<? extends MessageSourceResolvable> errors) {

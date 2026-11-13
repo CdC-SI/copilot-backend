@@ -59,7 +59,7 @@ public class ConversationService {
     private final ApplicationEventPublisher eventPublisher;
     private final TransactionTemplate transactionTemplate;
     private final AttachmentOcrProperties attachmentOcrProperties;
-
+    private final GenerationRegistry generationRegistry;
 
     public ConversationService(ConversationRepository conversationRepository,
                                ConversationTitleRepository conversationTitleRepository,
@@ -70,7 +70,8 @@ public class ConversationService {
                                WorkspaceService workspaceService,
                                ApplicationEventPublisher eventPublisher,
                                TransactionTemplate transactionTemplate,
-                               AttachmentOcrProperties attachmentOcrProperties) {
+                               AttachmentOcrProperties attachmentOcrProperties,
+                               GenerationRegistry generationRegistry) {
 
         this.conversationRepository = conversationRepository;
         this.conversationTitleRepository = conversationTitleRepository;
@@ -82,6 +83,7 @@ public class ConversationService {
         this.eventPublisher = eventPublisher;
         this.transactionTemplate = transactionTemplate;
         this.attachmentOcrProperties = attachmentOcrProperties;
+        this.generationRegistry = generationRegistry;
     }
 
     public List<Source> getSourcesByMessageUuid(String conversationUuid, String messageUuid) {
@@ -102,6 +104,8 @@ public class ConversationService {
     }
 
     public Conversation getByConversationIdAndUserId(String conversationId, String userId) {
+        // Une réponse interrompue en cours d'enregistrement fait partie de l'historique renvoyé.
+        generationRegistry.awaitSaved(userId, conversationId);
         List<Message> messages = getConversationHistory(conversationId, userId, Limit.unlimited());
         List<Attachment> attachments = getAttachmentsForConversation(conversationId, userId);
         return new Conversation(conversationId, userId, messages, attachments);
@@ -151,20 +155,39 @@ public class ConversationService {
     public Flux<ChatStreamEvent> streamAnswer(Question question, String userId) {
         var timestamp = LocalDateTime.now();
         String assistantMessageId = UUID.randomUUID().toString();
-        // Structures thread-safe : relues par le thread d'annulation (Stop) pendant que le flux de tokens écrit.
+        // F3b : une seule génération à la fois par conversation ; les enregistrements en cours sont attendus avant de
+        // relire l'historique. Refus (409) levé ici, avant l'ouverture du flux.
+        var generation = generationRegistry.begin(assistantMessageId, userId, question.conversationId());
+        try {
+            return streamAnswer(question, userId, timestamp, generation);
+        } catch (RuntimeException e) {
+            generationRegistry.finish(generation);
+            throw e;
+        }
+    }
+
+    private Flux<ChatStreamEvent> streamAnswer(Question question, String userId, LocalDateTime timestamp,
+                                               GenerationRegistry.Generation generation) {
+        String assistantMessageId = generation.messageId();
+        // Structures thread-safe : relues par le thread d'annulation pendant que le flux de tokens écrit.
         StringBuffer assistantMessage = new StringBuffer();
         Set<Source> sources = ConcurrentHashMap.newKeySet();
         Set<String> suggestions = ConcurrentHashMap.newKeySet();
-        // Garantit un seul enregistrement de l'échange (fin normale OU annulation) ; pris aussi en cas d'erreur
+        // Garantit un seul enregistrement de l'échange (fin normale, Stop OU déconnexion) ; pris aussi en cas d'erreur
         // pour qu'aucun enregistrement n'ait lieu (l'éventuel échange remplacé est alors conservé).
         AtomicBoolean persisted = new AtomicBoolean(false);
-        // Messages du dernier échange à remplacer (replaceLastTurn), déterminés au chargement de l'historique.
-        AtomicReference<List<String>> replacedMessageIds = new AtomicReference<>();
 
         // Type de la conversation : figé à sa création (1re question), immuable ensuite.
         // Pour une conversation existante, on réutilise le type persisté ; pour une nouvelle
         // conversation, on conserve l'usage actuel du flag ragEnabled.
         ConversationType conversationType = resolveConversationType(question, userId);
+
+        // Régénération / édition : la réponse à remplacer doit être la dernière de la conversation (409 sinon).
+        // Le dernier échange est exclu du contexte, puis supprimé à l'enregistrement du nouvel échange.
+        ReplacedTurn replacedTurn = question.replaceMessageId() == null ? null
+                : replacedTurn(getConversationHistory(question.conversationId(), userId, Limit.unlimited()),
+                question.replaceMessageId());
+        List<String> replacedMessageIds = replacedTurn == null ? List.of() : replacedTurn.messageIds();
 
         // Le workspace de ce message : celui fourni explicitement par l'utilisateur s'il y en a
         // un, sinon celui inféré par RAGTool (WorkspaceToken) s'il a été invoqué, sinon null (le
@@ -178,7 +201,10 @@ public class ConversationService {
         // Réponse servant à générer le titre, renseignée après l'enregistrement d'une nouvelle conversation.
         AtomicReference<String> titleToGenerate = new AtomicReference<>();
 
-        return getTokenStream(question, userId, conversationType, replacedMessageIds)
+        return getTokenStream(question, userId, conversationType, replacedTurn)
+                // Stop (endpoint) : la production s'arrête (annulation de l'appel LLM) et le flux continue
+                // normalement vers l'enregistrement de la réponse partielle, puis done {interrupted: true}.
+                .takeUntilOther(generation.stopSignal())
                 .flatMap(token -> switch (token) {
                     case StatusToken statusToken -> Flux.just(ChatStreamEvent.status(statusToken.tag(), statusToken.label()));
                     case TurnTraceToken turnTraceToken -> {
@@ -212,18 +238,21 @@ public class ConversationService {
                     if (!persisted.compareAndSet(false, true)) {
                         return Mono.<ChatStreamEvent>empty();
                     }
+                    boolean interrupted = generation.stopRequested();
                     var exchange = new StreamedExchange(assistantMessage.toString(), List.copyOf(sources),
                             List.copyOf(suggestions), workspace.get(), turnTrace.get());
-                    // suppressCancel : un Stop pendant l'enregistrement ne l'annule pas. done n'est émis qu'après le commit.
-                    return Mono.fromFuture(callAsync(() -> saveExchange(question, userId, assistantMessageId, exchange,
-                                    timestamp, conversationType, false, replacedMessageIds.get())), true)
+                    // suppressCancel : une déconnexion pendant l'enregistrement ne l'annule pas.
+                    // done n'est émis qu'après le commit (et la sortie du registre).
+                    return Mono.fromFuture(saveAsync(generation, () -> saveExchange(question, userId, assistantMessageId,
+                                    exchange, timestamp, conversationType, interrupted, replacedMessageIds)), true)
                             .map(newConversation -> {
                                 titleToGenerate.set(newConversation ? exchange.answer() : null);
-                                return ChatStreamEvent.done(assistantMessageId, false);
+                                return ChatStreamEvent.done(assistantMessageId, interrupted);
                             });
                 }))
                 .onErrorResume(err -> {
                     persisted.set(true);
+                    generationRegistry.finish(generation);
                     log.error(err.getMessage(), err);
                     return Flux.just(ChatStreamEvent.error(ChatStreamEvent.GENERATION_FAILED, err.getMessage()));
                 })
@@ -234,37 +263,50 @@ public class ConversationService {
                     if (answer == null) {
                         return Mono.<ChatStreamEvent>empty();
                     }
-                    return Mono.fromFuture(persistAsync(() -> generateConversationTitle(question.query(), answer, userId,
-                                    question.conversationId(), question.language())), true)
-                            .onErrorResume(err -> {
-                                log.error("Génération du titre de la conversation {} impossible", question.conversationId(), err);
-                                return Mono.empty();
-                            })
+                    return Mono.fromFuture(generateTitleAsync(question, userId, answer), true)
                             .then(Mono.<ChatStreamEvent>empty());
                 }))
-                // Stop côté client : l'annulation remonte jusqu'à l'appel LLM ; la question et la réponse partielle
-                // déjà streamée sont enregistrées (réponse marquée interrompue), une seule fois.
+                // Déconnexion du client (navigation, abort) : l'annulation remonte jusqu'à l'appel LLM ; la question
+                // et la réponse partielle déjà streamée sont enregistrées (réponse marquée interrompue), une seule fois.
                 .doOnCancel(() -> {
                     if (!persisted.compareAndSet(false, true)) {
                         return;
                     }
                     var exchange = new StreamedExchange(assistantMessage.toString(), List.copyOf(sources),
                             List.copyOf(suggestions), workspace.get(), turnTrace.get());
-                    persistAsync(() -> {
-                        if (saveExchange(question, userId, assistantMessageId, exchange, timestamp,
-                                conversationType, true, replacedMessageIds.get())) {
-                            generateConversationTitle(question.query(), exchange.answer(), userId,
-                                    question.conversationId(), question.language());
-                        }
-                    }).whenComplete((ignored, err) -> {
-                        if (err != null) {
-                            log.error("Enregistrement de la réponse interrompue impossible (conversation {})",
-                                    question.conversationId(), err);
-                        }
-                    });
+                    saveAsync(generation, () -> saveExchange(question, userId, assistantMessageId, exchange, timestamp,
+                            conversationType, true, replacedMessageIds))
+                            .thenCompose(newConversation -> newConversation
+                                    ? generateTitleAsync(question, userId, exchange.answer())
+                                    : CompletableFuture.completedFuture(null))
+                            .whenComplete((ignored, err) -> {
+                                if (err != null) {
+                                    log.error("Enregistrement de la réponse interrompue impossible (conversation {})",
+                                            question.conversationId(), err);
+                                }
+                            });
                 });
     }
 
+    /** Arrête la génération en cours (Stop) ; {@code false} si elle est inconnue, terminée ou d'un autre utilisateur. */
+    public boolean stopGeneration(String userId, String conversationId, String messageId) {
+        return generationRegistry.stop(messageId, userId, conversationId);
+    }
+
+    /** Enregistre l'échange de façon asynchrone ; la génération quitte le registre une fois l'enregistrement terminé. */
+    private CompletableFuture<Boolean> saveAsync(GenerationRegistry.Generation generation, Supplier<Boolean> saveExchange) {
+        generationRegistry.saving(generation);
+        return callAsync(saveExchange).whenComplete((ignored, err) -> generationRegistry.finish(generation));
+    }
+
+    private CompletableFuture<Void> generateTitleAsync(Question question, String userId, String answer) {
+        return persistAsync(() -> generateConversationTitle(question.query(), answer, userId, question.conversationId(),
+                question.language()))
+                .exceptionally(err -> {
+                    log.error("Génération du titre de la conversation {} impossible", question.conversationId(), err);
+                    return null;
+                });
+    }
     /** Contenu streamé d'un échange (texte de la réponse et métadonnées), figé au moment de l'enregistrement. */
     private record StreamedExchange(String answer, List<Source> sources, List<String> suggestions,
                                     String workspace, TurnTrace turnTrace) {}
@@ -434,19 +476,29 @@ public class ConversationService {
     }
 
     private Flux<Token> getTokenStream(Question question, String userId, ConversationType conversationType,
-                                       AtomicReference<List<String>> replacedMessageIds) {
-        return Mono.fromCallable(() -> {
-                    var history = getConversationHistory(question.conversationId(), userId, Limit.unlimited());
-                    if (!Boolean.TRUE.equals(question.replaceLastTurn())) {
-                        return history;
-                    }
-                    // Régénération / édition : le dernier échange est exclu du contexte, puis remplacé à l'enregistrement.
-                    int start = lastExchangeStart(history);
-                    replacedMessageIds.set(lastExchangeMessageIds(history));
-                    return start < 0 ? history : List.copyOf(history.subList(0, start));
-                })
-                .subscribeOn(Schedulers.boundedElastic())
-                .flatMapMany(history -> chatServiceFactory.resolve(conversationType).answer(question, userId, history));
+                                       ReplacedTurn replacedTurn) {
+        Mono<List<Message>> history = replacedTurn != null
+                ? Mono.just(replacedTurn.contextHistory())
+                : Mono.fromCallable(() -> getConversationHistory(question.conversationId(), userId, Limit.unlimited()))
+                        .subscribeOn(Schedulers.boundedElastic());
+        return history.flatMapMany(messages -> chatServiceFactory.resolve(conversationType).answer(question, userId, messages));
+    }
+
+    /** Dernier échange remplacé par une régénération : historique de contexte (sans cet échange) et messages à supprimer. */
+    record ReplacedTurn(List<Message> contextHistory, List<String> messageIds) {}
+
+    /**
+     * Valide que {@code replaceMessageId} désigne une réponse du dernier échange de l'historique (sinon 409
+     * {@code TURN_NOT_REPLACEABLE} : réponse inconnue, d'un autre utilisateur ou plus la dernière).
+     */
+    static ReplacedTurn replacedTurn(List<Message> history, String replaceMessageId) {
+        int start = lastExchangeStart(history);
+        boolean replaceable = start >= 0 && history.subList(start, history.size()).stream()
+                .anyMatch(message -> replaceMessageId.equals(message.messageId()) && !"USER".equals(message.role()));
+        if (!replaceable) {
+            throw new ConversationConflictException(ConversationConflictException.TURN_NOT_REPLACEABLE);
+        }
+        return new ReplacedTurn(List.copyOf(history.subList(0, start)), lastExchangeMessageIds(history));
     }
 
     /** Index du dernier message utilisateur de l'historique (début du dernier échange), {@code -1} s'il n'y en a pas. */
@@ -473,9 +525,9 @@ public class ConversationService {
 
     /**
      * Enregistre l'échange (question + réponse, éventuellement partielle si {@code interrupted}) et, pour une nouvelle
-     * conversation, son titre provisoire. Avec {@link Question#replaceLastTurn()}, le dernier échange existant est supprimé
-     * dans la même transaction (identifiants déterminés au chargement de l'historique, sinon relus ici si le flux a été
-     * annulé avant ce chargement) ; la recherche est limitée aux messages de l'utilisateur.
+     * conversation, son titre provisoire. En régénération ({@link Question#replaceMessageId()}), le dernier échange,
+     * validé avant le streaming, est supprimé dans la même transaction ; la suppression est limitée aux messages de
+     * l'utilisateur.
      *
      * @return {@code true} si la conversation vient d'être créée (son titre reste à générer)
      */
@@ -490,13 +542,9 @@ public class ConversationService {
                 LocalDateTime.now(), exchange.workspace(), exchange.turnTrace(), interrupted);
 
         transactionTemplate.executeWithoutResult(status -> {
-            if (Boolean.TRUE.equals(question.replaceLastTurn())) {
-                var toReplace = replacedMessageIds != null
-                        ? replacedMessageIds
-                        : lastExchangeMessageIds(getConversationHistory(question.conversationId(), userId, Limit.unlimited()));
-                if (!toReplace.isEmpty()) {
-                    conversationRepository.deleteByUserIdAndConversationIdAndMessageIdIn(userId, question.conversationId(), toReplace);
-                }
+            if (!replacedMessageIds.isEmpty()) {
+                conversationRepository.deleteByUserIdAndConversationIdAndMessageIdIn(userId, question.conversationId(),
+                        replacedMessageIds);
             }
             save(userMessage, userId, question.conversationId());
             save(assistantMessage, userId, question.conversationId());
