@@ -7,8 +7,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.prompt.ChatOptions;
+import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -16,17 +20,25 @@ import reactor.core.publisher.Flux;
 import zas.admin.zec.backend.actions.summarize.LlmOcrService;
 import zas.admin.zec.backend.actions.workspace.WorkspaceService;
 import zas.admin.zec.backend.config.properties.AttachmentOcrProperties;
+import zas.admin.zec.backend.persistence.entity.ConversationTitleEntity;
 import zas.admin.zec.backend.persistence.entity.MessageEntity;
 import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
 import zas.admin.zec.backend.persistence.repository.ConversationRepository;
 import zas.admin.zec.backend.persistence.repository.ConversationTitleRepository;
+import zas.admin.zec.backend.rag.ChatStatus;
+import zas.admin.zec.backend.rag.token.SourceToken;
+import zas.admin.zec.backend.rag.token.StatusToken;
+import zas.admin.zec.backend.rag.token.SuggestionToken;
 import zas.admin.zec.backend.rag.token.TextToken;
 import zas.admin.zec.backend.rag.token.Token;
+import zas.admin.zec.backend.rag.token.WorkspaceToken;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -58,6 +70,7 @@ class ConversationServiceStreamTest {
     private ChatModel chatModel;
 
     private ConversationService service;
+    private final List<ChatStreamEvent> emitted = new CopyOnWriteArrayList<>();
 
     @BeforeEach
     void setUp() {
@@ -72,23 +85,66 @@ class ConversationServiceStreamTest {
     }
 
     @Test
-    @DisplayName("fin normale : question + réponse complète enregistrées, non interrompue, rien supprimé")
+    @DisplayName("fin normale : start, contenu, puis done émis après l'enregistrement de la question et de la réponse")
     void normalCompletion_savesFullAnswer() {
         when(chatService.answer(any(), eq(USER), any())).thenReturn(Flux.just(text("Bon"), text("jour")));
+        when(conversationRepository.save(any(MessageEntity.class))).thenAnswer(invocation -> {
+            // done ne doit pas encore avoir été émis au moment de l'enregistrement.
+            assertTrue(emitted.stream().noneMatch(e -> e.type().equals(ChatStreamEvent.DONE)));
+            return invocation.getArgument(0);
+        });
 
-        var output = service.streamAnswer(question(false), USER).collectList().block(ASYNC);
+        var output = service.streamAnswer(question(false), USER).doOnNext(emitted::add).collectList().block(ASYNC);
 
-        assertEquals("Bon", output.get(0));
-        assertEquals("jour", output.get(1));
-        assertTrue(output.get(2).startsWith("<message_uuid>"));
+        assertEquals(List.of("start", "text_delta", "text_delta", "done"), types(output));
+        var start = (ChatStreamEvent.Start) output.get(0).data();
+        assertEquals(CONVERSATION, start.conversationId());
+        assertEquals(new ChatStreamEvent.TextDelta("Bon"), output.get(1).data());
+        assertEquals(new ChatStreamEvent.Done(start.messageId(), false), output.get(3).data());
         var saved = savedMessages(2);
         assertEquals("user", saved.get(0).getRole());
         assertEquals("Question ?", saved.get(0).getMessage());
         assertFalse(saved.get(0).isInterrupted());
         assertEquals("assistant", saved.get(1).getRole());
+        assertEquals(start.messageId(), saved.get(1).getMessageId());
         assertEquals("Bonjour", saved.get(1).getMessage());
         assertFalse(saved.get(1).isInterrupted());
         verify(conversationRepository, never()).deleteByUserIdAndConversationIdAndMessageIdIn(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("statut, source, suggestion et workspace : événements typés, sources et suggestions dédoublonnées")
+    void tokens_areMappedToTypedEvents() {
+        var source = SourceToken.fromFileWithDetails("doc-1", "Mémento.pdf", "2", "", "in_force");
+        when(chatService.answer(any(), eq(USER), any())).thenReturn(Flux.just(
+                new StatusToken(ChatStatus.RETRIEVAL, "fr"), new WorkspaceToken("AVS"), source, source,
+                new SuggestionToken("Et ensuite ?"), new SuggestionToken("Et ensuite ?"), text("Réponse")));
+
+        var output = service.streamAnswer(question(false), USER).collectList().block(ASYNC);
+
+        assertEquals(List.of("start", "status", "workspace", "source", "suggestion", "text_delta", "done"), types(output));
+        assertEquals(new ChatStreamEvent.Status("retrieval", "Recherche des documents pertinents"), output.get(1).data());
+        assertEquals(new ChatStreamEvent.Workspace("AVS"), output.get(2).data());
+        assertEquals(Source.fromToken(source), output.get(3).data());
+        assertEquals(new ChatStreamEvent.Suggestion("Et ensuite ?"), output.get(4).data());
+    }
+
+    @Test
+    @DisplayName("nouvelle conversation : titre provisoire avant done, titre généré après done, puis fin du flux")
+    void newConversation_generatesTitleAfterDone() {
+        when(chatService.answer(any(), eq(USER), any())).thenReturn(Flux.just(text("Réponse")));
+        when(titleRepository.insertIfAbsent(eq(USER), eq(CONVERSATION), eq("Question ?"), any(), any())).thenReturn(1);
+        when(chatModel.call(any(Prompt.class))).thenAnswer(invocation -> {
+            assertEquals(ChatStreamEvent.DONE, emitted.getLast().type());
+            return new ChatResponse(List.of(new Generation(new AssistantMessage("Titre"))));
+        });
+        var title = new ConversationTitleEntity();
+        when(titleRepository.findByUserIdAndConversationId(USER, CONVERSATION)).thenReturn(Optional.of(title));
+
+        var output = service.streamAnswer(question(false), USER).doOnNext(emitted::add).collectList().block(ASYNC);
+
+        assertEquals(ChatStreamEvent.DONE, output.getLast().type());
+        assertEquals("Titre", title.getTitle());
     }
 
     @Test
@@ -99,10 +155,10 @@ class ConversationServiceStreamTest {
                 Flux.concat(Flux.just(text("Réponse "), text("partielle")), Flux.<Token>never())
                         .doOnCancel(llmCancelled::countDown));
 
-        // take(2) annule l'abonnement après les deux premiers tokens, comme un Stop côté client.
-        var output = service.streamAnswer(question(false), USER).take(2).collectList().block(ASYNC);
+        // take(3) annule l'abonnement après start et les deux premiers tokens, comme un Stop côté client.
+        var output = service.streamAnswer(question(false), USER).take(3).collectList().block(ASYNC);
 
-        assertEquals(List.of("Réponse ", "partielle"), output);
+        assertEquals(List.of("start", "text_delta", "text_delta"), types(output));
 
         // L'annulation peut être relayée par le thread émetteur juste après la fin de take(2).
         assertTrue(llmCancelled.await(ASYNC.toMillis(), TimeUnit.MILLISECONDS), "l'annulation doit remonter jusqu'à l'appel LLM");
@@ -162,7 +218,8 @@ class ConversationServiceStreamTest {
         when(chatService.answer(any(), eq(USER), any()))
                 .thenReturn(Flux.concat(Flux.just(text("Début")), Flux.<Token>never()));
 
-        assertEquals(List.of("Début"), service.streamAnswer(question(true), USER).take(1).collectList().block(ASYNC));
+        assertEquals(List.of("start", "text_delta"),
+                types(service.streamAnswer(question(true), USER).take(2).collectList().block(ASYNC)));
 
         verify(conversationRepository, timeout(ASYNC.toMillis()))
                 .deleteByUserIdAndConversationIdAndMessageIdIn(USER, CONVERSATION, List.of("u2", "a2"));
@@ -181,7 +238,8 @@ class ConversationServiceStreamTest {
 
         var output = service.streamAnswer(question(true), USER).collectList().block(ASYNC);
 
-        assertEquals(List.of("Début", "<error>boom</error>"), output);
+        assertEquals(List.of("start", "text_delta", "error"), types(output));
+        assertEquals(new ChatStreamEvent.Error(ChatStreamEvent.GENERATION_FAILED, "boom"), output.get(2).data());
         verify(conversationRepository, never()).deleteByUserIdAndConversationIdAndMessageIdIn(any(), any(), any());
         verify(conversationRepository, never()).save(any(MessageEntity.class));
     }
@@ -226,6 +284,10 @@ class ConversationServiceStreamTest {
 
     private static Token text(String content) {
         return new TextToken(content);
+    }
+
+    private static List<String> types(List<ChatStreamEvent> events) {
+        return events.stream().map(ChatStreamEvent::type).toList();
     }
 
     private List<MessageEntity> savedMessages(int expected) {
