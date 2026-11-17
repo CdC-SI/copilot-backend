@@ -49,6 +49,8 @@ basé sur Spring AI, avec une boucle agentique (le LLM appelle des tools `@Tool`
 - Respecter le style réactif existant (`Flux<Token>`, SSE) dans les flux de conversation.
 - Prompts LLM dans `src/main/resources/prompts/<fr|de|it>/<clé>.txt`, déclarés dans `PromptId` et servis par `PromptRegistry` (validation au démarrage : fichier présent dans les 3 langues, variables conformes ; repli sur `de`). Variables `{{nom}}` rendues par `Prompt.render` (une passe, variables exactes) ; seuls `query-rewriter`/`query-expander` gardent la syntaxe Spring AI `{nom}` (`Prompt.template()`). La version (SHA-256 court) des prompts utilisés est tracée dans `consulted_sources.prompts` (`TurnTrace.prompts`, tools via `ToolContextKeys.recordPrompt`).
 - Mémoire conversationnelle : `ConversationMemory` fenêtre l'historique envoyé au LLM par tours (budget `zia.memory.history-token-budget`, dernier tour toujours conservé) et préfixe le résumé persistant (`conversation_summary`, prompt `conversation-summary`) au premier message gardé. La compaction est asynchrone après `saveExchange` (une à la fois par conversation, jusqu'à `compaction-ratio` du budget, jamais le dernier tour) ; `zia.memory.summary-enabled=false` désactive le résumé. L'historique complet reste utilisé pour la numérotation des `<retrieved_sources>`.
+- **Tools** : toujours passer les callbacks par `ToolCallRecorder.wrap(...)` (journal persisté, événements SSE
+  `tool_call`/`tool_result`, approbation `approval_required` des tools listés dans `zia.tools.approval.required-tools`).
 
 ## Bonnes pratiques
 

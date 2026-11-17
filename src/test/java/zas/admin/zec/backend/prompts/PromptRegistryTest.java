@@ -64,6 +64,7 @@ class PromptRegistryTest {
         assertEquals(1, PromptRegistry.validate("p", PromptId.AGENTIC_SYSTEM, "{{response_format}} {{other}}").size());
         assertEquals(1, PromptRegistry.validate("p", PromptId.AGENTIC_SYSTEM, "{{response_format}} {{ Mal }}").size());
         assertEquals(1, PromptRegistry.validate("p", PromptId.QUERY_EXPANDER, "{query}").size());
+        assertEquals(1, PromptRegistry.validate("p", PromptId.QUERY_EXPANDER, "{query} {number} {unexpected}").size());
         assertEquals(1, PromptRegistry.validate("p", PromptId.QUERY_EXPANDER, "{query} {number} {{x}}").size());
         assertTrue(PromptRegistry.validate("p", PromptId.QUERY_EXPANDER, "{query} {number}").isEmpty());
     }

@@ -13,8 +13,10 @@ import java.util.Map;
  * @param step         étape de la boucle agentique (les appels d'une même étape ont été demandés ensemble par le LLM)
  * @param tool         nom du tool
  * @param arguments    arguments tels que fournis par le LLM (JSON décodé ; {@code {"_raw": "..."}} s'il est invalide)
- * @param status       {@code ok}, {@code no_result}, {@code invalid_arguments}, {@code budget_exhausted} ou {@code error}
- * @param durationMs   durée d'exécution du tool
+ * @param status       {@code ok}, {@code no_result}, {@code invalid_arguments}, {@code budget_exhausted}, {@code error},
+ *                     ou, pour un tool soumis à approbation (non exécuté) : {@code rejected}, {@code expired},
+ *                     {@code cancelled}
+ * @param durationMs   durée d'exécution du tool (attente d'approbation exclue)
  * @param resultLength nombre de caractères retournés au LLM
  * @param documentIds  documents retournés par l'appel (identifiants exploitables par {@code get_documents} ou pièces jointes)
  */
@@ -26,6 +28,12 @@ public record ToolCallRecord(int sequence, int step, String tool, Map<String, Ob
     public static final String STATUS_INVALID_ARGUMENTS = "invalid_arguments";
     public static final String STATUS_BUDGET_EXHAUSTED = "budget_exhausted";
     public static final String STATUS_ERROR = "error";
+    /** Approbation refusée par l'utilisateur. */
+    public static final String STATUS_REJECTED = "rejected";
+    /** Approbation non donnée dans le délai imparti. */
+    public static final String STATUS_EXPIRED = "expired";
+    /** Génération arrêtée (Stop, déconnexion) pendant l'attente d'approbation. */
+    public static final String STATUS_CANCELLED = "cancelled";
 
     public ToolCallRecord {
         // Copie tolérant les valeurs nulles (ex. "limit": null fourni par le LLM), contrairement à Map.copyOf.

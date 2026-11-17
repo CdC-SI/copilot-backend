@@ -1,5 +1,7 @@
 package zas.admin.zec.backend.actions.converse;
 
+import zas.admin.zec.backend.config.properties.ToolApprovalProperties;
+import zas.admin.zec.backend.tools.ToolApprovalService;
 import io.micrometer.observation.ObservationRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -31,17 +33,22 @@ import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
 import zas.admin.zec.backend.persistence.repository.ConversationRepository;
 import zas.admin.zec.backend.persistence.repository.ConversationTitleRepository;
 import zas.admin.zec.backend.rag.ChatStatus;
+import zas.admin.zec.backend.rag.token.ApprovalRequiredToken;
 import zas.admin.zec.backend.rag.token.SourceToken;
 import zas.admin.zec.backend.rag.token.StatusToken;
 import zas.admin.zec.backend.rag.token.SuggestionToken;
 import zas.admin.zec.backend.rag.token.TextToken;
 import zas.admin.zec.backend.rag.token.Token;
+import zas.admin.zec.backend.rag.token.ToolCallToken;
+import zas.admin.zec.backend.rag.token.ToolResultToken;
 import zas.admin.zec.backend.rag.token.WorkspaceToken;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -77,6 +84,8 @@ class ConversationServiceStreamTest {
 
     private final GenerationRegistry registry = new GenerationRegistry();
     private final ConversationMemory memory = mock(ConversationMemory.class);
+    private final ToolApprovalService approvals =
+            new ToolApprovalService(new ToolApprovalProperties(List.of(), Duration.ofSeconds(5)));
     private ConversationService service;
     private final List<ChatStreamEvent> emitted = new CopyOnWriteArrayList<>();
 
@@ -89,7 +98,8 @@ class ConversationServiceStreamTest {
                 mock(WorkspaceService.class), mock(ApplicationEventPublisher.class),
                 new TransactionTemplate(mock(PlatformTransactionManager.class)),
                 new AttachmentOcrProperties(AttachmentOcrProperties.Engine.PIPELINE, 1000,
-                        Duration.ofSeconds(5), Duration.ofHours(1)), registry, new PromptRegistry(), memory);
+                        Duration.ofSeconds(5), Duration.ofHours(1)), registry, approvals, new PromptRegistry());
+                        Duration.ofSeconds(5), Duration.ofHours(1)), registry, approvals, new PromptRegistry(), memory);
     }
 
     @Test
@@ -307,6 +317,51 @@ class ConversationServiceStreamTest {
         assertTrue(saved.get(1).isInterrupted());
         assertFalse(service.stopGeneration(USER, CONVERSATION, start.messageId()), "génération terminée");
         assertDoesNotThrow(() -> registry.finish(registry.begin("next", USER, CONVERSATION)));
+    }
+
+    @Test
+    @DisplayName("T1 : appels de tools et demande d'approbation transmis en événements typés")
+    void toolTokens_areMappedToTypedEvents() {
+        var expiresAt = Instant.parse("2026-01-01T10:00:00Z");
+        when(chatService.answer(any(), eq(USER), any())).thenReturn(Flux.just(
+                new ToolCallToken("1", "get_attachment_content", Map.of("attachmentId", 3)),
+                new ApprovalRequiredToken("1", "appr-1", "get_attachment_content", Map.of("attachmentId", 3), expiresAt),
+                new ToolResultToken("1", "get_attachment_content", "rejected", 0, 0),
+                text("Réponse")));
+
+        var output = service.streamAnswer(question(null), USER).collectList().block(ASYNC);
+
+        assertEquals(List.of("start", "tool_call", "approval_required", "tool_result", "text_delta", "done"), types(output));
+        assertEquals(new ChatStreamEvent.ToolCall("1", "get_attachment_content", Map.of("attachmentId", 3)),
+                output.get(1).data());
+        assertEquals(new ChatStreamEvent.ApprovalRequired("1", "appr-1", "get_attachment_content",
+                Map.of("attachmentId", 3), "2026-01-01T10:00:00Z"), output.get(2).data());
+        assertEquals(new ChatStreamEvent.ToolResult("1", "get_attachment_content", "rejected", 0, 0),
+                output.get(3).data());
+        assertEquals("""
+                {"id":"1","approvalId":"appr-1","name":"get_attachment_content","arguments":{"attachmentId":3},\
+                "expiresAt":"2026-01-01T10:00:00Z"}""",
+                ConversationController.toServerSentEvent(output.get(2)).data());
+    }
+
+    @Test
+    @DisplayName("T1 : le Stop annule les approbations en attente de la conversation")
+    void stop_cancelsPendingApprovals() {
+        // Le Stop peut intervenir avant même l'appel au ChatService.
+        lenient().when(chatService.answer(any(), eq(USER), any())).thenReturn(Flux.never());
+        var otherConversation = approvals.open(USER, "other");
+        var pending = approvals.open(USER, CONVERSATION);
+
+        var subscription = service.streamAnswer(question(null), USER).doOnNext(emitted::add).subscribe();
+        try {
+            var messageId = ((ChatStreamEvent.Start) emitted.getFirst().data()).messageId();
+            assertTrue(service.stopGeneration(USER, CONVERSATION, messageId));
+
+            assertEquals(ToolApprovalService.Decision.CANCELLED, approvals.await(pending.approvalId()));
+            assertTrue(service.decideToolApproval(USER, "other", otherConversation.approvalId(), true));
+        } finally {
+            subscription.dispose();
+        }
     }
 
     @Test

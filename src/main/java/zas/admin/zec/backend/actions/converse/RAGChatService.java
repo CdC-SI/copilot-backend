@@ -29,6 +29,7 @@ import zas.admin.zec.backend.rag.token.WorkspaceToken;
 import zas.admin.zec.backend.tools.ConversationAttachmentTool;
 import zas.admin.zec.backend.tools.DocumentTool;
 import zas.admin.zec.backend.tools.RAGTool;
+import zas.admin.zec.backend.tools.ToolApprovalService;
 import zas.admin.zec.backend.tools.ToolCallRecorder;
 import zas.admin.zec.backend.tools.ToolContextKeys;
 import zas.admin.zec.backend.tools.WorkspaceInferenceMonitoringService;
@@ -76,6 +77,7 @@ public class RAGChatService extends AbstractChatService {
     private final AttachmentRepository attachmentRepository;
     private final PromptRegistry promptRegistry;
     private final ConversationMemory conversationMemory;
+    private final ToolApprovalService toolApprovalService;
 
     public RAGChatService(@Qualifier(ChatClientConfig.INTERNAL_CHAT_CLIENT_BUILDER) ChatClient.Builder chatClientBuilder,
                           RAGTool ragTool,
@@ -84,6 +86,7 @@ public class RAGChatService extends AbstractChatService {
                           WorkspaceInferenceMonitoringService workspaceInferenceMonitoringService,
                           DocumentToolProperties documentToolProperties,
                           AttachmentRepository attachmentRepository,
+                          ToolApprovalService toolApprovalService,
                           PromptRegistry promptRegistry,
                           ConversationMemory conversationMemory) {
         this.internalChatClient = chatClientBuilder.build();
@@ -93,6 +96,7 @@ public class RAGChatService extends AbstractChatService {
         this.attachmentRepository = attachmentRepository;
         this.promptRegistry = promptRegistry;
         this.conversationMemory = conversationMemory;
+        this.toolApprovalService = toolApprovalService;
     }
 
     @Override
@@ -102,6 +106,12 @@ public class RAGChatService extends AbstractChatService {
 
     @Override
     public Flux<Token> answer(Question question, String userId, List<Message> conversationHistory) {
+        return answer(question, userId, conversationHistory, new AtomicReference<>());
+    }
+
+    @Override
+    public Flux<Token> answer(Question question, String userId, List<Message> conversationHistory,
+                              AtomicReference<ToolCallRecorder> recorderReference) {
         // Liste partagée (thread-safe) que le tool alimentera lors d'un éventuel appel.
         List<Document> retrievedDocuments = new CopyOnWriteArrayList<>();
 
@@ -124,8 +134,10 @@ public class RAGChatService extends AbstractChatService {
         // Extrait (et masque) la balise <turn_meta> de fin de réponse.
         TurnMetaStreamFilter turnMetaFilter = new TurnMetaStreamFilter();
 
-        // Journal des appels de tools du tour (persisté avec la réponse).
-        ToolCallRecorder toolCallRecorder = new ToolCallRecorder(retrievedDocuments);
+        // Journal des appels de tools du tour (persisté avec la réponse), événements tool_call / tool_result et
+        // approbation des tools qui l'exigent (T1).
+        ToolCallRecorder toolCallRecorder = new ToolCallRecorder(retrievedDocuments, toolApprovalService);
+        recorderReference.set(toolCallRecorder);
 
         // Tokens du tour : appels de la boucle agentique (flux) et appels LLM faits par les tools.
         UsageTracker usageTracker = new UsageTracker();
@@ -191,9 +203,13 @@ public class RAGChatService extends AbstractChatService {
                 ? Flux.just(new WorkspaceToken(resolvedWorkspace.get()))
                 : Flux.empty());
 
+        Flux<Token> initialTrace = Flux.just(new TurnTraceToken(
+                TurnTrace.empty().withPrompts(promptVersions)));
+
         // statusSink.asFlux() émet les StatusToken produits pendant le tool-calling,
         // avant et pendant que textTokens streame la réponse du LLM.
-        return statusSink.asFlux().mergeWith(textTokens).concatWith(sourceTokens).concatWith(workspaceToken);
+        return initialTrace.concatWith(statusSink.asFlux().mergeWith(textTokens))
+                .concatWith(sourceTokens).concatWith(workspaceToken);
     }
 
     /** Pièces jointes de la conversation (sans contenu), annoncées à l'agent via {@code <conversation_attachments>}. */
@@ -232,5 +248,3 @@ public class RAGChatService extends AbstractChatService {
     }
 
 }
-
-

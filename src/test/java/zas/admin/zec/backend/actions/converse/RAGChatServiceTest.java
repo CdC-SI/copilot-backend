@@ -1,5 +1,7 @@
 package zas.admin.zec.backend.actions.converse;
 
+import zas.admin.zec.backend.config.properties.ToolApprovalProperties;
+import zas.admin.zec.backend.tools.ToolApprovalService;
 import io.micrometer.observation.ObservationRegistry;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -55,9 +57,10 @@ class RAGChatServiceTest {
     private final ChatModel chatModel = mock(ChatModel.class);
     private final RAGChatService service = new RAGChatService(ChatClientConfig.builder(chatModel, ObservationRegistry.NOOP), mock(RAGTool.class), mock(DocumentTool.class),
             mock(ConversationAttachmentTool.class), mock(WorkspaceInferenceMonitoringService.class),
-            new DocumentToolProperties(10), mock(AttachmentRepository.class), PROMPTS,
+            new DocumentToolProperties(10), mock(AttachmentRepository.class),
+            new ToolApprovalService(new ToolApprovalProperties(List.of(), Duration.ofSeconds(1))), PROMPTS,
             new ConversationMemory(new MemoryProperties(12000, 0.6, true), mock(ConversationSummaryRepository.class),
-                    ChatClientConfig.builder(chatModel, ObservationRegistry.NOOP), PROMPTS, mock(ApplicationEventPublisher.class)));
+                   ChatClientConfig.builder(chatModel, ObservationRegistry.NOOP), PROMPTS, mock(ApplicationEventPublisher.class)));
 
     private static final ConsultedSource PROCESS = new ConsultedSource("p", "business_process", "business_process",
             "Processus P", "https://bpanda/p", null, null, "2026.03.02", "Brouillon", "BP-1", null, List.of());
@@ -111,6 +114,7 @@ class RAGChatServiceTest {
         assertEquals(List.of("p"), sources.stream().map(SourceToken::documentId).toList());
 
         var trace = tokens.stream().filter(TurnTraceToken.class::isInstance).map(t -> ((TurnTraceToken) t).trace())
+                .filter(t -> t.status() == TurnStatus.ANSWER)
                 .findFirst().orElseThrow();
         assertEquals(TurnStatus.ANSWER, trace.status());
         // "p" vient d'un tour précédent : classé comme repris.

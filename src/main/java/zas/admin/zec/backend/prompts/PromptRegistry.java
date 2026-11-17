@@ -17,6 +17,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Registre des prompts LLM, chargés au démarrage depuis le classpath ({@code prompts/<langue>/<clé>.txt}).
@@ -34,6 +36,7 @@ public class PromptRegistry {
     public static final String DEFAULT_LANGUAGE = "de";
 
     private static final int VERSION_LENGTH = 12;
+    private static final Pattern SPRING_AI_VARIABLE = Pattern.compile("(?<!\\{)\\{([^{}]+)}(?!})");
 
     private final Map<String, Map<PromptId, Prompt>> prompts;
 
@@ -86,9 +89,14 @@ public class PromptRegistry {
                 errors.add(path + " : variable {{...}} mal formée");
             }
         } else {
-            expected.stream()
-                    .filter(name -> !template.contains("{" + name + "}"))
-                    .forEach(name -> errors.add("%s : variable {%s} absente".formatted(path, name)));
+            Set<String> found = new TreeSet<>();
+            Matcher matcher = SPRING_AI_VARIABLE.matcher(template);
+            while (matcher.find()) {
+                found.add(matcher.group(1));
+            }
+            if (!found.equals(expected)) {
+                errors.add("%s : variables %s, attendues %s".formatted(path, found, expected));
+            }
             if (template.contains("{{")) {
                 errors.add(path + " : syntaxe {{...}} non supportée par Spring AI");
             }
