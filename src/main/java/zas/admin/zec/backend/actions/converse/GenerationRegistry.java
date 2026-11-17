@@ -73,7 +73,7 @@ public class GenerationRegistry {
             return stopRequested;
         }
 
-        private void markSubscribed() {
+        void markSubscribed() {
             synchronized (this) {
                 subscribed = true;
             }
