@@ -36,13 +36,16 @@ public class AttachmentChatService extends AbstractChatService {
     private final ChatClient internalChatClient;
     private final ConversationAttachmentTool attachmentTool;
     private final PromptRegistry promptRegistry;
+    private final ConversationMemory conversationMemory;
 
     public AttachmentChatService(@Qualifier(ChatClientConfig.INTERNAL_CHAT_CLIENT_BUILDER) ChatClient.Builder chatClientBuilder,
                                   ConversationAttachmentTool attachmentTool,
-                                  PromptRegistry promptRegistry) {
+                                  PromptRegistry promptRegistry,
+                                  ConversationMemory conversationMemory) {
         this.internalChatClient = chatClientBuilder.build();
         this.attachmentTool = attachmentTool;
         this.promptRegistry = promptRegistry;
+        this.conversationMemory = conversationMemory;
     }
 
     @Override
@@ -61,7 +64,8 @@ public class AttachmentChatService extends AbstractChatService {
         Flux<Token> textTokens = internalChatClient
                 .prompt()
                 .system(attachmentSystemPrompt(question))
-                .messages(conversationHistory.stream().map(this::convertToMessage).toList())
+                .messages(conversationMemory.window(userId, question.conversationId(), conversationHistory,
+                        conversationHistory.stream().map(this::convertToMessage).toList(), null))
                 .tools(attachmentTool)
                 .toolContext(toolContext)
                 .user(question.query())

@@ -18,6 +18,8 @@ public enum PromptId {
     WORKSPACE_INFERENCE("workspace-inference", Syntax.NAMED, "workspaces", "default_workspace"),
     /** Génération du titre d'une nouvelle conversation. */
     CONVERSATION_TITLE("conversation-title", Syntax.NAMED, "answer"),
+    /** Résumé incrémental des tours anciens d'une conversation (mémoire conversationnelle). */
+    CONVERSATION_SUMMARY("conversation-summary", Syntax.NAMED, "previous_summary", "turns"),
     /** Réécriture de la requête de recherche ({@code RewriteQueryTransformer}). */
     QUERY_REWRITER("query-rewriter", Syntax.SPRING_AI, "query", "target"),
     /** Expansion de la requête de recherche ({@code MultiQueryExpander}). */

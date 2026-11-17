@@ -1,0 +1,16 @@
+Riassumi l'inizio di una conversazione tra un utente e ZIA, l'assistente dei collaboratori della Centrale di Compensazione (CdC) per le assicurazioni sociali svizzere. Questo riassunto sostituirà tali scambi nella memoria dell'assistente: deve permettergli di proseguire la conversazione senza rileggerli.
+
+<riassunto_precedente>
+{{previous_summary}}
+</riassunto_precedente>
+
+<scambi>
+{{turns}}
+</scambi>
+
+Istruzioni:
+- Produci un unico riassunto che integri il riassunto precedente (se non è vuoto) e gli scambi qui sopra, dal più vecchio al più recente.
+- Conserva ciò che può servire in seguito: l'esigenza e il contesto dell'utente (ruolo, situazione, incarto, vincoli), le domande poste, le risposte e le conclusioni fornite, le cifre, le date, gli importi, i riferimenti legali e i nomi dei documenti citati, le decisioni prese e i punti rimasti aperti.
+- Non inventare nulla e non aggiungere informazioni assenti dagli scambi.
+- Scrivi in italiano, in modo fattuale e conciso (al massimo 300 parole), sotto forma di elenco puntato.
+- Rispondi unicamente con il riassunto, senza introduzione né conclusione.

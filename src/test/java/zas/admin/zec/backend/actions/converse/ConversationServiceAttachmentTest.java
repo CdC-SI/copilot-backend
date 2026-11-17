@@ -57,7 +57,7 @@ class ConversationServiceAttachmentTest {
                 mock(WorkspaceService.class), eventPublisher,
                 new TransactionTemplate(mock(PlatformTransactionManager.class)),
                 new AttachmentOcrProperties(AttachmentOcrProperties.Engine.PIPELINE, 2,
-                        Duration.ofSeconds(5), Duration.ofHours(1)), new GenerationRegistry(), new PromptRegistry());
+                        Duration.ofSeconds(5), Duration.ofHours(1)), new GenerationRegistry(), new PromptRegistry(), mock(ConversationMemory.class));
     }
 
     private static byte[] pdfWithPages(int pages) throws IOException {

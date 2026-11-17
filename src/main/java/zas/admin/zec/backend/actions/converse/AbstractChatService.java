@@ -56,7 +56,7 @@ abstract class AbstractChatService implements ChatService {
      * {@code <retrieved_sources>} des documents consultés lors du tour assistant précédent.
      * Le rendu est déterministe : un même historique produit toujours le même préfixe (prefix caching).
      */
-    protected List<org.springframework.ai.chat.messages.Message> toPromptMessages(List<Message> history) {
+    protected static List<org.springframework.ai.chat.messages.Message> toPromptMessages(List<Message> history) {
         List<org.springframework.ai.chat.messages.Message> messages = new ArrayList<>(history.size());
         String pendingBlock = "";
         int assistantTurn = 0;

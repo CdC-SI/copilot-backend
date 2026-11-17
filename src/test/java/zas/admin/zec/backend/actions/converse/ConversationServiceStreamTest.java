@@ -76,6 +76,7 @@ class ConversationServiceStreamTest {
     private ChatModel chatModel;
 
     private final GenerationRegistry registry = new GenerationRegistry();
+    private final ConversationMemory memory = mock(ConversationMemory.class);
     private ConversationService service;
     private final List<ChatStreamEvent> emitted = new CopyOnWriteArrayList<>();
 
@@ -88,7 +89,7 @@ class ConversationServiceStreamTest {
                 mock(WorkspaceService.class), mock(ApplicationEventPublisher.class),
                 new TransactionTemplate(mock(PlatformTransactionManager.class)),
                 new AttachmentOcrProperties(AttachmentOcrProperties.Engine.PIPELINE, 1000,
-                        Duration.ofSeconds(5), Duration.ofHours(1)), registry, new PromptRegistry());
+                        Duration.ofSeconds(5), Duration.ofHours(1)), registry, new PromptRegistry(), memory);
     }
 
     @Test

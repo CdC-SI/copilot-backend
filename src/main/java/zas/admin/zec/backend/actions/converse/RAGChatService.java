@@ -58,7 +58,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * est transmise pour persistance ({@link TurnTraceToken}), avec le journal des appels de tools
  * ({@link ToolCallRecorder}).</p>
  *
- * <p>Mémoire inter-tours : chaque message utilisateur de l'historique, ainsi que la question courante,
+ * <p>Mémoire inter-tours : l'historique envoyé est borné par {@link ConversationMemory} (budget de tokens, résumé des
+ * tours anciens) ; chaque message utilisateur de l'historique, ainsi que la question courante,
  * est préfixé par le bloc {@code <retrieved_sources>} des documents consultés au tour précédent. La question
  * courante est de plus préfixée par le bloc {@code <conversation_attachments>} (fichiers attachés, sans contenu) :
  * l'agent les lit lui-même via {@code get_attachment_content}.</p>
@@ -74,6 +75,7 @@ public class RAGChatService extends AbstractChatService {
     private final DocumentToolProperties documentToolProperties;
     private final AttachmentRepository attachmentRepository;
     private final PromptRegistry promptRegistry;
+    private final ConversationMemory conversationMemory;
 
     public RAGChatService(@Qualifier(ChatClientConfig.INTERNAL_CHAT_CLIENT_BUILDER) ChatClient.Builder chatClientBuilder,
                           RAGTool ragTool,
@@ -82,13 +84,15 @@ public class RAGChatService extends AbstractChatService {
                           WorkspaceInferenceMonitoringService workspaceInferenceMonitoringService,
                           DocumentToolProperties documentToolProperties,
                           AttachmentRepository attachmentRepository,
-                          PromptRegistry promptRegistry) {
+                          PromptRegistry promptRegistry,
+                          ConversationMemory conversationMemory) {
         this.internalChatClient = chatClientBuilder.build();
         this.toolCallbacks = ToolCallbacks.from(ragTool, attachmentTool, documentTool);
         this.workspaceInferenceMonitoringService = workspaceInferenceMonitoringService;
         this.documentToolProperties = documentToolProperties;
         this.attachmentRepository = attachmentRepository;
         this.promptRegistry = promptRegistry;
+        this.conversationMemory = conversationMemory;
     }
 
     @Override
@@ -144,7 +148,8 @@ public class RAGChatService extends AbstractChatService {
         Flux<Token> textTokens = internalChatClient
                 .prompt()
                 .system(agenticSystemPrompt(question, toolContext))
-                .messages(toPromptMessages(conversationHistory))
+                .messages(conversationMemory.window(userId, question.conversationId(), conversationHistory,
+                        toPromptMessages(conversationHistory), promptVersions))
                 .toolCallbacks(toolCallRecorder.wrap(toolCallbacks))
                 .toolContext(toolContext)
                 .user(currentUserMessage(question, userId, conversationHistory, workspaceProvided, toolContext))

@@ -64,6 +64,7 @@ public class ConversationService {
     private final AttachmentOcrProperties attachmentOcrProperties;
     private final GenerationRegistry generationRegistry;
     private final PromptRegistry promptRegistry;
+    private final ConversationMemory conversationMemory;
 
     public ConversationService(ConversationRepository conversationRepository,
                                ConversationTitleRepository conversationTitleRepository,
@@ -76,7 +77,8 @@ public class ConversationService {
                                TransactionTemplate transactionTemplate,
                                AttachmentOcrProperties attachmentOcrProperties,
                                GenerationRegistry generationRegistry,
-                               PromptRegistry promptRegistry) {
+                               PromptRegistry promptRegistry,
+                               ConversationMemory conversationMemory) {
 
         this.conversationRepository = conversationRepository;
         this.conversationTitleRepository = conversationTitleRepository;
@@ -90,6 +92,7 @@ public class ConversationService {
         this.attachmentOcrProperties = attachmentOcrProperties;
         this.generationRegistry = generationRegistry;
         this.promptRegistry = promptRegistry;
+        this.conversationMemory = conversationMemory;
     }
 
     public List<Source> getSourcesByMessageUuid(String conversationUuid, String messageUuid) {
@@ -143,6 +146,7 @@ public class ConversationService {
         attachmentRepository.deleteByUserIdAndConversationId(userId, conversationId);
         conversationRepository.deleteByUserIdAndConversationId(userId, conversationId);
         conversationTitleRepository.deleteByUserIdAndConversationId(userId, conversationId);
+        conversationMemory.forget(userId, conversationId);
     }
 
     public void renameConversation(String userId, String conversationId, String newTitle) {
@@ -565,6 +569,9 @@ public class ConversationService {
         if (exchange.turnTrace() != null && exchange.turnTrace().usage() != null) {
             eventPublisher.publishEvent(new TurnUsageEvent(exchange.turnTrace().usage(), exchange.workspace()));
         }
+        // Résumé des tours anciens si l'historique dépasse le budget (B2), en arrière-plan.
+        conversationMemory.compactAsync(userId, question.conversationId(), question.language(),
+                () -> getConversationHistory(question.conversationId(), userId, Limit.unlimited()));
         return insertPlaceholderTitle(userId, question.conversationId(), question.query(), conversationType);
     }
 

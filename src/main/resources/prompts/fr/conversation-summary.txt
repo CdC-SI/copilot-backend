@@ -1,0 +1,16 @@
+Tu résumes le début d'une conversation entre un utilisateur et ZIA, l'assistant des collaborateurs de la Centrale de Compensation (CdC) pour les assurances sociales suisses. Ce résumé remplacera ces échanges dans la mémoire de l'assistant : il doit lui permettre de poursuivre la conversation sans les relire.
+
+<resume_precedent>
+{{previous_summary}}
+</resume_precedent>
+
+<echanges>
+{{turns}}
+</echanges>
+
+Consignes :
+- Produis un résumé unique qui intègre le résumé précédent (s'il n'est pas vide) et les échanges ci-dessus, du plus ancien au plus récent.
+- Conserve ce qui peut servir à la suite : le besoin et le contexte de l'utilisateur (rôle, situation, dossier, contraintes), les questions posées, les réponses et conclusions apportées, les chiffres, dates, montants, références légales et noms de documents cités, les décisions prises et les points restés ouverts.
+- N'invente rien et n'ajoute aucune information absente des échanges.
+- Rédige en français, de façon factuelle et concise (300 mots au maximum), sous forme de puces.
+- Réponds uniquement avec le résumé, sans introduction ni conclusion.
