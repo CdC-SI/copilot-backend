@@ -205,6 +205,7 @@ public class ConversationService {
 
         // Trace du tour (statut déclaré + documents consultés), émise en interne par l'agent.
         AtomicReference<TurnTrace> turnTrace = new AtomicReference<>();
+        Map<String, String> promptVersions = new ConcurrentHashMap<>();
         // Réponse servant à générer le titre, renseignée après l'enregistrement d'une nouvelle conversation.
         AtomicReference<String> titleToGenerate = new AtomicReference<>();
 
@@ -216,7 +217,8 @@ public class ConversationService {
                 .flatMap(token -> switch (token) {
                     case StatusToken statusToken -> Flux.just(ChatStreamEvent.status(statusToken.tag(), statusToken.label()));
                     case TurnTraceToken turnTraceToken -> {
-                        turnTrace.set(turnTraceToken.trace());
+                        promptVersions.putAll(turnTraceToken.trace().prompts());
+                        turnTrace.set(turnTraceToken.trace().withPrompts(promptVersions));
                         yield Flux.<ChatStreamEvent>empty();
                     }
                     case SuggestionToken suggestionToken -> {
@@ -249,7 +251,7 @@ public class ConversationService {
                     // Passage à SAVING atomique avec le Stop : un Stop accepté est toujours reflété ici.
                     boolean interrupted = generationRegistry.saving(generation);
                     var exchange = new StreamedExchange(assistantMessage.toString(), List.copyOf(sources),
-                            List.copyOf(suggestions), workspace.get(), turnTrace.get());
+                            List.copyOf(suggestions), workspace.get(), snapshotTrace(turnTrace, promptVersions));
                     // suppressCancel : une déconnexion pendant l'enregistrement ne l'annule pas.
                     // done n'est émis qu'après le commit (et la sortie du registre).
                     return Mono.fromFuture(saveAsync(generation, () -> saveExchange(question, userId, assistantMessageId,
@@ -284,7 +286,7 @@ public class ConversationService {
                     }
                     generationRegistry.saving(generation);
                     var exchange = new StreamedExchange(assistantMessage.toString(), List.copyOf(sources),
-                            List.copyOf(suggestions), workspace.get(), turnTrace.get());
+                            List.copyOf(suggestions), workspace.get(), snapshotTrace(turnTrace, promptVersions));
                     saveAsync(generation, () -> saveExchange(question, userId, assistantMessageId, exchange, timestamp,
                             conversationType, true, replacedMessageIds))
                             .thenCompose(newConversation -> newConversation
@@ -323,6 +325,11 @@ public class ConversationService {
     /** Contenu streamé d'un échange (texte de la réponse et métadonnées), figé au moment de l'enregistrement. */
     private record StreamedExchange(String answer, List<Source> sources, List<String> suggestions,
                                     String workspace, TurnTrace turnTrace) {}
+
+    private static TurnTrace snapshotTrace(AtomicReference<TurnTrace> turnTrace, Map<String, String> promptVersions) {
+        TurnTrace trace = turnTrace.get();
+        return trace == null ? null : trace.withPrompts(promptVersions);
+    }
 
     private static CompletableFuture<Void> persistAsync(Runnable task) {
         return CompletableFuture.runAsync(task, runnable -> Schedulers.boundedElastic().schedule(runnable));

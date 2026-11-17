@@ -186,9 +186,13 @@ public class RAGChatService extends AbstractChatService {
                 ? Flux.just(new WorkspaceToken(resolvedWorkspace.get()))
                 : Flux.empty());
 
+        Flux<Token> initialTrace = Flux.just(new TurnTraceToken(
+                TurnTrace.empty().withPrompts(promptVersions)));
+
         // statusSink.asFlux() émet les StatusToken produits pendant le tool-calling,
         // avant et pendant que textTokens streame la réponse du LLM.
-        return statusSink.asFlux().mergeWith(textTokens).concatWith(sourceTokens).concatWith(workspaceToken);
+        return initialTrace.concatWith(statusSink.asFlux().mergeWith(textTokens))
+                .concatWith(sourceTokens).concatWith(workspaceToken);
     }
 
     /** Pièces jointes de la conversation (sans contenu), annoncées à l'agent via {@code <conversation_attachments>}. */
@@ -227,5 +231,4 @@ public class RAGChatService extends AbstractChatService {
     }
 
 }
-
 

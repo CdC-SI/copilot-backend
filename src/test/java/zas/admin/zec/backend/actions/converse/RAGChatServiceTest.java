@@ -106,6 +106,7 @@ class RAGChatServiceTest {
         assertEquals(List.of("p"), sources.stream().map(SourceToken::documentId).toList());
 
         var trace = tokens.stream().filter(TurnTraceToken.class::isInstance).map(t -> ((TurnTraceToken) t).trace())
+                .filter(t -> t.status() == TurnStatus.ANSWER)
                 .findFirst().orElseThrow();
         assertEquals(TurnStatus.ANSWER, trace.status());
         // "p" vient d'un tour précédent : classé comme repris.

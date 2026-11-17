@@ -7,9 +7,12 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
 import zas.admin.zec.backend.config.ChatClientConfig;
+import zas.admin.zec.backend.prompts.Prompt;
 import zas.admin.zec.backend.prompts.PromptId;
 import zas.admin.zec.backend.prompts.PromptRegistry;
+import zas.admin.zec.backend.rag.TurnTrace;
 import zas.admin.zec.backend.rag.token.Token;
+import zas.admin.zec.backend.rag.token.TurnTraceToken;
 import zas.admin.zec.backend.tools.ConversationAttachmentTool;
 
 import java.util.List;
@@ -57,10 +60,11 @@ public class AttachmentChatService extends AbstractChatService {
         Sinks.Many<Token> statusSink = Sinks.many().unicast().onBackpressureBuffer();
 
         Map<String, Object> toolContext = baseToolContext(question, userId, statusSink);
+        Prompt systemPrompt = attachmentSystemPrompt(question);
 
         Flux<Token> textTokens = internalChatClient
                 .prompt()
-                .system(attachmentSystemPrompt(question))
+                .system(systemPrompt.render("response_format", question.responseFormat()))
                 .messages(conversationHistory.stream().map(this::convertToMessage).toList())
                 .tools(attachmentTool)
                 .toolContext(toolContext)
@@ -72,12 +76,13 @@ public class AttachmentChatService extends AbstractChatService {
 
         // statusSink.asFlux() émet les StatusToken produits pendant le tool-calling,
         // avant et pendant que textTokens streame la réponse du LLM.
-        return statusSink.asFlux().mergeWith(textTokens);
+        Token traceToken = new TurnTraceToken(TurnTrace.empty()
+                .withPrompts(Map.of(systemPrompt.traceKey(), systemPrompt.version())));
+        return Flux.just(traceToken).concatWith(statusSink.asFlux().mergeWith(textTokens));
     }
 
-    private String attachmentSystemPrompt(Question question) {
+    private Prompt attachmentSystemPrompt(Question question) {
         // Prompt sans RAG : seul le tool de pièces jointes est exposé au LLM.
-        return promptRegistry.get(PromptId.ATTACHMENT_SYSTEM, question.language())
-                .render("response_format", question.responseFormat());
+        return promptRegistry.get(PromptId.ATTACHMENT_SYSTEM, question.language());
     }
 }
