@@ -95,4 +95,26 @@ class GenerationRegistryTest {
         registry.finish(saving);
         awaited.get(1, TimeUnit.SECONDS);
     }
+
+    @Test
+    @DisplayName("awaitSaved : un enregistrement qui ne se termine pas à temps : 409")
+    void awaitSaved_timesOut() {
+        registry.saving(registry.begin("m1", USER, CONVERSATION));
+
+        var conflict = assertThrows(ConversationConflictException.class, () -> registry.awaitSaved(USER, CONVERSATION));
+
+        assertEquals(ConversationConflictException.GENERATION_IN_PROGRESS, conflict.getCode());
+    }
+
+    @Test
+    @DisplayName("saving : indique si un Stop a été accepté avant le passage à l'enregistrement")
+    void saving_reportsAcceptedStop() {
+        var stopped = registry.begin("m1", USER, CONVERSATION);
+        assertTrue(registry.stop("m1", USER, CONVERSATION));
+        assertTrue(registry.saving(stopped));
+
+        var completed = registry.begin("m2", USER, "other");
+        assertFalse(registry.saving(completed));
+        assertFalse(registry.stop("m2", USER, "other"));
+    }
 }

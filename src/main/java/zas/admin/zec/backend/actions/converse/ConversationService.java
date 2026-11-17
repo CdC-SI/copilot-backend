@@ -153,11 +153,12 @@ public class ConversationService {
      * {@code error}). Le titre d'une nouvelle conversation est généré après {@code done}, avant la fin du flux.
      */
     public Flux<ChatStreamEvent> streamAnswer(Question question, String userId) {
-        var timestamp = LocalDateTime.now();
         String assistantMessageId = UUID.randomUUID().toString();
         // F3b : une seule génération à la fois par conversation ; les enregistrements en cours sont attendus avant de
         // relire l'historique. Refus (409) levé ici, avant l'ouverture du flux.
         var generation = generationRegistry.begin(assistantMessageId, userId, question.conversationId());
+        // Horodatage capturé après l'enregistrement de l'échange précédent : l'ordre de l'historique est préservé.
+        var timestamp = LocalDateTime.now();
         try {
             return streamAnswer(question, userId, timestamp, generation);
         } catch (RuntimeException e) {
@@ -238,7 +239,8 @@ public class ConversationService {
                     if (!persisted.compareAndSet(false, true)) {
                         return Mono.<ChatStreamEvent>empty();
                     }
-                    boolean interrupted = generation.stopRequested();
+                    // Passage à SAVING atomique avec le Stop : un Stop accepté est toujours reflété ici.
+                    boolean interrupted = generationRegistry.saving(generation);
                     var exchange = new StreamedExchange(assistantMessage.toString(), List.copyOf(sources),
                             List.copyOf(suggestions), workspace.get(), turnTrace.get());
                     // suppressCancel : une déconnexion pendant l'enregistrement ne l'annule pas.
@@ -272,6 +274,7 @@ public class ConversationService {
                     if (!persisted.compareAndSet(false, true)) {
                         return;
                     }
+                    generationRegistry.saving(generation);
                     var exchange = new StreamedExchange(assistantMessage.toString(), List.copyOf(sources),
                             List.copyOf(suggestions), workspace.get(), turnTrace.get());
                     saveAsync(generation, () -> saveExchange(question, userId, assistantMessageId, exchange, timestamp,
@@ -293,9 +296,11 @@ public class ConversationService {
         return generationRegistry.stop(messageId, userId, conversationId);
     }
 
-    /** Enregistre l'échange de façon asynchrone ; la génération quitte le registre une fois l'enregistrement terminé. */
+    /**
+     * Enregistre l'échange de façon asynchrone (génération déjà passée à SAVING) ; la génération quitte le registre une
+     * fois l'enregistrement terminé.
+     */
     private CompletableFuture<Boolean> saveAsync(GenerationRegistry.Generation generation, Supplier<Boolean> saveExchange) {
-        generationRegistry.saving(generation);
         return callAsync(saveExchange).whenComplete((ignored, err) -> generationRegistry.finish(generation));
     }
 

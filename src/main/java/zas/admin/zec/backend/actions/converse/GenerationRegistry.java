@@ -100,7 +100,7 @@ public class GenerationRegistry {
         while (true) {
             List<Generation> saving;
             synchronized (this) {
-                removeAbandoned(userId, conversationId);
+                removeAbandoned();
                 var current = generationsOf(userId, conversationId);
                 if (current.stream().anyMatch(g -> g.state == State.STREAMING)) {
                     throw new ConversationConflictException(ConversationConflictException.GENERATION_IN_PROGRESS);
@@ -125,17 +125,30 @@ public class GenerationRegistry {
      */
     public boolean stop(String messageId, String userId, String conversationId) {
         var generation = generations.get(messageId);
-        if (generation == null || !generation.belongsTo(userId, conversationId) || generation.state != State.STREAMING) {
+        if (generation == null || !generation.belongsTo(userId, conversationId)) {
             return false;
         }
-        generation.stopRequested = true;
+        // Atomique avec saving() : un Stop accepté est toujours pris en compte dans la réponse enregistrée.
+        synchronized (generation) {
+            if (generation.state != State.STREAMING) {
+                return false;
+            }
+            generation.stopRequested = true;
+        }
         generation.stop.tryEmitEmpty();
         return true;
     }
 
-    /** La réponse est produite (fin normale, Stop ou déconnexion) : l'échange est en cours d'enregistrement. */
-    public void saving(Generation generation) {
-        generation.state = State.SAVING;
+    /**
+     * La réponse est produite (fin normale, Stop ou déconnexion) : l'échange est en cours d'enregistrement.
+     *
+     * @return {@code true} si un Stop a été accepté avant ce passage (la réponse est alors interrompue)
+     */
+    public boolean saving(Generation generation) {
+        synchronized (generation) {
+            generation.state = State.SAVING;
+            return generation.stopRequested;
+        }
     }
 
     /** Fin de la génération (échange enregistré, ou abandonné) : retirée du registre. */
@@ -144,15 +157,21 @@ public class GenerationRegistry {
         generation.finished.complete(null);
     }
 
-    /** Attend (borné) la fin des enregistrements en cours sur la conversation ; les réponses encore produites ne sont pas attendues. */
+    /**
+     * Attend (borné) la fin des enregistrements en cours sur la conversation ; les réponses encore produites ne sont pas attendues.
+     *
+     * @throws ConversationConflictException {@code GENERATION_IN_PROGRESS} si un enregistrement ne s'est pas terminé à temps
+     */
     public void awaitSaved(String userId, String conversationId) {
         var saving = generationsOf(userId, conversationId).stream().filter(g -> g.state == State.SAVING).toList();
-        await(saving, System.nanoTime() + saveTimeout.toNanos());
+        if (!await(saving, System.nanoTime() + saveTimeout.toNanos())) {
+            throw new ConversationConflictException(ConversationConflictException.GENERATION_IN_PROGRESS);
+        }
     }
 
-    private void removeAbandoned(String userId, String conversationId) {
+    private void removeAbandoned() {
         long now = System.nanoTime();
-        generationsOf(userId, conversationId).stream()
+        generations.values().stream()
                 .filter(g -> now - g.startedAt > ABANDONED_AFTER.toNanos())
                 .forEach(this::finish);
     }
