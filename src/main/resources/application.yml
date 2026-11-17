@@ -108,6 +108,9 @@ spring:
   mvc:
     async:
       request-timeout: 120000
+  # T3 : restauration automatique des ThreadLocal (observation/trace, MDC correlation) dans les opérateurs Reactor.
+  reactor:
+    context-propagation: auto
   task:
     execution:
       pool:
@@ -200,6 +203,10 @@ zia:
         chat-base-url: ${FALLBACK_CHAT_BASE_URL:}
         api-key: ${FALLBACK_API_KEY:${OPENAI_API_KEY:}}
         reasoning-effort: ${FALLBACK_REASONING_EFFORT:}
+    # T3 : prix par million de tokens pour la métrique zia.llm.cost (optionnel ; clé = modèle renvoyé par le serveur).
+    # Exemple : models: { "[Qwen/Qwen3-32B]": { input: 0.5, cached-input: 0.1, output: 1.5 } }
+    pricing:
+      currency: ${LLM_PRICING_CURRENCY:CHF}
 logging:
   level:
     zas.admin.zec: ${LOG_LEVEL_ZEC:INFO}
@@ -241,6 +248,31 @@ management:
   observations:
     enable:
       default: true
+  # T3 : traces OpenTelemetry. Les spans sont toujours créés (traceId/spanId dans les logs) ; l'export OTLP est
+  # désactivé par défaut. Langfuse : OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=https://<hôte>/api/public/otel/v1/traces et
+  # MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_HEADERS_AUTHORIZATION="Basic <base64(clé publique:clé secrète)>".
+  tracing:
+    sampling:
+      probability: ${OTEL_TRACES_SAMPLING_PROBABILITY:1.0}
+    export:
+      enabled: ${OTEL_TRACES_EXPORT_ENABLED:false}
+  opentelemetry:
+    resource-attributes:
+      deployment.environment: ${ENVIRONMENT:local}
+    tracing:
+      export:
+        otlp:
+          endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://localhost:4318/v1/traces}
+  logging:
+    export:
+      otlp:
+        enabled: false
+  otlp:
+    metrics:
+      export:
+        # Les métriques restent exposées par Prometheus ; export OTLP optionnel.
+        enabled: ${OTEL_METRICS_EXPORT_ENABLED:false}
+        url: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT:http://localhost:4318/v1/metrics}
   endpoints:
     web:
       exposure:

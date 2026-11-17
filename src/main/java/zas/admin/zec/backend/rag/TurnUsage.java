@@ -1,5 +1,9 @@
 package zas.admin.zec.backend.rag;
 
+import org.springframework.ai.chat.metadata.ChatResponseMetadata;
+import org.springframework.ai.chat.metadata.Usage;
+import org.springframework.ai.chat.model.ChatResponse;
+
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,16 +18,34 @@ import java.util.Objects;
  */
 public record TurnUsage(List<LlmCall> agentCalls, List<LlmCall> auxiliaryCalls) {
 
-    /** Un appel LLM. */
-    public record LlmCall(String purpose, long promptTokens, long completionTokens, Long cachedTokens) {
+    /** Un appel LLM ; {@code model} : modèle ayant répondu (primaire ou repli), {@code null} s'il est inconnu. */
+    public record LlmCall(String purpose, long promptTokens, long completionTokens, Long cachedTokens, String model) {
+
+        public LlmCall(String purpose, long promptTokens, long completionTokens, Long cachedTokens) {
+            this(purpose, promptTokens, completionTokens, cachedTokens, null);
+        }
 
         Map<String, Object> toMap() {
             Map<String, Object> map = new LinkedHashMap<>();
             map.put("purpose", purpose);
+            map.put("model", model);
             map.put("prompt_tokens", promptTokens);
             map.put("completion_tokens", completionTokens);
             map.put("cached_tokens", cachedTokens);
             return map;
+        }
+
+        /** Usage d'un appel à partir de la réponse du modèle, ou {@code null} si elle ne porte pas d'usage. */
+        public static LlmCall from(String purpose, ChatResponse response) {
+            ChatResponseMetadata metadata = response != null ? response.getMetadata() : null;
+            Usage usage = metadata != null ? metadata.getUsage() : null;
+            if (usage == null || usage.getPromptTokens() == null) {
+                return null;
+            }
+            String model = metadata.getModel() != null && !metadata.getModel().isBlank() ? metadata.getModel() : null;
+            return new LlmCall(purpose, usage.getPromptTokens(),
+                    usage.getCompletionTokens() != null ? usage.getCompletionTokens() : 0,
+                    usage.getCacheReadInputTokens(), model);
         }
     }
 

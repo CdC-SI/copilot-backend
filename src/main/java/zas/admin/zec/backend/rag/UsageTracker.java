@@ -25,8 +25,7 @@ public final class UsageTracker {
             return;
         }
         last = usage;
-        calls.add(new TurnUsage.LlmCall("agent", usage.getPromptTokens(),
-                usage.getCompletionTokens() != null ? usage.getCompletionTokens() : 0, usage.getCacheReadInputTokens()));
+        calls.add(TurnUsage.LlmCall.from("agent", response));
     }
 
     /** Usage de chaque appel de la boucle agentique, dans l'ordre. */

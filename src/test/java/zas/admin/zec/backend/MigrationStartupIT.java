@@ -1,12 +1,16 @@
 package zas.admin.zec.backend;
 
 import com.github.gavlyukovskiy.boot.jdbc.decorator.DecoratedDataSource;
+import io.micrometer.tracing.Tracer;
+import io.opentelemetry.sdk.trace.export.SpanExporter;
 import org.junit.jupiter.api.Test;
+import org.springframework.ai.chat.observation.ChatModelMeterObservationHandler;
 import org.springframework.ai.openai.OpenAiEmbeddingModel;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -16,6 +20,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.json.JsonMapper;
 import zas.admin.zec.backend.actions.upload.model.EmbeddingStatus;
+import zas.admin.zec.backend.observability.CorrelationId;
 import zas.admin.zec.backend.persistence.entity.DocumentEntity;
 import zas.admin.zec.backend.persistence.entity.TempSourceDocumentEntity;
 import zas.admin.zec.backend.persistence.repository.DocumentRepository;
@@ -69,6 +74,9 @@ class MigrationStartupIT {
     private Environment environment;
 
     @Autowired
+    private ApplicationContext applicationContext;
+
+    @Autowired
     private JdbcTemplate jdbcTemplate;
 
     @Autowired
@@ -118,6 +126,22 @@ class MigrationStartupIT {
                     HttpResponse.BodyHandlers.ofString());
             assertEquals(200, docs.statusCode(), docs.body());
             assertTrue(mapper.readTree(docs.body()).has("openapi"));
+        }
+    }
+
+    @Test
+    void observabilityIsWiredWithOtlpExportDisabledByDefault() throws Exception {
+        assertNotNull(applicationContext.getBean(Tracer.class));
+        assertEquals(0, applicationContext.getBeanNamesForType(SpanExporter.class).length, "export OTLP désactivé");
+        assertNotNull(applicationContext.getBean(ChatModelMeterObservationHandler.class));
+
+        try (var client = HttpClient.newHttpClient()) {
+            var health = client.send(request("/actuator/health").header(CorrelationId.HEADER, "it-correlation").GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals("it-correlation", health.headers().firstValue(CorrelationId.HEADER).orElse(null));
+
+            var generated = client.send(request("/actuator/health").GET().build(), HttpResponse.BodyHandlers.ofString());
+            assertTrue(generated.headers().firstValue(CorrelationId.HEADER).filter(id -> !id.isBlank()).isPresent());
         }
     }
 

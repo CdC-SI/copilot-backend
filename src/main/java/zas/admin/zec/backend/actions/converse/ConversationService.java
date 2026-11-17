@@ -23,6 +23,7 @@ import zas.admin.zec.backend.actions.upload.validation.UploadException;
 import zas.admin.zec.backend.actions.workspace.WorkspaceService;
 import zas.admin.zec.backend.config.ChatClientConfig;
 import zas.admin.zec.backend.config.properties.AttachmentOcrProperties;
+import zas.admin.zec.backend.observability.TurnUsageEvent;
 import zas.admin.zec.backend.persistence.entity.AttachmentEntity;
 import zas.admin.zec.backend.persistence.entity.ConversationTitleEntity;
 import zas.admin.zec.backend.persistence.entity.MessageEntity;
@@ -556,6 +557,9 @@ public class ConversationService {
             save(userMessage, userId, question.conversationId());
             save(assistantMessage, userId, question.conversationId());
         });
+        if (exchange.turnTrace() != null && exchange.turnTrace().usage() != null) {
+            eventPublisher.publishEvent(new TurnUsageEvent(exchange.turnTrace().usage(), exchange.workspace()));
+        }
         return insertPlaceholderTitle(userId, question.conversationId(), question.query(), conversationType);
     }
 
