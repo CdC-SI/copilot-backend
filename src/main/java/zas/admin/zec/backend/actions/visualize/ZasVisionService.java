@@ -6,7 +6,6 @@ import org.apache.pdfbox.rendering.ImageType;
 import org.apache.pdfbox.rendering.PDFRenderer;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.content.Media;
 import org.springframework.ai.openai.OpenAiChatOptions;
@@ -17,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.MimeTypeUtils;
 import org.springframework.web.multipart.MultipartFile;
 import tools.jackson.databind.JsonNode;
+import zas.admin.zec.backend.config.ChatClientConfig;
 import zas.admin.zec.backend.actions.visualize.model.MedicalServices;
 import zas.admin.zec.backend.actions.visualize.model.TextTranslation;
 import zas.admin.zec.backend.actions.visualize.model.ZasDocumentType;
@@ -34,19 +34,16 @@ import java.util.concurrent.CompletableFuture;
 @Service
 public class ZasVisionService implements VisionService {
     private final ChatClient visionChatClient;
-    private final ChatClient llmChatClient;
     private final VisionMessageService visionMessageService;
 
     private static final List<String> IMAGE_MIME_TYPES = List.of(
             "image/png", "image/jpeg", "image/jpg", "image/gif", "image/bmp", "image/webp", "image/tiff"
     );
 
-    public ZasVisionService(@Qualifier("visionModel") ChatModel visionModel,
-                            @Qualifier("internalChatModel") ChatModel llmModel,
+    public ZasVisionService(@Qualifier(ChatClientConfig.VISION_CHAT_CLIENT_BUILDER) ChatClient.Builder visionChatClientBuilder,
                             VisionMessageService visionMessageService) {
 
-        this.visionChatClient = ChatClient.create(visionModel);
-        this.llmChatClient = ChatClient.create(llmModel);
+        this.visionChatClient = visionChatClientBuilder.build();
         this.visionMessageService = visionMessageService;
     }
 

@@ -1,5 +1,6 @@
 package zas.admin.zec.backend.actions.converse;
 
+import io.micrometer.observation.ObservationRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,6 +20,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import reactor.core.publisher.Flux;
+import zas.admin.zec.backend.config.ChatClientConfig;
 import zas.admin.zec.backend.actions.summarize.LlmOcrService;
 import zas.admin.zec.backend.actions.workspace.WorkspaceService;
 import zas.admin.zec.backend.config.properties.AttachmentOcrProperties;
@@ -81,7 +83,7 @@ class ConversationServiceStreamTest {
         lenient().when(chatModel.getOptions()).thenReturn(ChatOptions.builder().build());
         lenient().when(chatServiceFactory.resolve(any())).thenReturn(chatService);
         service = new ConversationService(conversationRepository, titleRepository,
-                mock(AttachmentRepository.class), chatServiceFactory, chatModel, mock(LlmOcrService.class),
+                mock(AttachmentRepository.class), chatServiceFactory, ChatClientConfig.builder(chatModel, ObservationRegistry.NOOP), mock(LlmOcrService.class),
                 mock(WorkspaceService.class), mock(ApplicationEventPublisher.class),
                 new TransactionTemplate(mock(PlatformTransactionManager.class)),
                 new AttachmentOcrProperties(AttachmentOcrProperties.Engine.PIPELINE, 1000,

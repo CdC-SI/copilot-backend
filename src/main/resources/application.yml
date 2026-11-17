@@ -182,6 +182,7 @@ logging:
   level:
     zas.admin.zec: ${LOG_LEVEL_ZEC:INFO}
     org.springframework.ai: ${LOG_LEVEL_SPRING_AI:INFO}
+    org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor: ${LOG_LEVEL_CHAT_CLIENT_ADVISOR:OFF}
     org.springframework.security: ${LOG_LEVEL_SPRING_SECURITY:INFO}
     com.vladmihalcea.flexypool: WARN
 deepl:

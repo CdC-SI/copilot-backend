@@ -1,5 +1,6 @@
 package zas.admin.zec.backend.tools;
 
+import io.micrometer.observation.ObservationRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.model.ChatModel;
@@ -12,6 +13,7 @@ import org.springframework.ai.model.tool.ToolCallingChatOptions;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.jdbc.core.JdbcTemplate;
 import reactor.core.publisher.Sinks;
+import zas.admin.zec.backend.config.ChatClientConfig;
 import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.actions.workspace.WorkspaceDto;
 import zas.admin.zec.backend.actions.workspace.WorkspaceService;
@@ -39,7 +41,7 @@ class RAGToolTest {
     @Test
     void missingQueryReturnsAnErrorMessageInsteadOfThrowing() {
         var vectorStore = mock(VectorStore.class);
-        var tool = new RAGTool(mock(ChatModel.class), vectorStore, mock(UserService.class), mock(DocumentReranker.class),
+        var tool = new RAGTool(ChatClientConfig.builder(mock(ChatModel.class), ObservationRegistry.NOOP), vectorStore, mock(UserService.class), mock(DocumentReranker.class),
                 mock(RetrievingProperties.class), mock(JdbcTemplate.class), mock(SourceResolver.class),
                 mock(WorkspaceService.class), mock(WorkspaceInferenceMonitoringService.class));
 
@@ -79,7 +81,7 @@ class RAGToolTest {
         when(workspaceService.getAll()).thenReturn(List.of(workspace("AFAC"), workspace("RH")));
         var monitoring = mock(WorkspaceInferenceMonitoringService.class);
 
-        var tool = new RAGTool(chatModel, mock(VectorStore.class), mock(UserService.class), mock(DocumentReranker.class),
+        var tool = new RAGTool(ChatClientConfig.builder(chatModel, ObservationRegistry.NOOP), mock(VectorStore.class), mock(UserService.class), mock(DocumentReranker.class),
                 retrievalWithoutQueryTransformation(), mock(JdbcTemplate.class), sourceResolver, workspaceService, monitoring);
 
         var resolvedWorkspace = new AtomicReference<String>();

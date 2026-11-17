@@ -1,20 +1,21 @@
 package zas.admin.zec.backend.actions.summarize;
 
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import zas.admin.zec.backend.config.ChatClientConfig;
 
 import java.util.List;
 
 @Service
 public class LlmStudySynthesisService {
 
-    private final ChatModel chatModel;
+    private final ChatClient chatClient;
 
-    public LlmStudySynthesisService(@Qualifier("internalChatModel") ChatModel chatModel) {
-        this.chatModel = chatModel;
+    public LlmStudySynthesisService(@Qualifier(ChatClientConfig.INTERNAL_CHAT_CLIENT_BUILDER) ChatClient.Builder chatClientBuilder) {
+        this.chatClient = chatClientBuilder.build();
     }
 
     public String summarizeStudies(List<String> studyCertificates) {
@@ -52,10 +53,9 @@ public class LlmStudySynthesisService {
                 .text(String.format(prompt, certificatesBuilder))
                 .build();
 
-        return chatModel
-                .call(new Prompt(userMessage))
-                .getResult()
-                .getOutput()
-                .getText();
+        return chatClient
+                .prompt(new Prompt(userMessage))
+                .call()
+                .content();
     }
 }

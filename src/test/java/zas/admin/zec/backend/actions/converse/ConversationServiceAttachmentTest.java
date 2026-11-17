@@ -1,5 +1,6 @@
 package zas.admin.zec.backend.actions.converse;
 
+import io.micrometer.observation.ObservationRegistry;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,6 +15,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import zas.admin.zec.backend.config.ChatClientConfig;
 import zas.admin.zec.backend.actions.summarize.LlmOcrService;
 import zas.admin.zec.backend.actions.upload.validation.UploadErrorCode;
 import zas.admin.zec.backend.actions.upload.validation.UploadException;
@@ -50,7 +52,7 @@ class ConversationServiceAttachmentTest {
     @BeforeEach
     void setUp() {
         service = new ConversationService(mock(ConversationRepository.class), mock(ConversationTitleRepository.class),
-                attachmentRepository, mock(ChatServiceFactory.class), mock(ChatModel.class), ocrService,
+                attachmentRepository, mock(ChatServiceFactory.class), ChatClientConfig.builder(mock(ChatModel.class), ObservationRegistry.NOOP), ocrService,
                 mock(WorkspaceService.class), eventPublisher,
                 new TransactionTemplate(mock(PlatformTransactionManager.class)),
                 new AttachmentOcrProperties(AttachmentOcrProperties.Engine.PIPELINE, 2,
