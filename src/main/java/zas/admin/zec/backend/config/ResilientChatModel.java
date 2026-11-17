@@ -163,12 +163,7 @@ public class ResilientChatModel implements ChatModel {
             AtomicBoolean started = new AtomicBoolean();
             AtomicBoolean reported = new AtomicBoolean();
             return withFirstTokenTimeout(Flux.defer(() -> primary.stream(prompt)))
-                    .doOnNext(response -> {
-                        started.set(true);
-                        if (reported.compareAndSet(false, true)) {
-                            circuitBreaker.onSuccess(System.nanoTime() - start, TimeUnit.NANOSECONDS);
-                        }
-                    })
+                    .doOnNext(response -> started.set(true))
                     .doOnComplete(() -> {
                         if (reported.compareAndSet(false, true)) {
                             circuitBreaker.onSuccess(System.nanoTime() - start, TimeUnit.NANOSECONDS);
