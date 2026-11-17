@@ -26,6 +26,7 @@
         <postgresql.version>42.7.11</postgresql.version>
         <jweb-security-events.version>3.1.0</jweb-security-events.version>
         <jweb.version>2.2.0</jweb.version>
+        <resilience4j.version>2.2.0</resilience4j.version>
     </properties>
 
     <dependencies>
@@ -139,6 +140,17 @@
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-pdf-document-reader</artifactId>
+        </dependency>
+        <!-- B4 : circuit breaker des appels LLM (modules core, sans starter Spring Boot) -->
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-circuitbreaker</artifactId>
+            <version>${resilience4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-micrometer</artifactId>
+            <version>${resilience4j.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

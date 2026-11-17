@@ -39,6 +39,8 @@ basé sur Spring AI, avec une boucle agentique (le LLM appelle des tools `@Tool`
 - **ChatClient** : injecter le builder qualifié (`@Qualifier(ChatClientConfig.INTERNAL_CHAT_CLIENT_BUILDER)` ou
   `VISION_CHAT_CLIENT_BUILDER`) et appeler `build()` ; jamais `ChatClient.create(...)` ni d'appel direct au `ChatModel`
   (observations et advisors communs centralisés dans `ChatClientConfig`). En test : `ChatClientConfig.builder(modèle, ObservationRegistry.NOOP)`.
+- **Résilience LLM** : le modèle interne est un `ResilientChatModel` (timeouts, retry avant le premier token, circuit
+  breaker, modèle de repli — `zia.llm.resilience.*`). Ne pas ajouter de retry ailleurs ; le client SDK a `maxRetries(0)`.
 - Respecter le style réactif existant (`Flux<Token>`, SSE) dans les flux de conversation.
 - Prompts LLM centralisés (ex. `RAGPrompts`) et **multilingues** (fr/de/it) : conserver cette structure.
 

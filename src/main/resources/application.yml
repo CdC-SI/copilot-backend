@@ -178,6 +178,28 @@ rag:
     top-k: ${RERANKING_TOP_K:5}
   document-tool:
     max-tool-calls-per-turn: ${RAG_MAX_TOOL_CALLS_PER_TURN:10}
+zia:
+  llm:
+    # B4 : résilience du modèle de chat interne (internalChatModel).
+    resilience:
+      # Durée maximale d'un appel HTTP au LLM (flux compris), sous spring.mvc.async.request-timeout.
+      request-timeout: ${LLM_REQUEST_TIMEOUT:110s}
+      first-token-timeout: ${LLM_FIRST_TOKEN_TIMEOUT:30s}
+      # Tentatives sur erreur transitoire, uniquement avant le premier token.
+      max-attempts: ${LLM_MAX_ATTEMPTS:3}
+      initial-backoff: ${LLM_INITIAL_BACKOFF:500ms}
+      max-backoff: ${LLM_MAX_BACKOFF:4s}
+      circuit-breaker:
+        failure-rate-threshold: ${LLM_CB_FAILURE_RATE_THRESHOLD:50}
+        sliding-window-size: ${LLM_CB_SLIDING_WINDOW_SIZE:20}
+        minimum-number-of-calls: ${LLM_CB_MINIMUM_NUMBER_OF_CALLS:10}
+        wait-duration-in-open-state: ${LLM_CB_WAIT_DURATION_IN_OPEN_STATE:30s}
+      # Modèle de repli compatible OpenAI, désactivé tant que FALLBACK_CHAT_MODEL ou FALLBACK_CHAT_BASE_URL est vide.
+      fallback:
+        chat-model: ${FALLBACK_CHAT_MODEL:}
+        chat-base-url: ${FALLBACK_CHAT_BASE_URL:}
+        api-key: ${FALLBACK_API_KEY:${OPENAI_API_KEY:}}
+        reasoning-effort: ${FALLBACK_REASONING_EFFORT:}
 logging:
   level:
     zas.admin.zec: ${LOG_LEVEL_ZEC:INFO}

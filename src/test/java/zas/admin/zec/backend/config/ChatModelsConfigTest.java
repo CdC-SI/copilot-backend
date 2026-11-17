@@ -12,6 +12,9 @@ import org.springframework.ai.tool.annotation.ToolParam;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import zas.admin.zec.backend.config.properties.InternalChatModelProperties;
+import zas.admin.zec.backend.config.properties.LlmResilienceProperties;
+import io.micrometer.core.instrument.MeterRegistry;
+import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -47,20 +50,91 @@ class ChatModelsConfigTest {
                 }
                 byte[] bytes = response.body().getBytes(StandardCharsets.UTF_8);
                 exchange.getResponseHeaders().set("Content-Type", response.contentType());
-                exchange.sendResponseHeaders(200, bytes.length);
+                exchange.sendResponseHeaders(response.status(), bytes.length);
                 exchange.getResponseBody().write(bytes);
             }
         });
         server.start();
         String baseUrl = "http://127.0.0.1:" + server.getAddress().getPort();
-        config = new ChatModelsConfig(new InternalChatModelProperties(
-                "test-key", "vision-model", baseUrl, "chat-model", baseUrl + "/",
-                "embedding-model", baseUrl, 1024, "reranker-model", baseUrl));
+        config = config(baseUrl, new LlmResilienceProperties.Fallback(null, null, null, null));
     }
 
     @AfterEach
     void tearDown() {
         server.stop(0);
+    }
+
+    private static ChatModelsConfig config(String baseUrl, LlmResilienceProperties.Fallback fallback) {
+        return new ChatModelsConfig(new InternalChatModelProperties(
+                "test-key", "vision-model", baseUrl, "chat-model", baseUrl + "/",
+                "embedding-model", baseUrl, 1024, "reranker-model", baseUrl),
+                new LlmResilienceProperties(Duration.ofSeconds(10), Duration.ofSeconds(10), 2,
+                        Duration.ofMillis(1), Duration.ofMillis(5),
+                        new LlmResilienceProperties.CircuitBreaker(50, 20, 10, Duration.ofSeconds(30)), fallback),
+                new DefaultListableBeanFactory().getBeanProvider(MeterRegistry.class));
+    }
+
+    private static final String STREAMED_ANSWER = """
+            data: {"id":"chat-2","object":"chat.completion.chunk","created":1,"model":"chat-model","choices":[{"index":0,"delta":{"role":"assistant","content":"answer"},"finish_reason":null}]}
+
+            data: {"id":"chat-2","object":"chat.completion.chunk","created":1,"model":"chat-model","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}
+
+            data: [DONE]
+
+            """;
+
+    private static final String SERVER_ERROR = """
+            {"error":{"message":"overloaded","type":"server_error"}}
+            """;
+
+    @Test
+    void streamingRetriesServerErrorsOnceWithoutClientRetries() throws InterruptedException {
+        responses.add(new StubResponse(503, "application/json", SERVER_ERROR));
+        responses.add(new StubResponse("text/event-stream", STREAMED_ANSWER));
+
+        String result = ChatClient.create(config.internalChatModel()).prompt("hello")
+                .stream().content().collectList()
+                .map(parts -> String.join("", parts)).block(Duration.ofSeconds(15));
+
+        assertEquals("answer", result);
+        assertEquals("chat-model", nextRequest().body().path("model").asText());
+        assertEquals("chat-model", nextRequest().body().path("model").asText());
+        assertNull(requests.poll(200, TimeUnit.MILLISECONDS), "pas de tentative supplémentaire du client OpenAI");
+    }
+
+    @Test
+    void streamingFallsBackToTheFallbackModelWhenThePrimaryKeepsFailing() throws InterruptedException {
+        String baseUrl = "http://127.0.0.1:" + server.getAddress().getPort();
+        var withFallback = config(baseUrl, new LlmResilienceProperties.Fallback("fallback-model", baseUrl,
+                "fallback-key", ""));
+        responses.add(new StubResponse(500, "application/json", SERVER_ERROR));
+        responses.add(new StubResponse(502, "application/json", SERVER_ERROR));
+        responses.add(new StubResponse("text/event-stream", STREAMED_ANSWER));
+
+        String result = ChatClient.create(withFallback.internalChatModel()).prompt("hello")
+                .stream().content().collectList()
+                .map(parts -> String.join("", parts)).block(Duration.ofSeconds(15));
+
+        assertEquals("answer", result);
+        assertEquals("chat-model", nextRequest().body().path("model").asText());
+        assertEquals("chat-model", nextRequest().body().path("model").asText());
+        var fallbackRequest = nextRequest();
+        assertEquals("fallback-model", fallbackRequest.body().path("model").asText());
+        assertTrue(fallbackRequest.body().path("reasoning_effort").isMissingNode());
+    }
+
+    @Test
+    void clientErrorsAreNotRetried() throws InterruptedException {
+        responses.add(new StubResponse(400, "application/json", """
+                {"error":{"message":"bad request","type":"invalid_request_error"}}
+                """));
+
+        var model = config.internalChatModel();
+        assertThrows(RuntimeException.class, () -> ChatClient.create(model).prompt("hello")
+                .stream().content().blockLast(Duration.ofSeconds(15)));
+
+        nextRequest();
+        assertNull(requests.poll(200, TimeUnit.MILLISECONDS));
     }
 
     @Test
@@ -151,7 +225,11 @@ class ChatModelsConfigTest {
         return request;
     }
 
-    private record StubResponse(String contentType, String body) {}
+    private record StubResponse(int status, String contentType, String body) {
+        StubResponse(String contentType, String body) {
+            this(200, contentType, body);
+        }
+    }
 
     private record Request(String path, String authorization, JsonNode body) {}
 
