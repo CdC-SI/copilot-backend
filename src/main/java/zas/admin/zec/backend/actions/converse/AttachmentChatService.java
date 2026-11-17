@@ -93,7 +93,8 @@ public class AttachmentChatService extends AbstractChatService {
         // statusSink.asFlux() émet les StatusToken produits pendant le tool-calling,
         // avant et pendant que textTokens streame la réponse du LLM.
         return statusSink.asFlux().mergeWith(textTokens)
-                .concatWithValues(new TurnTraceToken(TurnTrace.empty().withToolCalls(toolCallRecorder.calls())));
+                .concatWith(Flux.defer(() -> Flux.just(
+                        new TurnTraceToken(TurnTrace.empty().withToolCalls(toolCallRecorder.calls())))));
     }
 
     private String attachmentSystemPrompt(Question question) {
