@@ -117,4 +117,23 @@ class GenerationRegistryTest {
         assertFalse(registry.saving(completed));
         assertFalse(registry.stop("m2", USER, "other"));
     }
+
+    @Test
+    @DisplayName("la purge conserve les enregistrements et arrête les flux souscrits expirés")
+    void purge_preservesSavingAndStopsSubscribedStreaming() {
+        var shortLivedRegistry = new GenerationRegistry(Duration.ofMillis(300), Duration.ZERO);
+        var saving = shortLivedRegistry.begin("m1", USER, CONVERSATION);
+        shortLivedRegistry.saving(saving);
+        var subscribed = shortLivedRegistry.begin("m2", USER, "subscribed");
+        subscribed.markSubscribed();
+
+        assertThrows(ConversationConflictException.class, () -> shortLivedRegistry.begin("m3", USER, CONVERSATION));
+        assertDoesNotThrow(() -> shortLivedRegistry.begin("m3", USER, "new"));
+        var neverSubscribedRegistry = new GenerationRegistry(Duration.ofMillis(300), Duration.ZERO);
+        neverSubscribedRegistry.begin("m4", USER, CONVERSATION);
+        assertDoesNotThrow(() -> neverSubscribedRegistry.begin("m5", USER, CONVERSATION));
+        assertFalse(saving.stopRequested());
+        assertTrue(subscribed.stopRequested());
+        assertDoesNotThrow(() -> subscribed.stopSignal().block(Duration.ofSeconds(1)));
+    }
 }

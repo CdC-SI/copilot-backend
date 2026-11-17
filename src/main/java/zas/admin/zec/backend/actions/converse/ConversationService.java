@@ -203,6 +203,7 @@ public class ConversationService {
         AtomicReference<String> titleToGenerate = new AtomicReference<>();
 
         return getTokenStream(question, userId, conversationType, replacedTurn)
+                .doOnSubscribe(ignored -> generation.markSubscribed())
                 // Stop (endpoint) : la production s'arrête (annulation de l'appel LLM) et le flux continue
                 // normalement vers l'enregistrement de la réponse partielle, puis done {interrupted: true}.
                 .takeUntilOther(generation.stopSignal())

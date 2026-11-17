@@ -48,6 +48,7 @@ public class GenerationRegistry {
         private final long startedAt = System.nanoTime();
         private volatile State state = State.STREAMING;
         private volatile boolean stopRequested;
+        private boolean subscribed;
 
         private Generation(String messageId, String userId, String conversationId) {
             this.messageId = messageId;
@@ -72,6 +73,12 @@ public class GenerationRegistry {
             return stopRequested;
         }
 
+        private void markSubscribed() {
+            synchronized (this) {
+                subscribed = true;
+            }
+        }
+
         private boolean belongsTo(String userId, String conversationId) {
             return this.userId.equals(userId) && this.conversationId.equals(conversationId);
         }
@@ -79,13 +86,19 @@ public class GenerationRegistry {
 
     private final Map<String, Generation> generations = new ConcurrentHashMap<>();
     private final Duration saveTimeout;
+    private final Duration abandonedAfter;
 
     public GenerationRegistry() {
-        this(SAVE_TIMEOUT);
+        this(SAVE_TIMEOUT, ABANDONED_AFTER);
     }
 
     GenerationRegistry(Duration saveTimeout) {
+        this(saveTimeout, ABANDONED_AFTER);
+    }
+
+    GenerationRegistry(Duration saveTimeout, Duration abandonedAfter) {
         this.saveTimeout = saveTimeout;
+        this.abandonedAfter = abandonedAfter;
     }
 
     /**
@@ -172,8 +185,24 @@ public class GenerationRegistry {
     private void removeAbandoned() {
         long now = System.nanoTime();
         generations.values().stream()
-                .filter(g -> now - g.startedAt > ABANDONED_AFTER.toNanos())
-                .forEach(this::finish);
+                .filter(g -> now - g.startedAt > abandonedAfter.toNanos())
+                .forEach(g -> {
+                    boolean release;
+                    synchronized (g) {
+                        if (g.state == State.SAVING) {
+                            return;
+                        }
+                        release = !g.subscribed;
+                        if (!release) {
+                            g.stopRequested = true;
+                        }
+                    }
+                    if (release) {
+                        finish(g);
+                    } else {
+                        g.stop.tryEmitEmpty();
+                    }
+                });
     }
 
     private List<Generation> generationsOf(String userId, String conversationId) {
