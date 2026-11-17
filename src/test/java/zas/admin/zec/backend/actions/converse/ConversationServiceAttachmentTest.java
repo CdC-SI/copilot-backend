@@ -1,5 +1,7 @@
 package zas.admin.zec.backend.actions.converse;
 
+import zas.admin.zec.backend.config.properties.ToolApprovalProperties;
+import zas.admin.zec.backend.tools.ToolApprovalService;
 import io.micrometer.observation.ObservationRegistry;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
@@ -56,7 +58,8 @@ class ConversationServiceAttachmentTest {
                 mock(WorkspaceService.class), eventPublisher,
                 new TransactionTemplate(mock(PlatformTransactionManager.class)),
                 new AttachmentOcrProperties(AttachmentOcrProperties.Engine.PIPELINE, 2,
-                        Duration.ofSeconds(5), Duration.ofHours(1)), new GenerationRegistry());
+                        Duration.ofSeconds(5), Duration.ofHours(1)), new GenerationRegistry(),
+                new ToolApprovalService(new ToolApprovalProperties(List.of(), Duration.ofSeconds(1))));
     }
 
     private static byte[] pdfWithPages(int pages) throws IOException {

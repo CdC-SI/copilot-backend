@@ -178,6 +178,14 @@ rag:
     top-k: ${RERANKING_TOP_K:5}
   document-tool:
     max-tool-calls-per-turn: ${RAG_MAX_TOOL_CALLS_PER_TURN:10}
+zia:
+  tools:
+    approval:
+      # Tools dont chaque appel doit être approuvé par l'utilisateur (T1), séparés par des virgules ; aucun par défaut
+      # (démo : get_attachment_content).
+      required-tools: ${ZIA_TOOLS_APPROVAL_REQUIRED_TOOLS:}
+      # Inférieur à spring.mvc.async.request-timeout, qui borne toute la réponse en streaming.
+      timeout: ${ZIA_TOOLS_APPROVAL_TIMEOUT:60s}
 logging:
   level:
     zas.admin.zec: ${LOG_LEVEL_ZEC:INFO}

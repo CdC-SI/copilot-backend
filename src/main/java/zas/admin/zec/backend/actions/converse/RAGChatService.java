@@ -27,6 +27,7 @@ import zas.admin.zec.backend.rag.token.WorkspaceToken;
 import zas.admin.zec.backend.tools.ConversationAttachmentTool;
 import zas.admin.zec.backend.tools.DocumentTool;
 import zas.admin.zec.backend.tools.RAGTool;
+import zas.admin.zec.backend.tools.ToolApprovalService;
 import zas.admin.zec.backend.tools.ToolCallRecorder;
 import zas.admin.zec.backend.tools.ToolContextKeys;
 import zas.admin.zec.backend.tools.WorkspaceInferenceMonitoringService;
@@ -70,6 +71,7 @@ public class RAGChatService extends AbstractChatService {
     private final WorkspaceInferenceMonitoringService workspaceInferenceMonitoringService;
     private final DocumentToolProperties documentToolProperties;
     private final AttachmentRepository attachmentRepository;
+    private final ToolApprovalService toolApprovalService;
 
     public RAGChatService(@Qualifier(ChatClientConfig.INTERNAL_CHAT_CLIENT_BUILDER) ChatClient.Builder chatClientBuilder,
                           RAGTool ragTool,
@@ -77,12 +79,14 @@ public class RAGChatService extends AbstractChatService {
                           ConversationAttachmentTool attachmentTool,
                           WorkspaceInferenceMonitoringService workspaceInferenceMonitoringService,
                           DocumentToolProperties documentToolProperties,
-                          AttachmentRepository attachmentRepository) {
+                          AttachmentRepository attachmentRepository,
+                          ToolApprovalService toolApprovalService) {
         this.internalChatClient = chatClientBuilder.build();
         this.toolCallbacks = ToolCallbacks.from(ragTool, attachmentTool, documentTool);
         this.workspaceInferenceMonitoringService = workspaceInferenceMonitoringService;
         this.documentToolProperties = documentToolProperties;
         this.attachmentRepository = attachmentRepository;
+        this.toolApprovalService = toolApprovalService;
     }
 
     @Override
@@ -114,8 +118,9 @@ public class RAGChatService extends AbstractChatService {
         // Extrait (et masque) la balise <turn_meta> de fin de réponse.
         TurnMetaStreamFilter turnMetaFilter = new TurnMetaStreamFilter();
 
-        // Journal des appels de tools du tour (persisté avec la réponse).
-        ToolCallRecorder toolCallRecorder = new ToolCallRecorder(retrievedDocuments);
+        // Journal des appels de tools du tour (persisté avec la réponse), événements tool_call / tool_result et
+        // approbation des tools qui l'exigent (T1).
+        ToolCallRecorder toolCallRecorder = new ToolCallRecorder(retrievedDocuments, toolApprovalService);
 
         // Tokens du tour : appels de la boucle agentique (flux) et appels LLM faits par les tools.
         UsageTracker usageTracker = new UsageTracker();

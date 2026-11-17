@@ -31,6 +31,7 @@ import zas.admin.zec.backend.persistence.repository.ConversationRepository;
 import zas.admin.zec.backend.persistence.repository.ConversationTitleRepository;
 import zas.admin.zec.backend.rag.TurnTrace;
 import zas.admin.zec.backend.rag.token.*;
+import zas.admin.zec.backend.tools.ToolApprovalService;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -60,6 +61,7 @@ public class ConversationService {
     private final TransactionTemplate transactionTemplate;
     private final AttachmentOcrProperties attachmentOcrProperties;
     private final GenerationRegistry generationRegistry;
+    private final ToolApprovalService toolApprovalService;
 
     public ConversationService(ConversationRepository conversationRepository,
                                ConversationTitleRepository conversationTitleRepository,
@@ -71,7 +73,8 @@ public class ConversationService {
                                ApplicationEventPublisher eventPublisher,
                                TransactionTemplate transactionTemplate,
                                AttachmentOcrProperties attachmentOcrProperties,
-                               GenerationRegistry generationRegistry) {
+                               GenerationRegistry generationRegistry,
+                               ToolApprovalService toolApprovalService) {
 
         this.conversationRepository = conversationRepository;
         this.conversationTitleRepository = conversationTitleRepository;
@@ -84,6 +87,7 @@ public class ConversationService {
         this.transactionTemplate = transactionTemplate;
         this.attachmentOcrProperties = attachmentOcrProperties;
         this.generationRegistry = generationRegistry;
+        this.toolApprovalService = toolApprovalService;
     }
 
     public List<Source> getSourcesByMessageUuid(String conversationUuid, String messageUuid) {
@@ -230,6 +234,9 @@ public class ConversationService {
                         workspace.set(workspaceToken.name());
                         yield Flux.just(ChatStreamEvent.workspace(workspaceToken.name()));
                     }
+                    case ToolCallToken toolCallToken -> Flux.just(ChatStreamEvent.toolCall(toolCallToken));
+                    case ToolResultToken toolResultToken -> Flux.just(ChatStreamEvent.toolResult(toolResultToken));
+                    case ApprovalRequiredToken approvalToken -> Flux.just(ChatStreamEvent.approvalRequired(approvalToken));
                     case TextToken textToken -> {
                         assistantMessage.append(textToken.content());
                         yield Flux.just(ChatStreamEvent.textDelta(textToken.content()));
@@ -273,6 +280,8 @@ public class ConversationService {
                 // Déconnexion du client (navigation, abort) : l'annulation remonte jusqu'à l'appel LLM ; la question
                 // et la réponse partielle déjà streamée sont enregistrées (réponse marquée interrompue), une seule fois.
                 .doOnCancel(() -> {
+                    // Un tool en attente d'approbation ne bloque pas au-delà de la déconnexion.
+                    toolApprovalService.cancelAll(userId, question.conversationId());
                     if (!persisted.compareAndSet(false, true)) {
                         return;
                     }
@@ -295,7 +304,21 @@ public class ConversationService {
 
     /** Arrête la génération en cours (Stop) ; {@code false} si elle est inconnue, terminée ou d'un autre utilisateur. */
     public boolean stopGeneration(String userId, String conversationId, String messageId) {
-        return generationRegistry.stop(messageId, userId, conversationId);
+        boolean stopped = generationRegistry.stop(messageId, userId, conversationId);
+        if (stopped) {
+            // Un tool en attente d'approbation est annulé : la boucle agentique n'attend pas l'expiration.
+            toolApprovalService.cancelAll(userId, conversationId);
+        }
+        return stopped;
+    }
+
+    /**
+     * T1 : décision de l'utilisateur sur un appel de tool soumis à approbation.
+     *
+     * @return {@code false} si la demande est inconnue, déjà tranchée (expirée, annulée) ou d'un autre utilisateur
+     */
+    public boolean decideToolApproval(String userId, String conversationId, String approvalId, boolean approved) {
+        return toolApprovalService.decide(userId, conversationId, approvalId, approved);
     }
 
     /**

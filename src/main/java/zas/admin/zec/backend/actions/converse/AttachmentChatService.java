@@ -2,6 +2,8 @@ package zas.admin.zec.backend.actions.converse;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.support.ToolCallbacks;
+import org.springframework.ai.tool.ToolCallback;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -10,9 +12,12 @@ import zas.admin.zec.backend.config.ChatClientConfig;
 import zas.admin.zec.backend.rag.RAGPrompts;
 import zas.admin.zec.backend.rag.token.Token;
 import zas.admin.zec.backend.tools.ConversationAttachmentTool;
+import zas.admin.zec.backend.tools.ToolApprovalService;
+import zas.admin.zec.backend.tools.ToolCallRecorder;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Stratégie {@link ChatService} "sans RAG" : un {@link ChatClient} auquel seul le tool
@@ -33,12 +38,15 @@ import java.util.Map;
 public class AttachmentChatService extends AbstractChatService {
 
     private final ChatClient internalChatClient;
-    private final ConversationAttachmentTool attachmentTool;
+    private final ToolCallback[] toolCallbacks;
+    private final ToolApprovalService toolApprovalService;
 
     public AttachmentChatService(@Qualifier(ChatClientConfig.INTERNAL_CHAT_CLIENT_BUILDER) ChatClient.Builder chatClientBuilder,
-                                  ConversationAttachmentTool attachmentTool) {
+                                  ConversationAttachmentTool attachmentTool,
+                                  ToolApprovalService toolApprovalService) {
         this.internalChatClient = chatClientBuilder.build();
-        this.attachmentTool = attachmentTool;
+        this.toolCallbacks = ToolCallbacks.from(attachmentTool);
+        this.toolApprovalService = toolApprovalService;
     }
 
     @Override
@@ -53,12 +61,14 @@ public class AttachmentChatService extends AbstractChatService {
         Sinks.Many<Token> statusSink = Sinks.many().unicast().onBackpressureBuffer();
 
         Map<String, Object> toolContext = baseToolContext(question, userId, statusSink);
+        // Événements tool_call / tool_result et approbation des tools qui l'exigent (T1) ; journal non persisté ici.
+        ToolCallRecorder toolCallRecorder = new ToolCallRecorder(new CopyOnWriteArrayList<>(), toolApprovalService);
 
         Flux<Token> textTokens = internalChatClient
                 .prompt()
                 .system(attachmentSystemPrompt(question))
                 .messages(conversationHistory.stream().map(this::convertToMessage).toList())
-                .tools(attachmentTool)
+                .toolCallbacks(toolCallRecorder.wrap(toolCallbacks))
                 .toolContext(toolContext)
                 .user(question.query())
                 .stream()

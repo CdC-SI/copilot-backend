@@ -1,5 +1,7 @@
 package zas.admin.zec.backend.actions.converse;
 
+import zas.admin.zec.backend.config.properties.ToolApprovalProperties;
+import zas.admin.zec.backend.tools.ToolApprovalService;
 import io.micrometer.observation.ObservationRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -59,7 +61,8 @@ class ConversationServiceTitleTest {
                 mock(WorkspaceService.class), mock(ApplicationEventPublisher.class),
                 new TransactionTemplate(mock(PlatformTransactionManager.class)),
                 new AttachmentOcrProperties(AttachmentOcrProperties.Engine.PIPELINE, 1000,
-                        Duration.ofSeconds(5), Duration.ofHours(1)), new GenerationRegistry());
+                        Duration.ofSeconds(5), Duration.ofHours(1)), new GenerationRegistry(),
+                new ToolApprovalService(new ToolApprovalProperties(List.of(), Duration.ofSeconds(1))));
     }
 
     @Test
