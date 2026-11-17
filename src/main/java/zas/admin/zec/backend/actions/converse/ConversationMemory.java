@@ -9,6 +9,8 @@ import org.springframework.ai.tokenizer.TokenCountEstimator;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import reactor.core.scheduler.Schedulers;
 import zas.admin.zec.backend.config.ChatClientConfig;
 import zas.admin.zec.backend.config.properties.MemoryProperties;
@@ -25,7 +27,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
@@ -60,8 +61,6 @@ public class ConversationMemory {
     private final PromptRegistry prompts;
     private final ApplicationEventPublisher eventPublisher;
     private final TokenCountEstimator estimator = new JTokkitTokenCountEstimator();
-    /** Conversations dont le résumé est en cours de génération (une seule compaction à la fois par conversation). */
-    private final Set<String> compacting = ConcurrentHashMap.newKeySet();
     private final Map<String, CompactionState> compactionStates = new ConcurrentHashMap<>();
 
     public ConversationMemory(MemoryProperties properties,
@@ -123,27 +122,25 @@ public class ConversationMemory {
             return;
         }
         String key = userId + "|" + conversationId;
-        if (!compacting.add(key)) {
-            return;
-        }
         CompactionState state = compactionStates.computeIfAbsent(key, ignored -> new CompactionState());
         long generation;
         synchronized (state.lock) {
+            if (state.deleting || state.compacting) {
+                return;
+            }
+            state.compacting = true;
             generation = state.generation;
         }
         Schedulers.boundedElastic().schedule(() -> {
             try {
-                synchronized (state.lock) {
-                    if (state.generation == generation) {
-                        compact(userId, conversationId, language, history.get());
-                    }
-                }
+                compact(userId, conversationId, language, history.get(), state, generation);
             } catch (RuntimeException e) {
                 log.warn("Résumé de la conversation {} impossible", conversationId, e);
             } finally {
-                compacting.remove(key);
-                compactionStates.computeIfPresent(key, (ignored, current) ->
-                        current == state && !compacting.contains(key) ? null : current);
+                synchronized (state.lock) {
+                    state.compacting = false;
+                    removeStateIfIdle(key, state);
+                }
             }
         });
     }
@@ -154,14 +151,34 @@ public class ConversationMemory {
         CompactionState state = compactionStates.computeIfAbsent(key, ignored -> new CompactionState());
         synchronized (state.lock) {
             state.generation++;
+            state.deleting = true;
             summaries.delete(userId, conversationId);
         }
-        compactionStates.computeIfPresent(key, (ignored, current) ->
-                current == state && !compacting.contains(key) ? null : current);
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCompletion(int status) {
+                    synchronized (state.lock) {
+                        state.deleting = false;
+                        removeStateIfIdle(key, state);
+                    }
+                }
+            });
+        } else {
+            synchronized (state.lock) {
+                state.deleting = false;
+                removeStateIfIdle(key, state);
+            }
+        }
     }
 
     /** @return {@code true} si un nouveau résumé a été enregistré */
     boolean compact(String userId, String conversationId, String language, List<Message> history) {
+        return compact(userId, conversationId, language, history, null, 0);
+    }
+
+    private boolean compact(String userId, String conversationId, String language, List<Message> history,
+                            CompactionState state, long generation) {
         if (history.isEmpty()) {
             return false;
         }
@@ -195,10 +212,20 @@ public class ConversationMemory {
         if (text.isEmpty() || coveredMessageId == null) {
             return false;
         }
-        summaries.save(new ConversationSummary(userId, conversationId, coveredMessageId, text,
+        var summary = new ConversationSummary(userId, conversationId, coveredMessageId, text,
                 prompt.traceKey() + "@" + prompt.version(),
                 call != null ? (int) call.promptTokens() : null, call != null ? (int) call.completionTokens() : null,
-                LocalDateTime.now()));
+                LocalDateTime.now());
+        if (state != null) {
+            synchronized (state.lock) {
+                if (state.deleting || state.generation != generation) {
+                    return false;
+                }
+                summaries.save(summary);
+            }
+        } else {
+            summaries.save(summary);
+        }
         log.debug("Conversation {} : {} tour(s) résumé(s)", conversationId, end);
         return true;
     }
@@ -278,6 +305,14 @@ public class ConversationMemory {
     private static final class CompactionState {
         private final Object lock = new Object();
         private long generation;
+        private boolean compacting;
+        private boolean deleting;
+    }
+
+    private void removeStateIfIdle(String key, CompactionState state) {
+        if (!state.compacting && !state.deleting) {
+            compactionStates.remove(key, state);
+        }
     }
 
     /** Résumé persisté dont le dernier message couvert figure encore dans l'historique (sinon ignoré). */

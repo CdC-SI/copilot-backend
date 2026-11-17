@@ -213,7 +213,7 @@ class ConversationMemoryTest {
     }
 
     @Test
-    void deletionWaitsForAnInFlightCompaction() throws Exception {
+    void deletionInvalidatesAnInFlightCompactionWithoutWaitingForTheModel() throws Exception {
         when(chatModel.getOptions()).thenReturn(ToolCallingChatOptions.builder().build());
         var response = new ChatResponse(List.of(new Generation(new AssistantMessage("- Résumé."))),
                 ChatResponseMetadata.builder().model("qwen").usage(new DefaultUsage(300, 40)).build());
@@ -232,16 +232,14 @@ class ConversationMemoryTest {
         var executor = Executors.newSingleThreadExecutor();
         try {
             var deletion = executor.submit(() -> memory.forget("user-1", "conv"));
-            assertFalse(deletion.isDone());
-            release.countDown();
             deletion.get(5, TimeUnit.SECONDS);
+            verify(summaries).delete("user-1", "conv");
+            release.countDown();
         } finally {
             executor.shutdownNow();
         }
 
-        var order = inOrder(summaries);
-        order.verify(summaries).save(any(ConversationSummary.class));
-        order.verify(summaries).delete("user-1", "conv");
+        verify(summaries, after(5_000).never()).save(any(ConversationSummary.class));
     }
 
     @Test
