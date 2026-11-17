@@ -11,7 +11,9 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 import zas.admin.zec.backend.config.ChatClientConfig;
-import zas.admin.zec.backend.rag.RAGPrompts;
+import zas.admin.zec.backend.prompts.Prompt;
+import zas.admin.zec.backend.prompts.PromptId;
+import zas.admin.zec.backend.prompts.PromptRegistry;
 import zas.admin.zec.backend.rag.TurnTrace;
 import zas.admin.zec.backend.rag.TurnUsage;
 import zas.admin.zec.backend.rag.UsageTracker;
@@ -33,7 +35,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * n'est effectuée : le LLM se comporte comme un assistant généraliste (rédaction, relecture,
  * traduction, reformulation, résumé, exploitation des pièces jointes...) et répond à partir de ses
  * connaissances générales, sans source officielle. Il reste discret sur les sujets internes ou
- * relevant du 1er pilier des assurances sociales (cf. {@code ATTACHMENT_SYSTEM_PROMPT}).
+ * relevant du 1er pilier des assurances sociales (cf. {@link PromptId#ATTACHMENT_SYSTEM}).
  *
  * <p>Active pour les conversations de type {@link ConversationType#NO_RAG}.</p>
  *
@@ -46,15 +48,18 @@ import java.util.concurrent.atomic.AtomicReference;
 public class AttachmentChatService extends AbstractChatService {
 
     private final ChatClient internalChatClient;
+    private final PromptRegistry promptRegistry;
     private final ToolCallback[] toolCallbacks;
     private final ToolApprovalService toolApprovalService;
 
     public AttachmentChatService(@Qualifier(ChatClientConfig.INTERNAL_CHAT_CLIENT_BUILDER) ChatClient.Builder chatClientBuilder,
                                   ConversationAttachmentTool attachmentTool,
-                                  ToolApprovalService toolApprovalService) {
+                                  ToolApprovalService toolApprovalService,
+                                  PromptRegistry promptRegistry) {
         this.internalChatClient = chatClientBuilder.build();
         this.toolCallbacks = ToolCallbacks.from(attachmentTool);
         this.toolApprovalService = toolApprovalService;
+        this.promptRegistry = promptRegistry;
     }
 
     @Override
@@ -75,6 +80,7 @@ public class AttachmentChatService extends AbstractChatService {
         Sinks.Many<Token> statusSink = Sinks.many().unicast().onBackpressureBuffer();
 
         Map<String, Object> toolContext = baseToolContext(question, userId, statusSink);
+        Prompt systemPrompt = attachmentSystemPrompt(question);
         UsageTracker usageTracker = new UsageTracker();
         List<Document> retrievedDocuments = new CopyOnWriteArrayList<>();
         toolContext.put(ToolContextKeys.CTX_RETRIEVED_DOCUMENTS, retrievedDocuments);
@@ -84,7 +90,7 @@ public class AttachmentChatService extends AbstractChatService {
 
         Flux<Token> textTokens = internalChatClient
                 .prompt()
-                .system(attachmentSystemPrompt(question))
+                .system(systemPrompt.render("response_format", question.responseFormat()))
                 .messages(conversationHistory.stream().map(this::convertToMessage).toList())
                 .toolCallbacks(toolCallRecorder.wrap(toolCallbacks))
                 .toolContext(toolContext)
@@ -97,16 +103,18 @@ public class AttachmentChatService extends AbstractChatService {
 
         // statusSink.asFlux() émet les StatusToken produits pendant le tool-calling,
         // avant et pendant que textTokens streame la réponse du LLM.
-        return statusSink.asFlux().mergeWith(textTokens)
+        Token traceToken = new TurnTraceToken(TurnTrace.empty()
+                .withPrompts(Map.of(systemPrompt.traceKey(), systemPrompt.version())));
+        return Flux.just(traceToken).concatWith(statusSink.asFlux().mergeWith(textTokens))
                 .concatWith(Mono.fromSupplier(() -> new TurnTraceToken(
                         TurnTrace.empty()
                                 .withToolCalls(toolCallRecorder.calls())
+                                .withPrompts(Map.of(systemPrompt.traceKey(), systemPrompt.version()))
                                 .withUsage(new TurnUsage(usageTracker.agentCalls(), List.of())))));
     }
 
-    private String attachmentSystemPrompt(Question question) {
+    private Prompt attachmentSystemPrompt(Question question) {
         // Prompt sans RAG : seul le tool de pièces jointes est exposé au LLM.
-        return RAGPrompts.getAttachmentSystemPrompt(question.language())
-                .formatted(question.responseFormat());
+        return promptRegistry.get(PromptId.ATTACHMENT_SYSTEM, question.language());
     }
 }

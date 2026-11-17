@@ -49,7 +49,8 @@ class ChatHistoryTurnTraceIT extends AbstractDocumentLookupIT {
         var used = new UsedDocuments(List.of("p1", "old-1"), List.of("p1"), List.of("old-1"), List.of());
         var usage = new TurnUsage(List.of(new TurnUsage.LlmCall("agent", 9000, 300, null)),
                 List.of(new TurnUsage.LlmCall("workspace_inference", 700, 4, null)));
-        var trace = new TurnTrace(TurnStatus.ANSWER, List.of(process), used, calls, usage);
+        var trace = new TurnTrace(TurnStatus.ANSWER, List.of(process), used, calls, usage)
+                .withPrompts(Map.of("agentic-system/fr", "0123456789ab", "workspace-inference/fr", "ba9876543210"));
 
         var entity = new MessageEntity();
         entity.setUserId("user-it");
@@ -81,9 +82,14 @@ class ChatHistoryTurnTraceIT extends AbstractDocumentLookupIT {
                 SELECT count(*) FROM chat_history
                 WHERE tool_calls @> '[{"tool": "get_documents", "arguments": {"collection": "BUSINESS_PROCESS"}}]'::jsonb
                   AND consulted_sources @> '{"turn_status": "answer", "used_current": ["p1"], "used_reused": ["old-1"]}'::jsonb""", Integer.class);
+        // Tours ayant utilisé une version donnée d'un prompt (comparaison avant/après modification).
+        Integer withPromptVersion = jdbcTemplate.queryForObject("""
+                SELECT count(*) FROM chat_history
+                WHERE consulted_sources -> 'prompts' ->> 'agentic-system/fr' = '0123456789ab'""", Integer.class);
         Integer callsCount = jdbcTemplate.queryForObject(
                 "SELECT jsonb_array_length(tool_calls) FROM chat_history WHERE id = ?", Integer.class, id);
         assertEquals(1, openedProcess);
+        assertEquals(1, withPromptVersion);
         assertEquals(2, callsCount);
     }
 }

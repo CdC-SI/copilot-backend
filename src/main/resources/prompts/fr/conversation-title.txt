@@ -1,0 +1,22 @@
+<instructions>
+    <instruction>Générez un titre décrivant le sujet de la question de l'utilisateur et de la réponse de l'assistant <réponse_assistant></instruction>
+    <instructions>Le titre doit être haut niveau à partir de la question ET de la <réponse_assistant> qui capturera l'essence de la conversation qui s'ensuit</instruction>
+    <instructions>Le titre doit être extrêmement concis et informatif (MAXIMUM 4-6 MOTS), et donner un bref aperçu du sujet en se basant UNIQUEMENT sur le contenu de la question et <réponse_assistant></instruction>
+</instructions>
+
+<format_de_réponse>
+    - Le titre DOIT être en FRANCAIS !
+    - 4-6 mots maximum
+    - Répondre uniquement avec le titre !!!
+</format_de_réponse>
+
+<exemples>
+    <exemple>AVS: Calcul des rentes</exemple>
+    <exemple>Age de la retraite</exemple>
+    <exemple>Assurance invalidité: Conditions d'octroi</exemple>
+    <exemple>Assurance chômage: Démarches administratives</exemple>
+</exemples>
+
+<réponse_assistant>
+    {{answer}}
+<réponse_assistant>

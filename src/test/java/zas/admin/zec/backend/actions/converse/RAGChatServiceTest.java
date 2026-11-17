@@ -18,8 +18,9 @@ import reactor.core.publisher.Flux;
 import zas.admin.zec.backend.config.ChatClientConfig;
 import zas.admin.zec.backend.config.properties.DocumentToolProperties;
 import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
+import zas.admin.zec.backend.prompts.PromptId;
+import zas.admin.zec.backend.prompts.PromptRegistry;
 import zas.admin.zec.backend.rag.ConsultedSource;
-import zas.admin.zec.backend.rag.RAGPrompts;
 import zas.admin.zec.backend.rag.TurnStatus;
 import zas.admin.zec.backend.rag.TurnTrace;
 import zas.admin.zec.backend.rag.token.SourceToken;
@@ -34,6 +35,8 @@ import zas.admin.zec.backend.tools.WorkspaceInferenceMonitoringService;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -46,11 +49,13 @@ import static org.mockito.Mockito.*;
  */
 class RAGChatServiceTest {
 
+    private static final PromptRegistry PROMPTS = new PromptRegistry();
+
     private final ChatModel chatModel = mock(ChatModel.class);
     private final RAGChatService service = new RAGChatService(ChatClientConfig.builder(chatModel, ObservationRegistry.NOOP), mock(RAGTool.class), mock(DocumentTool.class),
             mock(ConversationAttachmentTool.class), mock(WorkspaceInferenceMonitoringService.class),
             new DocumentToolProperties(10), mock(AttachmentRepository.class),
-            new ToolApprovalService(new ToolApprovalProperties(List.of(), Duration.ofSeconds(1))));
+            new ToolApprovalService(new ToolApprovalProperties(List.of(), Duration.ofSeconds(1))), PROMPTS);
 
     private static final ConsultedSource PROCESS = new ConsultedSource("p", "business_process", "business_process",
             "Processus P", "https://bpanda/p", null, null, "2026.03.02", "Brouillon", "BP-1", null, List.of());
@@ -104,6 +109,7 @@ class RAGChatServiceTest {
         assertEquals(List.of("p"), sources.stream().map(SourceToken::documentId).toList());
 
         var trace = tokens.stream().filter(TurnTraceToken.class::isInstance).map(t -> ((TurnTraceToken) t).trace())
+                .filter(t -> t.status() == TurnStatus.ANSWER)
                 .findFirst().orElseThrow();
         assertEquals(TurnStatus.ANSWER, trace.status());
         // "p" vient d'un tour précédent : classé comme repris.
@@ -116,17 +122,19 @@ class RAGChatServiceTest {
         assertEquals(1, trace.usage().agentCalls().size());
         assertEquals(2400, trace.usage().agentCalls().getFirst().promptTokens());
         assertEquals(1, trace.usage().toMap().get("llm_calls"));
+        // Version du prompt système tracée ; pas de consigne de workspace (non choisi par l'utilisateur).
+        assertEquals(Map.of("agentic-system/fr", PROMPTS.get(PromptId.AGENTIC_SYSTEM, "fr").version()), trace.prompts());
     }
 
     @Test
     void forcedWorkspaceDirectiveGoesIntoTheCurrentUserMessageNotTheSystemPrompt() {
-        answer(question("CSC"), "Réponse.<turn_meta status=\"answer\" used=\"\"/>");
+        var forcedTokens = answer(question("CSC"), "Réponse.<turn_meta status=\"answer\" used=\"\"/>");
         Prompt forced = sentPrompt();
         clearInvocations(chatModel);
         answer(question(""), "Réponse.<turn_meta status=\"answer\" used=\"\"/>");
         Prompt normal = sentPrompt();
 
-        String expectedSystem = RAGPrompts.getAgenticSystemPrompt("fr").formatted("COMPLETE");
+        String expectedSystem = PROMPTS.get(PromptId.AGENTIC_SYSTEM, "fr").render("response_format", "COMPLETE");
         assertEquals(expectedSystem, text(forced, MessageType.SYSTEM));
         assertEquals(text(normal, MessageType.SYSTEM), text(forced, MessageType.SYSTEM));
 
@@ -136,5 +144,9 @@ class RAGChatServiceTest {
         assertTrue(user.contains("« CSC »"), user);
         assertTrue(user.endsWith("</consigne_prioritaire>\n\nRésume ta réponse."), user);
         assertFalse(text(normal, MessageType.USER).contains("<consigne_prioritaire>"));
+
+        var forcedTrace = forcedTokens.stream().filter(TurnTraceToken.class::isInstance)
+                .map(t -> ((TurnTraceToken) t).trace()).findFirst().orElseThrow();
+        assertEquals(Set.of("agentic-system/fr", "forced-retrieval-directive/fr"), forcedTrace.prompts().keySet());
     }
 }

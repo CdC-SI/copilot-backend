@@ -30,6 +30,8 @@ import zas.admin.zec.backend.persistence.entity.MessageEntity;
 import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
 import zas.admin.zec.backend.persistence.repository.ConversationRepository;
 import zas.admin.zec.backend.persistence.repository.ConversationTitleRepository;
+import zas.admin.zec.backend.prompts.PromptId;
+import zas.admin.zec.backend.prompts.PromptRegistry;
 import zas.admin.zec.backend.rag.TurnTrace;
 import zas.admin.zec.backend.rag.TurnUsage;
 import zas.admin.zec.backend.rag.token.*;
@@ -64,6 +66,7 @@ public class ConversationService {
     private final TransactionTemplate transactionTemplate;
     private final AttachmentOcrProperties attachmentOcrProperties;
     private final GenerationRegistry generationRegistry;
+    private final PromptRegistry promptRegistry;
     private final ToolApprovalService toolApprovalService;
 
     public ConversationService(ConversationRepository conversationRepository,
@@ -77,7 +80,8 @@ public class ConversationService {
                                TransactionTemplate transactionTemplate,
                                AttachmentOcrProperties attachmentOcrProperties,
                                GenerationRegistry generationRegistry,
-                               ToolApprovalService toolApprovalService) {
+                               ToolApprovalService toolApprovalService,
+                               PromptRegistry promptRegistry) {
 
         this.conversationRepository = conversationRepository;
         this.conversationTitleRepository = conversationTitleRepository;
@@ -90,6 +94,7 @@ public class ConversationService {
         this.transactionTemplate = transactionTemplate;
         this.attachmentOcrProperties = attachmentOcrProperties;
         this.generationRegistry = generationRegistry;
+        this.promptRegistry = promptRegistry;
         this.toolApprovalService = toolApprovalService;
     }
 
@@ -206,6 +211,7 @@ public class ConversationService {
 
         // Trace du tour (statut déclaré + documents consultés), émise en interne par l'agent.
         AtomicReference<TurnTrace> turnTrace = new AtomicReference<>();
+        Map<String, String> promptVersions = new ConcurrentHashMap<>();
         AtomicReference<TurnUsage> turnUsage = new AtomicReference<>();
         AtomicReference<ToolCallRecorder> toolCallRecorder = new AtomicReference<>();
         // Réponse servant à générer le titre, renseignée après l'enregistrement d'une nouvelle conversation.
@@ -219,7 +225,8 @@ public class ConversationService {
                 .flatMap(token -> switch (token) {
                     case StatusToken statusToken -> Flux.just(ChatStreamEvent.status(statusToken.tag(), statusToken.label()));
                     case TurnTraceToken turnTraceToken -> {
-                        turnTrace.set(turnTraceToken.trace());
+                        promptVersions.putAll(turnTraceToken.trace().prompts());
+                        turnTrace.set(turnTraceToken.trace().withPrompts(promptVersions));
                         turnUsage.set(turnTraceToken.trace().usage());
                         yield Flux.<ChatStreamEvent>empty();
                     }
@@ -257,7 +264,7 @@ public class ConversationService {
                     boolean interrupted = generationRegistry.saving(generation);
                     var exchange = new StreamedExchange(assistantMessage.toString(), List.copyOf(sources),
                             List.copyOf(suggestions), workspace.get(),
-                            traceForSave(turnTrace, toolCallRecorder), turnUsage.get());
+                            traceForSave(turnTrace, toolCallRecorder, promptVersions), turnUsage.get());
                     // suppressCancel : une déconnexion pendant l'enregistrement ne l'annule pas.
                     // done n'est émis qu'après le commit (et la sortie du registre).
                     return Mono.fromFuture(saveAsync(generation, () -> saveExchange(question, userId, assistantMessageId,
@@ -295,7 +302,7 @@ public class ConversationService {
                     generationRegistry.saving(generation);
                     var exchange = new StreamedExchange(assistantMessage.toString(), List.copyOf(sources),
                             List.copyOf(suggestions), workspace.get(),
-                            traceForSave(turnTrace, toolCallRecorder), turnUsage.get());
+                            traceForSave(turnTrace, toolCallRecorder, promptVersions), turnUsage.get());
                     saveAsync(generation, () -> saveExchange(question, userId, assistantMessageId, exchange, timestamp,
                             conversationType, true, replacedMessageIds))
                             .thenCompose(newConversation -> newConversation
@@ -530,13 +537,14 @@ public class ConversationService {
     }
 
     private static TurnTrace traceForSave(AtomicReference<TurnTrace> turnTrace,
-                                          AtomicReference<ToolCallRecorder> toolCallRecorder) {
+                                          AtomicReference<ToolCallRecorder> toolCallRecorder,
+                                          Map<String, String> promptVersions) {
         TurnTrace trace = turnTrace.get();
         if (trace == null) {
             ToolCallRecorder recorder = toolCallRecorder.get();
             trace = recorder == null ? null : TurnTrace.empty().withToolCalls(recorder.calls());
         }
-        return trace;
+        return trace == null ? null : trace.withPrompts(promptVersions);
     }
 
     /** Dernier échange remplacé par une régénération : historique de contexte (sans cet échange) et messages à supprimer. */
@@ -778,8 +786,8 @@ public class ConversationService {
         String title;
         try {
             title = chatClient.prompt()
-                    .system(ConversationPrompts.getConversationTitlePrompt(language)
-                            .formatted(initialResponse))
+                    .system(promptRegistry.get(PromptId.CONVERSATION_TITLE, language)
+                            .render("answer", initialResponse))
                     .user(initialQuery)
                     .call()
                     .content();

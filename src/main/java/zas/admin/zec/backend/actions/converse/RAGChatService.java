@@ -14,8 +14,10 @@ import zas.admin.zec.backend.config.ChatClientConfig;
 import zas.admin.zec.backend.config.properties.DocumentToolProperties;
 import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
 import zas.admin.zec.backend.persistence.repository.AttachmentRepository.AttachmentSummary;
+import zas.admin.zec.backend.prompts.Prompt;
+import zas.admin.zec.backend.prompts.PromptId;
+import zas.admin.zec.backend.prompts.PromptRegistry;
 import zas.admin.zec.backend.rag.ConsultedSource;
-import zas.admin.zec.backend.rag.RAGPrompts;
 import zas.admin.zec.backend.rag.TurnMetaStreamFilter;
 import zas.admin.zec.backend.rag.TurnUsage;
 import zas.admin.zec.backend.rag.UsageTracker;
@@ -34,6 +36,7 @@ import zas.admin.zec.backend.tools.WorkspaceInferenceMonitoringService;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -71,6 +74,7 @@ public class RAGChatService extends AbstractChatService {
     private final WorkspaceInferenceMonitoringService workspaceInferenceMonitoringService;
     private final DocumentToolProperties documentToolProperties;
     private final AttachmentRepository attachmentRepository;
+    private final PromptRegistry promptRegistry;
     private final ToolApprovalService toolApprovalService;
 
     public RAGChatService(@Qualifier(ChatClientConfig.INTERNAL_CHAT_CLIENT_BUILDER) ChatClient.Builder chatClientBuilder,
@@ -80,12 +84,14 @@ public class RAGChatService extends AbstractChatService {
                           WorkspaceInferenceMonitoringService workspaceInferenceMonitoringService,
                           DocumentToolProperties documentToolProperties,
                           AttachmentRepository attachmentRepository,
-                          ToolApprovalService toolApprovalService) {
+                          ToolApprovalService toolApprovalService,
+                          PromptRegistry promptRegistry) {
         this.internalChatClient = chatClientBuilder.build();
         this.toolCallbacks = ToolCallbacks.from(ragTool, attachmentTool, documentTool);
         this.workspaceInferenceMonitoringService = workspaceInferenceMonitoringService;
         this.documentToolProperties = documentToolProperties;
         this.attachmentRepository = attachmentRepository;
+        this.promptRegistry = promptRegistry;
         this.toolApprovalService = toolApprovalService;
     }
 
@@ -134,6 +140,10 @@ public class RAGChatService extends AbstractChatService {
         List<TurnUsage.LlmCall> auxiliaryUsage = new CopyOnWriteArrayList<>();
         toolContext.put(ToolContextKeys.CTX_LLM_USAGE, auxiliaryUsage);
 
+        // Versions des prompts utilisés par le tour (agent et tools), tracées avec la réponse.
+        Map<String, String> promptVersions = new ConcurrentHashMap<>();
+        toolContext.put(ToolContextKeys.CTX_PROMPT_VERSIONS, promptVersions);
+
         // Un workspace explicitement attaché à la question signale que l'utilisateur a corrigé
         // l'inférence précédente et relance la même question : on renseigne le workspace corrigé
         // dans la ligne de monitoring correspondante, et la recherche documentaire devient obligatoire.
@@ -145,11 +155,11 @@ public class RAGChatService extends AbstractChatService {
 
         Flux<Token> textTokens = internalChatClient
                 .prompt()
-                .system(agenticSystemPrompt(question))
+                .system(agenticSystemPrompt(question, toolContext))
                 .messages(toPromptMessages(conversationHistory))
                 .toolCallbacks(toolCallRecorder.wrap(toolCallbacks))
                 .toolContext(toolContext)
-                .user(currentUserMessage(question, userId, conversationHistory, workspaceProvided))
+                .user(currentUserMessage(question, userId, conversationHistory, workspaceProvided, toolContext))
                 .stream()
                 .chatResponse()
                 .doOnNext(usageTracker::accept)
@@ -179,7 +189,8 @@ public class RAGChatService extends AbstractChatService {
             return Flux.<Token>fromIterable(outcome.displayed())
                     .concatWithValues(new TurnTraceToken(outcome.trace()
                             .withToolCalls(toolCallRecorder.calls())
-                            .withUsage(new TurnUsage(usageTracker.agentCalls(), auxiliaryUsage))));
+                            .withUsage(new TurnUsage(usageTracker.agentCalls(), auxiliaryUsage))
+                            .withPrompts(promptVersions)));
         });
 
         // De même pour le workspace résolu par RAGTool, s'il a été appelé.
@@ -187,9 +198,13 @@ public class RAGChatService extends AbstractChatService {
                 ? Flux.just(new WorkspaceToken(resolvedWorkspace.get()))
                 : Flux.empty());
 
+        Flux<Token> initialTrace = Flux.just(new TurnTraceToken(
+                TurnTrace.empty().withPrompts(promptVersions)));
+
         // statusSink.asFlux() émet les StatusToken produits pendant le tool-calling,
         // avant et pendant que textTokens streame la réponse du LLM.
-        return statusSink.asFlux().mergeWith(textTokens).concatWith(sourceTokens).concatWith(workspaceToken);
+        return initialTrace.concatWith(statusSink.asFlux().mergeWith(textTokens))
+                .concatWith(sourceTokens).concatWith(workspaceToken);
     }
 
     /** Pièces jointes de la conversation (sans contenu), annoncées à l'agent via {@code <conversation_attachments>}. */
@@ -207,20 +222,24 @@ public class RAGChatService extends AbstractChatService {
      * le system prompt et l'historique restent identiques d'un tour à l'autre (prefix caching).
      */
     String currentUserMessage(Question question, String userId, List<Message> conversationHistory,
-                              boolean workspaceProvided) {
-        String directive = workspaceProvided
-                ? RAGPrompts.getForcedRetrievalDirective(question.language(), question.workspace()).strip()
-                : "";
+                              boolean workspaceProvided, Map<String, Object> toolContext) {
+        String directive = "";
+        if (workspaceProvided) {
+            Prompt prompt = promptRegistry.get(PromptId.FORCED_RETRIEVAL_DIRECTIVE, question.language());
+            ToolContextKeys.recordPrompt(toolContext, prompt);
+            directive = prompt.render("workspace", question.workspace()).strip();
+        }
         String message = withContextBlock(directive, question.query());
         message = withContextBlock(ConversationAttachmentsRenderer.render(conversationAttachments(question, userId)), message);
         return withContextBlock(retrievedSourcesForCurrentTurn(conversationHistory), message);
     }
 
-    private String agenticSystemPrompt(Question question) {
+    private String agenticSystemPrompt(Question question, Map<String, Object> toolContext) {
         // Prompt non orienté RAG : le LLM décide lui-même d'appeler le tool de recherche
         // documentaire, et répond directement aux demandes situationnelles (résumé, traduction...).
-        return RAGPrompts.getAgenticSystemPrompt(question.language()).formatted(question.responseFormat());
+        Prompt prompt = promptRegistry.get(PromptId.AGENTIC_SYSTEM, question.language());
+        ToolContextKeys.recordPrompt(toolContext, prompt);
+        return prompt.render("response_format", question.responseFormat());
     }
 
 }
-

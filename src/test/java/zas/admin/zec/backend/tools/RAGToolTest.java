@@ -21,6 +21,7 @@ import zas.admin.zec.backend.config.properties.Bm25Properties;
 import zas.admin.zec.backend.config.properties.QueryExpanderProperties;
 import zas.admin.zec.backend.config.properties.QueryRewriterProperties;
 import zas.admin.zec.backend.config.properties.RetrievingProperties;
+import zas.admin.zec.backend.prompts.PromptRegistry;
 import zas.admin.zec.backend.rag.reranker.DocumentReranker;
 import zas.admin.zec.backend.rag.token.Token;
 
@@ -43,7 +44,7 @@ class RAGToolTest {
         var vectorStore = mock(VectorStore.class);
         var tool = new RAGTool(ChatClientConfig.builder(mock(ChatModel.class), ObservationRegistry.NOOP), vectorStore, mock(UserService.class), mock(DocumentReranker.class),
                 mock(RetrievingProperties.class), mock(JdbcTemplate.class), mock(SourceResolver.class),
-                mock(WorkspaceService.class), mock(WorkspaceInferenceMonitoringService.class));
+                mock(WorkspaceService.class), mock(WorkspaceInferenceMonitoringService.class), new PromptRegistry());
 
         assertEquals(RAGTool.MISSING_QUERY, tool.searchSocialInsuranceDocumentation(null, new ToolContext(new HashMap<>())));
         assertEquals(RAGTool.MISSING_QUERY, tool.searchSocialInsuranceDocumentation("  ", new ToolContext(new HashMap<>())));
@@ -82,7 +83,7 @@ class RAGToolTest {
         var monitoring = mock(WorkspaceInferenceMonitoringService.class);
 
         var tool = new RAGTool(ChatClientConfig.builder(chatModel, ObservationRegistry.NOOP), mock(VectorStore.class), mock(UserService.class), mock(DocumentReranker.class),
-                retrievalWithoutQueryTransformation(), mock(JdbcTemplate.class), sourceResolver, workspaceService, monitoring);
+                retrievalWithoutQueryTransformation(), mock(JdbcTemplate.class), sourceResolver, workspaceService, monitoring, new PromptRegistry());
 
         var resolvedWorkspace = new AtomicReference<String>();
         List<Token> emittedTokens = new CopyOnWriteArrayList<>();
