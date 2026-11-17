@@ -77,7 +77,7 @@ public class FeedbackQueryService {
         double rate = total == 0 ? 0d : (double) positive / (double) total;
 
         var perDay = msgRepo.aggregatePerDay(w.start(), w.end()).stream()
-                .map(r -> new PerDay(r.getDay().toLocalDate().toString(), r.getPositive(), r.getNegative()))
+                .map(r -> new PerDay(r.getDay().toString(), r.getPositive(), r.getNegative()))
                 .toList();
 
         var topDocs = srcRepo.aggregateByDocument(w.start(), w.end(), PageRequest.of(0, 50)).stream()
