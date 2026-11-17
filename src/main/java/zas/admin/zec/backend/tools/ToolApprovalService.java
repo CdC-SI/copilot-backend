@@ -34,7 +34,8 @@ public class ToolApprovalService {
     /** Demande en attente, telle qu'annoncée au frontend. */
     public record PendingApproval(String approvalId, Instant expiresAt) {}
 
-    private record Pending(String userId, String conversationId, CompletableFuture<Decision> decision) {
+    private record Pending(String userId, String conversationId, Instant expiresAt,
+                           CompletableFuture<Decision> decision) {
         boolean belongsTo(String userId, String conversationId) {
             return Objects.equals(this.userId, userId) && Objects.equals(this.conversationId, conversationId);
         }
@@ -59,8 +60,9 @@ public class ToolApprovalService {
     /** Ouvre une demande d'approbation ; la décision est attendue par {@link #await}. */
     public PendingApproval open(String userId, String conversationId) {
         String approvalId = UUID.randomUUID().toString();
-        pending.put(approvalId, new Pending(userId, conversationId, new CompletableFuture<>()));
-        return new PendingApproval(approvalId, Instant.now().plus(timeout));
+        Instant expiresAt = Instant.now().plus(timeout);
+        pending.put(approvalId, new Pending(userId, conversationId, expiresAt, new CompletableFuture<>()));
+        return new PendingApproval(approvalId, expiresAt);
     }
 
     /**
@@ -73,7 +75,12 @@ public class ToolApprovalService {
             return Decision.CANCELLED;
         }
         try {
-            return request.decision().get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+            long remainingMillis = Duration.between(Instant.now(), request.expiresAt()).toMillis();
+            if (remainingMillis <= 0) {
+                request.decision().complete(Decision.EXPIRED);
+                return request.decision().join();
+            }
+            return request.decision().get(remainingMillis, TimeUnit.MILLISECONDS);
         } catch (TimeoutException e) {
             request.decision().complete(Decision.EXPIRED);
             return request.decision().join();
@@ -98,7 +105,13 @@ public class ToolApprovalService {
         if (request == null || !request.belongsTo(userId, conversationId)) {
             return false;
         }
-        return request.decision().complete(approved ? Decision.APPROVED : Decision.REJECTED);
+        synchronized (request) {
+            if (Instant.now().compareTo(request.expiresAt()) >= 0) {
+                request.decision().complete(Decision.EXPIRED);
+                return false;
+            }
+            return request.decision().complete(approved ? Decision.APPROVED : Decision.REJECTED);
+        }
     }
 
     /** Arrêt de la génération (Stop, déconnexion) : les demandes en attente de la conversation sont annulées. */

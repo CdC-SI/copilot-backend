@@ -96,6 +96,12 @@ public class RAGChatService extends AbstractChatService {
 
     @Override
     public Flux<Token> answer(Question question, String userId, List<Message> conversationHistory) {
+        return answer(question, userId, conversationHistory, new AtomicReference<>());
+    }
+
+    @Override
+    public Flux<Token> answer(Question question, String userId, List<Message> conversationHistory,
+                              AtomicReference<ToolCallRecorder> recorderReference) {
         // Liste partagée (thread-safe) que le tool alimentera lors d'un éventuel appel.
         List<Document> retrievedDocuments = new CopyOnWriteArrayList<>();
 
@@ -121,6 +127,7 @@ public class RAGChatService extends AbstractChatService {
         // Journal des appels de tools du tour (persisté avec la réponse), événements tool_call / tool_result et
         // approbation des tools qui l'exigent (T1).
         ToolCallRecorder toolCallRecorder = new ToolCallRecorder(retrievedDocuments, toolApprovalService);
+        recorderReference.set(toolCallRecorder);
 
         // Tokens du tour : appels de la boucle agentique (flux) et appels LLM faits par les tools.
         UsageTracker usageTracker = new UsageTracker();
@@ -216,5 +223,4 @@ public class RAGChatService extends AbstractChatService {
     }
 
 }
-
 

@@ -2,8 +2,10 @@ package zas.admin.zec.backend.actions.converse;
 
 import reactor.core.publisher.Flux;
 import zas.admin.zec.backend.rag.token.Token;
+import zas.admin.zec.backend.tools.ToolCallRecorder;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Stratégie de génération de réponse pour une {@link Question} donnée (pattern Strategy).
@@ -29,4 +31,9 @@ public interface ChatService {
      * Génère la réponse (streamée) à la question, en tenant compte de l'historique de conversation.
      */
     Flux<Token> answer(Question question, String userId, List<Message> conversationHistory);
+
+    default Flux<Token> answer(Question question, String userId, List<Message> conversationHistory,
+                               AtomicReference<ToolCallRecorder> recorderReference) {
+        return answer(question, userId, conversationHistory);
+    }
 }
