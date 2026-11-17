@@ -39,6 +39,17 @@ class UsageTrackerTest {
     }
 
     @Test
+    void recordsTheModelThatAnswered() {
+        var tracker = new UsageTracker();
+        tracker.accept(new ChatResponse(List.of(new Generation(new AssistantMessage("x"))),
+                ChatResponseMetadata.builder().model("fallback-model").usage(new DefaultUsage(10, 2)).build()));
+
+        assertEquals("fallback-model", tracker.agentCalls().get(0).model());
+        assertEquals("fallback-model", new TurnUsage(tracker.agentCalls(), List.of()).toMap()
+                .get("agent_calls") instanceof List<?> calls ? ((Map<?, ?>) calls.get(0)).get("model") : null);
+    }
+
+    @Test
     void turnUsageSumsAgentAndAuxiliaryCalls() {
         var usage = new TurnUsage(
                 List.of(new TurnUsage.LlmCall("agent", 1000, 50, null), new TurnUsage.LlmCall("agent", 3000, 200, null)),

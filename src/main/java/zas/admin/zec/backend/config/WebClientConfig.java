@@ -1,6 +1,8 @@
 package zas.admin.zec.backend.config;
 
+import io.micrometer.observation.ObservationRegistry;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.restclient.autoconfigure.RestClientSsl;
@@ -20,6 +22,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.netty.http.client.HttpClient;
 import reactor.netty.transport.ProxyProvider;
 import zas.admin.zec.backend.config.properties.*;
+import zas.admin.zec.backend.observability.CorrelationId;
 
 @Slf4j
 @Configuration
@@ -54,9 +57,16 @@ public class WebClientConfig {
                 .clientConnector(new ReactorClientHttpConnector(httpClient));
     }
 
+    /**
+     * Builder des appels internes (reranker, service d'embedding) : observé (spans client, {@code traceparent}) et
+     * porteur de l'en-tête {@code X-Correlation-Id}.
+     */
     @Bean(name = "clientBuilderForInternalCalls")
-    public WebClient.Builder noProxyWebClientBuilder(InternalChatModelProperties internalChatModelProperties) {
+    public WebClient.Builder noProxyWebClientBuilder(InternalChatModelProperties internalChatModelProperties,
+                                                     ObjectProvider<ObservationRegistry> observationRegistry) {
         return WebClient.builder()
+                .observationRegistry(observationRegistry.getIfUnique(() -> ObservationRegistry.NOOP))
+                .filter(CorrelationId.webClientFilter())
                 .defaultHeaders(headers -> headers.setBearerAuth(internalChatModelProperties.apiKey()));
     }
 

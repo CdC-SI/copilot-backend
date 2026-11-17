@@ -346,16 +346,13 @@ public class RAGTool {
 
     /** Dépose l'usage d'un appel LLM du tool dans {@link ToolContextKeys#CTX_LLM_USAGE}, si l'appelant l'a fourni. */
     private static void recordUsage(Map<String, Object> context, String purpose, ChatResponse response) {
-        if (!(context.get(ToolContextKeys.CTX_LLM_USAGE) instanceof Collection<?> sink) || response == null
-                || response.getMetadata() == null || response.getMetadata().getUsage() == null
-                || response.getMetadata().getUsage().getPromptTokens() == null) {
+        var call = TurnUsage.LlmCall.from(purpose, response);
+        if (!(context.get(ToolContextKeys.CTX_LLM_USAGE) instanceof Collection<?> sink) || call == null) {
             return;
         }
-        var usage = response.getMetadata().getUsage();
         @SuppressWarnings("unchecked")
         var calls = (Collection<TurnUsage.LlmCall>) sink;
-        calls.add(new TurnUsage.LlmCall(purpose, usage.getPromptTokens(),
-                usage.getCompletionTokens() != null ? usage.getCompletionTokens() : 0, usage.getCacheReadInputTokens()));
+        calls.add(call);
     }
 
     private String describeWorkspaces(List<WorkspaceDto> workspaces) {

@@ -92,6 +92,11 @@
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
+        <!-- Traces OpenTelemetry (bridge Micrometer Tracing + export OTLP, désactivé par défaut) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-opentelemetry</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
@@ -128,6 +133,11 @@
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-client-chat</artifactId>
+        </dependency>
+        <!-- Observations des modèles de chat : métrique gen_ai.client.token.usage, journalisation optionnelle du contenu -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-autoconfigure-model-chat-observation</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.ai</groupId>

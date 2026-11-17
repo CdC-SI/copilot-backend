@@ -41,6 +41,11 @@ basé sur Spring AI, avec une boucle agentique (le LLM appelle des tools `@Tool`
   (observations et advisors communs centralisés dans `ChatClientConfig`). En test : `ChatClientConfig.builder(modèle, ObservationRegistry.NOOP)`.
 - **Résilience LLM** : le modèle interne est un `ResilientChatModel` (timeouts, retry avant le premier token, circuit
   breaker, modèle de repli — `zia.llm.resilience.*`). Ne pas ajouter de retry ailleurs ; le client SDK a `maxRetries(0)`.
+- **Observabilité** (package `observability`) : modèles construits avec l'`ObservationRegistry` (spans `gen_ai`, outils,
+  `gen_ai.client.token.usage`) ; export OTLP désactivé par défaut (`OTEL_TRACES_EXPORT_ENABLED`). `X-Correlation-Id` :
+  lu/généré par jweb (MDC `correlation`), propagé entre threads (context-propagation Reactor `auto`) et sur les appels
+  sortants — tout nouveau `WebClient` interne applique `CorrelationId.webClientFilter()` ; les `RestClient` issus du
+  builder Boot l'ont déjà. Usage LLM d'un tour → métriques `zia.llm.tokens` / `zia.llm.cost` (`TurnUsageEvent`).
 - Respecter le style réactif existant (`Flux<Token>`, SSE) dans les flux de conversation.
 - Prompts LLM centralisés (ex. `RAGPrompts`) et **multilingues** (fr/de/it) : conserver cette structure.
 

@@ -14,14 +14,19 @@ import tools.jackson.databind.json.JsonMapper;
 import zas.admin.zec.backend.config.properties.InternalChatModelProperties;
 import zas.admin.zec.backend.config.properties.LlmResilienceProperties;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationHandler;
+import io.micrometer.observation.ObservationRegistry;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -65,13 +70,21 @@ class ChatModelsConfigTest {
     }
 
     private static ChatModelsConfig config(String baseUrl, LlmResilienceProperties.Fallback fallback) {
+        return config(baseUrl, fallback, ObservationRegistry.NOOP);
+    }
+
+    private static ChatModelsConfig config(String baseUrl, LlmResilienceProperties.Fallback fallback,
+                                           ObservationRegistry observationRegistry) {
+        var beanFactory = new DefaultListableBeanFactory();
+        beanFactory.registerSingleton("observationRegistry", observationRegistry);
         return new ChatModelsConfig(new InternalChatModelProperties(
                 "test-key", "vision-model", baseUrl, "chat-model", baseUrl + "/",
                 "embedding-model", baseUrl, 1024, "reranker-model", baseUrl),
                 new LlmResilienceProperties(Duration.ofSeconds(10), Duration.ofSeconds(10), 2,
                         Duration.ofMillis(1), Duration.ofMillis(5),
                         new LlmResilienceProperties.CircuitBreaker(50, 20, 10, Duration.ofSeconds(30)), fallback),
-                new DefaultListableBeanFactory().getBeanProvider(MeterRegistry.class));
+                beanFactory.getBeanProvider(MeterRegistry.class),
+                beanFactory.getBeanProvider(ObservationRegistry.class));
     }
 
     private static final String STREAMED_ANSWER = """
@@ -86,6 +99,34 @@ class ChatModelsConfigTest {
     private static final String SERVER_ERROR = """
             {"error":{"message":"overloaded","type":"server_error"}}
             """;
+
+    @Test
+    void internalModelCallsAreObservedWithTheApplicationRegistry() {
+        String baseUrl = "http://127.0.0.1:" + server.getAddress().getPort();
+        List<String> observed = new CopyOnWriteArrayList<>();
+        var observationRegistry = ObservationRegistry.create();
+        observationRegistry.observationConfig().observationHandler(new ObservationHandler<>() {
+            @Override
+            public void onStart(Observation.Context context) {
+                observed.add(context.getName());
+            }
+
+            @Override
+            public boolean supportsContext(Observation.Context context) {
+                return true;
+            }
+        });
+        responses.add(new StubResponse("text/event-stream", STREAMED_ANSWER));
+
+        String result = ChatClientConfig.builder(config(baseUrl, new LlmResilienceProperties.Fallback(null, null, null,
+                        null), observationRegistry).internalChatModel(), observationRegistry).build()
+                .prompt("hello").stream().content().collectList()
+                .map(parts -> String.join("", parts)).block(Duration.ofSeconds(15));
+
+        assertEquals("answer", result);
+        assertTrue(observed.contains("gen_ai.client.operation"), "observation du modèle : " + observed);
+        assertTrue(observed.contains("spring.ai.chat.client"), "observation du ChatClient : " + observed);
+    }
 
     @Test
     void streamingRetriesServerErrorsOnceWithoutClientRetries() throws InterruptedException {

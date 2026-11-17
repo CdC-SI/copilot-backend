@@ -5,6 +5,7 @@ import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.micrometer.tagged.TaggedCircuitBreakerMetrics;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import io.micrometer.observation.ObservationRegistry;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.document.MetadataMode;
 import org.springframework.ai.openai.OpenAiChatModel;
@@ -31,13 +32,17 @@ public class ChatModelsConfig {
     private final InternalChatModelProperties internalChatModelProperties;
     private final LlmResilienceProperties resilienceProperties;
     private final MeterRegistry meterRegistry;
+    /** Observations Spring AI (spans gen_ai, métrique gen_ai.client.token.usage) de chaque appel aux modèles. */
+    private final ObservationRegistry observationRegistry;
 
     public ChatModelsConfig(InternalChatModelProperties internalChatModelProperties,
                             LlmResilienceProperties resilienceProperties,
-                            ObjectProvider<MeterRegistry> meterRegistry) {
+                            ObjectProvider<MeterRegistry> meterRegistry,
+                            ObjectProvider<ObservationRegistry> observationRegistry) {
         this.internalChatModelProperties = internalChatModelProperties;
         this.resilienceProperties = resilienceProperties;
         this.meterRegistry = meterRegistry.getIfUnique(SimpleMeterRegistry::new);
+        this.observationRegistry = observationRegistry.getIfUnique(() -> ObservationRegistry.NOOP);
     }
 
     /**
@@ -87,6 +92,7 @@ public class ChatModelsConfig {
 
         return OpenAiChatModel.builder()
                 .options(options)
+                .observationRegistry(observationRegistry)
                 .build();
     }
 
@@ -106,6 +112,7 @@ public class ChatModelsConfig {
 
         return OpenAiChatModel.builder()
                 .options(options)
+                .observationRegistry(observationRegistry)
                 .build();
     }
 
@@ -119,6 +126,7 @@ public class ChatModelsConfig {
                         .baseUrl(apiBaseUrl(internalChatModelProperties.embeddingBaseUrl()))
                         .model(internalChatModelProperties.embeddingModel())
                         .build())
+                .observationRegistry(observationRegistry)
                 .build();
     }
 
