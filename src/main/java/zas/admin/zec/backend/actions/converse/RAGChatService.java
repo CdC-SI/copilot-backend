@@ -19,6 +19,7 @@ import zas.admin.zec.backend.prompts.PromptId;
 import zas.admin.zec.backend.prompts.PromptRegistry;
 import zas.admin.zec.backend.rag.ConsultedSource;
 import zas.admin.zec.backend.rag.TurnMetaStreamFilter;
+import zas.admin.zec.backend.rag.TurnTrace;
 import zas.admin.zec.backend.rag.TurnUsage;
 import zas.admin.zec.backend.rag.UsageTracker;
 import zas.admin.zec.backend.rag.token.SourceToken;

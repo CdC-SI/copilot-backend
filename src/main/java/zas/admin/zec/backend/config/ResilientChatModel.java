@@ -199,7 +199,7 @@ public class ResilientChatModel implements ChatModel {
         if (options instanceof OpenAiChatOptions openAiOptions) {
             fallbackOptions = openAiOptions.mutate()
                     .baseUrl(null)
-                    .apiKey(null)
+                    .apiKey((String) null)
                     .model(fallbackModel)
                     .reasoningEffort(fallbackReasoningEffort)
                     .build();
