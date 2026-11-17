@@ -5,10 +5,15 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 import zas.admin.zec.backend.config.ChatClientConfig;
 import zas.admin.zec.backend.rag.RAGPrompts;
+import zas.admin.zec.backend.rag.TurnTrace;
+import zas.admin.zec.backend.rag.TurnUsage;
+import zas.admin.zec.backend.rag.UsageTracker;
 import zas.admin.zec.backend.rag.token.Token;
+import zas.admin.zec.backend.rag.token.TurnTraceToken;
 import zas.admin.zec.backend.tools.ConversationAttachmentTool;
 
 import java.util.List;
@@ -53,6 +58,7 @@ public class AttachmentChatService extends AbstractChatService {
         Sinks.Many<Token> statusSink = Sinks.many().unicast().onBackpressureBuffer();
 
         Map<String, Object> toolContext = baseToolContext(question, userId, statusSink);
+        UsageTracker usageTracker = new UsageTracker();
 
         Flux<Token> textTokens = internalChatClient
                 .prompt()
@@ -63,12 +69,15 @@ public class AttachmentChatService extends AbstractChatService {
                 .user(question.query())
                 .stream()
                 .chatResponse()
+                .doOnNext(usageTracker::accept)
                 .flatMap(this::toTextToken)
                 .doFinally(signal -> statusSink.tryEmitComplete());
 
         // statusSink.asFlux() émet les StatusToken produits pendant le tool-calling,
         // avant et pendant que textTokens streame la réponse du LLM.
-        return statusSink.asFlux().mergeWith(textTokens);
+        return statusSink.asFlux().mergeWith(textTokens)
+                .concatWith(Mono.fromSupplier(() -> new TurnTraceToken(
+                        TurnTrace.empty().withUsage(new TurnUsage(usageTracker.agentCalls(), List.of())))));
     }
 
     private String attachmentSystemPrompt(Question question) {

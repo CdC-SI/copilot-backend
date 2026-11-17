@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
+import zas.admin.zec.backend.actions.workspace.WorkspaceService;
 import zas.admin.zec.backend.config.properties.LlmPricingProperties;
 import zas.admin.zec.backend.rag.TurnUsage;
 
@@ -35,10 +36,12 @@ public class LlmUsageMetrics {
 
     private final MeterRegistry meterRegistry;
     private final LlmPricingProperties pricing;
+    private final WorkspaceService workspaceService;
 
-    public LlmUsageMetrics(MeterRegistry meterRegistry, LlmPricingProperties pricing) {
+    public LlmUsageMetrics(MeterRegistry meterRegistry, LlmPricingProperties pricing, WorkspaceService workspaceService) {
         this.meterRegistry = meterRegistry;
         this.pricing = pricing;
+        this.workspaceService = workspaceService;
     }
 
     @EventListener
@@ -54,7 +57,9 @@ public class LlmUsageMetrics {
         if (usage == null) {
             return;
         }
-        String workspaceTag = workspace != null && !workspace.isBlank() ? workspace : NONE;
+        var knownWorkspaces = workspaceService.getAllNames();
+        String workspaceTag = workspace != null && !workspace.isBlank()
+                && knownWorkspaces != null && knownWorkspaces.contains(workspace) ? workspace : NONE;
         record(usage.agentCalls(), "agent", workspaceTag);
         record(usage.auxiliaryCalls(), "auxiliary", workspaceTag);
     }

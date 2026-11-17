@@ -2,6 +2,7 @@ package zas.admin.zec.backend.observability;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
+import zas.admin.zec.backend.actions.workspace.WorkspaceService;
 import zas.admin.zec.backend.config.properties.LlmPricingProperties;
 import zas.admin.zec.backend.rag.TurnUsage;
 
@@ -22,7 +23,9 @@ class LlmUsageMetricsTest {
 
     @Test
     void countsTokensPerModelCallTypeAndWorkspace() {
-        var metrics = new LlmUsageMetrics(registry, new LlmPricingProperties("CHF", null));
+        var workspaceService = mock(WorkspaceService.class);
+        when(workspaceService.getAllNames()).thenReturn(List.of("AVS"));
+        var metrics = new LlmUsageMetrics(registry, new LlmPricingProperties("CHF", null), workspaceService);
         var usage = new TurnUsage(
                 List.of(new TurnUsage.LlmCall("agent", 1000, 50, 600L, "qwen"),
                         new TurnUsage.LlmCall("agent", 2000, 100, null, "qwen")),
@@ -43,7 +46,9 @@ class LlmUsageMetricsTest {
     void estimatesTheCostWhenTheModelHasAPrice() {
         var pricing = new LlmPricingProperties("CHF",
                 Map.of("qwen", new LlmPricingProperties.Price(1.0, 0.1, 4.0)));
-        var metrics = new LlmUsageMetrics(registry, pricing);
+        var workspaceService = mock(WorkspaceService.class);
+        when(workspaceService.getAllNames()).thenReturn(List.of());
+        var metrics = new LlmUsageMetrics(registry, pricing, workspaceService);
 
         metrics.onTurnUsage(new TurnUsageEvent(new TurnUsage(
                 List.of(new TurnUsage.LlmCall("agent", 1_000_000, 500_000, 400_000L, "qwen")), List.of()), null));
@@ -57,8 +62,21 @@ class LlmUsageMetricsTest {
 
     @Test
     void ignoresMissingUsage() {
-        var metrics = new LlmUsageMetrics(registry, new LlmPricingProperties(null, null));
+        var metrics = new LlmUsageMetrics(registry, new LlmPricingProperties(null, null), mock(WorkspaceService.class));
         metrics.onTurnUsage(new TurnUsageEvent(null, "AVS"));
         assertTrue(registry.getMeters().isEmpty());
+    }
+
+    @Test
+    void mapsUnknownWorkspaceToFixedFallback() {
+        var workspaceService = mock(WorkspaceService.class);
+        when(workspaceService.getAllNames()).thenReturn(List.of("AVS"));
+        var metrics = new LlmUsageMetrics(registry, new LlmPricingProperties("CHF", null), workspaceService);
+
+        metrics.onTurnUsage(new TurnUsageEvent(new TurnUsage(
+                List.of(new TurnUsage.LlmCall("agent", 10, 2, null, "qwen")), List.of()), "nonexistent"));
+
+        assertEquals(10, tokens("qwen", "agent", "prompt", LlmUsageMetrics.NONE));
+        assertNull(registry.find(LlmUsageMetrics.TOKENS).tags("workspace", "nonexistent").counter());
     }
 }
