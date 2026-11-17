@@ -162,13 +162,8 @@ public class ResilientChatModel implements ChatModel {
             long start = System.nanoTime();
             AtomicBoolean started = new AtomicBoolean();
             AtomicBoolean reported = new AtomicBoolean();
-            return withFirstTokenTimeout(primary.stream(prompt))
-                    .doOnNext(response -> {
-                        started.set(true);
-                        if (reported.compareAndSet(false, true)) {
-                            circuitBreaker.onSuccess(System.nanoTime() - start, TimeUnit.NANOSECONDS);
-                        }
-                    })
+            return withFirstTokenTimeout(Flux.defer(() -> primary.stream(prompt)))
+                    .doOnNext(response -> started.set(true))
                     .doOnComplete(() -> {
                         if (reported.compareAndSet(false, true)) {
                             circuitBreaker.onSuccess(System.nanoTime() - start, TimeUnit.NANOSECONDS);
@@ -202,7 +197,11 @@ public class ResilientChatModel implements ChatModel {
         ChatOptions options = prompt.getOptions();
         ChatOptions fallbackOptions;
         if (options instanceof OpenAiChatOptions openAiOptions) {
-            fallbackOptions = openAiOptions.mutate().model(fallbackModel).reasoningEffort(fallbackReasoningEffort)
+            fallbackOptions = openAiOptions.mutate()
+                    .baseUrl(null)
+                    .apiKey(null)
+                    .model(fallbackModel)
+                    .reasoningEffort(fallbackReasoningEffort)
                     .build();
         } else if (options != null) {
             fallbackOptions = options.mutate().model(fallbackModel).build();
