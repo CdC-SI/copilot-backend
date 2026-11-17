@@ -14,8 +14,9 @@ public record Question(
     String responseFormat,
     String conversationId,
     Boolean ragEnabled,
-    // Régénération / édition : remplace le dernier échange (dernière question + réponse) de la conversation.
-    Boolean replaceLastTurn) {
+    // Régénération / édition : identifiant de la réponse à remplacer, qui doit être la dernière de la conversation.
+    // La dernière question et cette réponse sont exclues du contexte, puis supprimées à l'enregistrement du nouvel échange.
+    String replaceMessageId) {
 
     public Question withDefaults() {
         return new Question(
@@ -27,7 +28,7 @@ public record Question(
             this.conversationId() != null ? this.conversationId() : UUID.randomUUID().toString(),
             // Rétrocompatibilité : si absent, toutes les fonctionnalités (RAG + Attachment) sont actives.
             this.ragEnabled() != null ? this.ragEnabled() : Boolean.TRUE,
-            this.replaceLastTurn() != null ? this.replaceLastTurn() : Boolean.FALSE
+            this.replaceMessageId() != null && !this.replaceMessageId().isBlank() ? this.replaceMessageId() : null
         );
     }
 }
