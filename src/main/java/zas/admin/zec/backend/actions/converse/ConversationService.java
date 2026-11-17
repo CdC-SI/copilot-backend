@@ -23,6 +23,7 @@ import zas.admin.zec.backend.actions.upload.validation.UploadException;
 import zas.admin.zec.backend.actions.workspace.WorkspaceService;
 import zas.admin.zec.backend.config.ChatClientConfig;
 import zas.admin.zec.backend.config.properties.AttachmentOcrProperties;
+import zas.admin.zec.backend.observability.TurnUsageEvent;
 import zas.admin.zec.backend.persistence.entity.AttachmentEntity;
 import zas.admin.zec.backend.persistence.entity.ConversationTitleEntity;
 import zas.admin.zec.backend.persistence.entity.MessageEntity;
@@ -30,6 +31,7 @@ import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
 import zas.admin.zec.backend.persistence.repository.ConversationRepository;
 import zas.admin.zec.backend.persistence.repository.ConversationTitleRepository;
 import zas.admin.zec.backend.rag.TurnTrace;
+import zas.admin.zec.backend.rag.TurnUsage;
 import zas.admin.zec.backend.rag.token.*;
 import zas.admin.zec.backend.tools.ToolCallRecorder;
 import zas.admin.zec.backend.tools.ToolApprovalService;
@@ -204,6 +206,7 @@ public class ConversationService {
 
         // Trace du tour (statut déclaré + documents consultés), émise en interne par l'agent.
         AtomicReference<TurnTrace> turnTrace = new AtomicReference<>();
+        AtomicReference<TurnUsage> turnUsage = new AtomicReference<>();
         AtomicReference<ToolCallRecorder> toolCallRecorder = new AtomicReference<>();
         // Réponse servant à générer le titre, renseignée après l'enregistrement d'une nouvelle conversation.
         AtomicReference<String> titleToGenerate = new AtomicReference<>();
@@ -217,6 +220,7 @@ public class ConversationService {
                     case StatusToken statusToken -> Flux.just(ChatStreamEvent.status(statusToken.tag(), statusToken.label()));
                     case TurnTraceToken turnTraceToken -> {
                         turnTrace.set(turnTraceToken.trace());
+                        turnUsage.set(turnTraceToken.trace().usage());
                         yield Flux.<ChatStreamEvent>empty();
                     }
                     case SuggestionToken suggestionToken -> {
@@ -252,7 +256,8 @@ public class ConversationService {
                     // Passage à SAVING atomique avec le Stop : un Stop accepté est toujours reflété ici.
                     boolean interrupted = generationRegistry.saving(generation);
                     var exchange = new StreamedExchange(assistantMessage.toString(), List.copyOf(sources),
-                            List.copyOf(suggestions), workspace.get(), traceForSave(turnTrace, toolCallRecorder));
+                            List.copyOf(suggestions), workspace.get(),
+                            traceForSave(turnTrace, toolCallRecorder), turnUsage.get());
                     // suppressCancel : une déconnexion pendant l'enregistrement ne l'annule pas.
                     // done n'est émis qu'après le commit (et la sortie du registre).
                     return Mono.fromFuture(saveAsync(generation, () -> saveExchange(question, userId, assistantMessageId,
@@ -289,7 +294,8 @@ public class ConversationService {
                     toolApprovalService.cancelAll(userId, question.conversationId());
                     generationRegistry.saving(generation);
                     var exchange = new StreamedExchange(assistantMessage.toString(), List.copyOf(sources),
-                            List.copyOf(suggestions), workspace.get(), traceForSave(turnTrace, toolCallRecorder));
+                            List.copyOf(suggestions), workspace.get(),
+                            traceForSave(turnTrace, toolCallRecorder), turnUsage.get());
                     saveAsync(generation, () -> saveExchange(question, userId, assistantMessageId, exchange, timestamp,
                             conversationType, true, replacedMessageIds))
                             .thenCompose(newConversation -> newConversation
@@ -341,7 +347,7 @@ public class ConversationService {
     }
     /** Contenu streamé d'un échange (texte de la réponse et métadonnées), figé au moment de l'enregistrement. */
     private record StreamedExchange(String answer, List<Source> sources, List<String> suggestions,
-                                    String workspace, TurnTrace turnTrace) {}
+                                    String workspace, TurnTrace turnTrace, TurnUsage usage) {}
 
     private static CompletableFuture<Void> persistAsync(Runnable task) {
         return CompletableFuture.runAsync(task, runnable -> Schedulers.boundedElastic().schedule(runnable));
@@ -526,11 +532,11 @@ public class ConversationService {
     private static TurnTrace traceForSave(AtomicReference<TurnTrace> turnTrace,
                                           AtomicReference<ToolCallRecorder> toolCallRecorder) {
         TurnTrace trace = turnTrace.get();
-        if (trace != null) {
-            return trace;
+        if (trace == null) {
+            ToolCallRecorder recorder = toolCallRecorder.get();
+            trace = recorder == null ? null : TurnTrace.empty().withToolCalls(recorder.calls());
         }
-        ToolCallRecorder recorder = toolCallRecorder.get();
-        return recorder == null ? null : TurnTrace.empty().withToolCalls(recorder.calls());
+        return trace;
     }
 
     /** Dernier échange remplacé par une régénération : historique de contexte (sans cet échange) et messages à supprimer. */
@@ -598,6 +604,9 @@ public class ConversationService {
             save(userMessage, userId, question.conversationId());
             save(assistantMessage, userId, question.conversationId());
         });
+        if (exchange.usage() != null) {
+            eventPublisher.publishEvent(new TurnUsageEvent(exchange.usage(), exchange.workspace()));
+        }
         return insertPlaceholderTitle(userId, question.conversationId(), question.query(), conversationType);
     }
 

@@ -8,10 +8,13 @@ import org.springframework.ai.tool.ToolCallback;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 import zas.admin.zec.backend.config.ChatClientConfig;
 import zas.admin.zec.backend.rag.RAGPrompts;
 import zas.admin.zec.backend.rag.TurnTrace;
+import zas.admin.zec.backend.rag.TurnUsage;
+import zas.admin.zec.backend.rag.UsageTracker;
 import zas.admin.zec.backend.rag.token.Token;
 import zas.admin.zec.backend.rag.token.TurnTraceToken;
 import zas.admin.zec.backend.tools.ConversationAttachmentTool;
@@ -72,6 +75,7 @@ public class AttachmentChatService extends AbstractChatService {
         Sinks.Many<Token> statusSink = Sinks.many().unicast().onBackpressureBuffer();
 
         Map<String, Object> toolContext = baseToolContext(question, userId, statusSink);
+        UsageTracker usageTracker = new UsageTracker();
         List<Document> retrievedDocuments = new CopyOnWriteArrayList<>();
         toolContext.put(ToolContextKeys.CTX_RETRIEVED_DOCUMENTS, retrievedDocuments);
         // Événements tool_call / tool_result et approbation des tools qui l'exigent (T1).
@@ -87,14 +91,17 @@ public class AttachmentChatService extends AbstractChatService {
                 .user(question.query())
                 .stream()
                 .chatResponse()
+                .doOnNext(usageTracker::accept)
                 .flatMap(this::toTextToken)
                 .doFinally(signal -> statusSink.tryEmitComplete());
 
         // statusSink.asFlux() émet les StatusToken produits pendant le tool-calling,
         // avant et pendant que textTokens streame la réponse du LLM.
         return statusSink.asFlux().mergeWith(textTokens)
-                .concatWith(Flux.defer(() -> Flux.just(
-                        new TurnTraceToken(TurnTrace.empty().withToolCalls(toolCallRecorder.calls())))));
+                .concatWith(Mono.fromSupplier(() -> new TurnTraceToken(
+                        TurnTrace.empty()
+                                .withToolCalls(toolCallRecorder.calls())
+                                .withUsage(new TurnUsage(usageTracker.agentCalls(), List.of())))));
     }
 
     private String attachmentSystemPrompt(Question question) {

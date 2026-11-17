@@ -108,6 +108,9 @@ spring:
   mvc:
     async:
       request-timeout: 120000
+  # T3 : restauration automatique des ThreadLocal (observation/trace, MDC correlation) dans les opérateurs Reactor.
+  reactor:
+    context-propagation: auto
   task:
     execution:
       pool:
@@ -179,6 +182,31 @@ rag:
   document-tool:
     max-tool-calls-per-turn: ${RAG_MAX_TOOL_CALLS_PER_TURN:10}
 zia:
+  llm:
+    # B4 : résilience du modèle de chat interne (internalChatModel).
+    resilience:
+      # Durée maximale d'un appel HTTP au LLM (flux compris), sous spring.mvc.async.request-timeout.
+      request-timeout: ${LLM_REQUEST_TIMEOUT:110s}
+      first-token-timeout: ${LLM_FIRST_TOKEN_TIMEOUT:30s}
+      # Tentatives sur erreur transitoire, uniquement avant le premier token.
+      max-attempts: ${LLM_MAX_ATTEMPTS:3}
+      initial-backoff: ${LLM_INITIAL_BACKOFF:500ms}
+      max-backoff: ${LLM_MAX_BACKOFF:4s}
+      circuit-breaker:
+        failure-rate-threshold: ${LLM_CB_FAILURE_RATE_THRESHOLD:50}
+        sliding-window-size: ${LLM_CB_SLIDING_WINDOW_SIZE:20}
+        minimum-number-of-calls: ${LLM_CB_MINIMUM_NUMBER_OF_CALLS:10}
+        wait-duration-in-open-state: ${LLM_CB_WAIT_DURATION_IN_OPEN_STATE:30s}
+      # Modèle de repli compatible OpenAI, désactivé tant que FALLBACK_CHAT_MODEL ou FALLBACK_CHAT_BASE_URL est vide.
+      fallback:
+        chat-model: ${FALLBACK_CHAT_MODEL:}
+        chat-base-url: ${FALLBACK_CHAT_BASE_URL:}
+        api-key: ${FALLBACK_API_KEY:${OPENAI_API_KEY:}}
+        reasoning-effort: ${FALLBACK_REASONING_EFFORT:}
+    # T3 : prix par million de tokens pour la métrique zia.llm.cost (optionnel ; clé = modèle renvoyé par le serveur).
+    # Exemple : models: { "[Qwen/Qwen3-32B]": { input: 0.5, cached-input: 0.1, output: 1.5 } }
+    pricing:
+      currency: ${LLM_PRICING_CURRENCY:CHF}
   tools:
     approval:
       # Tools dont chaque appel doit être approuvé par l'utilisateur (T1), séparés par des virgules ; aucun par défaut
@@ -228,6 +256,31 @@ management:
   observations:
     enable:
       default: true
+  # T3 : traces OpenTelemetry. Les spans sont toujours créés (traceId/spanId dans les logs) ; l'export OTLP est
+  # désactivé par défaut. Langfuse : OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=https://<hôte>/api/public/otel/v1/traces et
+  # MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_HEADERS_AUTHORIZATION="Basic <base64(clé publique:clé secrète)>".
+  tracing:
+    sampling:
+      probability: ${OTEL_TRACES_SAMPLING_PROBABILITY:1.0}
+    export:
+      enabled: ${OTEL_TRACES_EXPORT_ENABLED:false}
+  opentelemetry:
+    resource-attributes:
+      deployment.environment: ${ENVIRONMENT:local}
+    tracing:
+      export:
+        otlp:
+          endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://localhost:4318/v1/traces}
+  logging:
+    export:
+      otlp:
+        enabled: false
+  otlp:
+    metrics:
+      export:
+        # Les métriques restent exposées par Prometheus ; export OTLP optionnel.
+        enabled: ${OTEL_METRICS_EXPORT_ENABLED:false}
+        url: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT:http://localhost:4318/v1/metrics}
   endpoints:
     web:
       exposure:
@@ -246,4 +299,3 @@ springdoc:
     operations-sorter: method
     tags-sorter: alpha
   packages-to-scan: zas.admin.zec.backend
-

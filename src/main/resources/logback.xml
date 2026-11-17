@@ -9,7 +9,7 @@
 
     <appender name="LOCAL" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{traceId:-},%X{correlation:-}] %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
 
