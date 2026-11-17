@@ -207,10 +207,18 @@ zia:
     # Exemple : models: { "[Qwen/Qwen3-32B]": { input: 0.5, cached-input: 0.1, output: 1.5 } }
     pricing:
       currency: ${LLM_PRICING_CURRENCY:CHF}
+  tools:
+    approval:
+      # Tools dont chaque appel doit être approuvé par l'utilisateur (T1), séparés par des virgules ; aucun par défaut
+      # (démo : get_attachment_content).
+      required-tools: ${ZIA_TOOLS_APPROVAL_REQUIRED_TOOLS:}
+      # Inférieur à spring.mvc.async.request-timeout, qui borne toute la réponse en streaming.
+      timeout: ${ZIA_TOOLS_APPROVAL_TIMEOUT:60s}
 logging:
   level:
     zas.admin.zec: ${LOG_LEVEL_ZEC:INFO}
     org.springframework.ai: ${LOG_LEVEL_SPRING_AI:INFO}
+    org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor: ${LOG_LEVEL_CHAT_CLIENT_ADVISOR:OFF}
     org.springframework.security: ${LOG_LEVEL_SPRING_SECURITY:INFO}
     com.vladmihalcea.flexypool: WARN
 deepl:
@@ -291,4 +299,3 @@ springdoc:
     operations-sorter: method
     tags-sorter: alpha
   packages-to-scan: zas.admin.zec.backend
-

@@ -33,6 +33,8 @@ import zas.admin.zec.backend.persistence.repository.ConversationTitleRepository;
 import zas.admin.zec.backend.rag.TurnTrace;
 import zas.admin.zec.backend.rag.TurnUsage;
 import zas.admin.zec.backend.rag.token.*;
+import zas.admin.zec.backend.tools.ToolCallRecorder;
+import zas.admin.zec.backend.tools.ToolApprovalService;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -62,6 +64,7 @@ public class ConversationService {
     private final TransactionTemplate transactionTemplate;
     private final AttachmentOcrProperties attachmentOcrProperties;
     private final GenerationRegistry generationRegistry;
+    private final ToolApprovalService toolApprovalService;
 
     public ConversationService(ConversationRepository conversationRepository,
                                ConversationTitleRepository conversationTitleRepository,
@@ -73,7 +76,8 @@ public class ConversationService {
                                ApplicationEventPublisher eventPublisher,
                                TransactionTemplate transactionTemplate,
                                AttachmentOcrProperties attachmentOcrProperties,
-                               GenerationRegistry generationRegistry) {
+                               GenerationRegistry generationRegistry,
+                               ToolApprovalService toolApprovalService) {
 
         this.conversationRepository = conversationRepository;
         this.conversationTitleRepository = conversationTitleRepository;
@@ -86,6 +90,7 @@ public class ConversationService {
         this.transactionTemplate = transactionTemplate;
         this.attachmentOcrProperties = attachmentOcrProperties;
         this.generationRegistry = generationRegistry;
+        this.toolApprovalService = toolApprovalService;
     }
 
     public List<Source> getSourcesByMessageUuid(String conversationUuid, String messageUuid) {
@@ -202,10 +207,11 @@ public class ConversationService {
         // Trace du tour (statut déclaré + documents consultés), émise en interne par l'agent.
         AtomicReference<TurnTrace> turnTrace = new AtomicReference<>();
         AtomicReference<TurnUsage> turnUsage = new AtomicReference<>();
+        AtomicReference<ToolCallRecorder> toolCallRecorder = new AtomicReference<>();
         // Réponse servant à générer le titre, renseignée après l'enregistrement d'une nouvelle conversation.
         AtomicReference<String> titleToGenerate = new AtomicReference<>();
 
-        return getTokenStream(question, userId, conversationType, replacedTurn)
+        return getTokenStream(question, userId, conversationType, replacedTurn, toolCallRecorder)
                 .doOnSubscribe(ignored -> generation.markSubscribed())
                 // Stop (endpoint) : la production s'arrête (annulation de l'appel LLM) et le flux continue
                 // normalement vers l'enregistrement de la réponse partielle, puis done {interrupted: true}.
@@ -234,6 +240,9 @@ public class ConversationService {
                         workspace.set(workspaceToken.name());
                         yield Flux.just(ChatStreamEvent.workspace(workspaceToken.name()));
                     }
+                    case ToolCallToken toolCallToken -> Flux.just(ChatStreamEvent.toolCall(toolCallToken));
+                    case ToolResultToken toolResultToken -> Flux.just(ChatStreamEvent.toolResult(toolResultToken));
+                    case ApprovalRequiredToken approvalToken -> Flux.just(ChatStreamEvent.approvalRequired(approvalToken));
                     case TextToken textToken -> {
                         assistantMessage.append(textToken.content());
                         yield Flux.just(ChatStreamEvent.textDelta(textToken.content()));
@@ -247,7 +256,8 @@ public class ConversationService {
                     // Passage à SAVING atomique avec le Stop : un Stop accepté est toujours reflété ici.
                     boolean interrupted = generationRegistry.saving(generation);
                     var exchange = new StreamedExchange(assistantMessage.toString(), List.copyOf(sources),
-                            List.copyOf(suggestions), workspace.get(), turnTrace.get(), turnUsage.get());
+                            List.copyOf(suggestions), workspace.get(),
+                            traceForSave(turnTrace, toolCallRecorder), turnUsage.get());
                     // suppressCancel : une déconnexion pendant l'enregistrement ne l'annule pas.
                     // done n'est émis qu'après le commit (et la sortie du registre).
                     return Mono.fromFuture(saveAsync(generation, () -> saveExchange(question, userId, assistantMessageId,
@@ -280,9 +290,12 @@ public class ConversationService {
                     if (!persisted.compareAndSet(false, true)) {
                         return;
                     }
+                    // Un tool en attente d'approbation ne bloque pas au-delà de la déconnexion.
+                    toolApprovalService.cancelAll(userId, question.conversationId());
                     generationRegistry.saving(generation);
                     var exchange = new StreamedExchange(assistantMessage.toString(), List.copyOf(sources),
-                            List.copyOf(suggestions), workspace.get(), turnTrace.get(), turnUsage.get());
+                            List.copyOf(suggestions), workspace.get(),
+                            traceForSave(turnTrace, toolCallRecorder), turnUsage.get());
                     saveAsync(generation, () -> saveExchange(question, userId, assistantMessageId, exchange, timestamp,
                             conversationType, true, replacedMessageIds))
                             .thenCompose(newConversation -> newConversation
@@ -299,7 +312,21 @@ public class ConversationService {
 
     /** Arrête la génération en cours (Stop) ; {@code false} si elle est inconnue, terminée ou d'un autre utilisateur. */
     public boolean stopGeneration(String userId, String conversationId, String messageId) {
-        return generationRegistry.stop(messageId, userId, conversationId);
+        boolean stopped = generationRegistry.stop(messageId, userId, conversationId);
+        if (stopped) {
+            // Un tool en attente d'approbation est annulé : la boucle agentique n'attend pas l'expiration.
+            toolApprovalService.cancelAll(userId, conversationId);
+        }
+        return stopped;
+    }
+
+    /**
+     * T1 : décision de l'utilisateur sur un appel de tool soumis à approbation.
+     *
+     * @return {@code false} si la demande est inconnue, déjà tranchée (expirée, annulée) ou d'un autre utilisateur
+     */
+    public boolean decideToolApproval(String userId, String conversationId, String approvalId, boolean approved) {
+        return toolApprovalService.decide(userId, conversationId, approvalId, approved);
     }
 
     /**
@@ -487,12 +514,29 @@ public class ConversationService {
     }
 
     private Flux<Token> getTokenStream(Question question, String userId, ConversationType conversationType,
-                                       ReplacedTurn replacedTurn) {
+                                       ReplacedTurn replacedTurn,
+                                       AtomicReference<ToolCallRecorder> toolCallRecorder) {
         Mono<List<Message>> history = replacedTurn != null
                 ? Mono.just(replacedTurn.contextHistory())
                 : Mono.fromCallable(() -> getConversationHistory(question.conversationId(), userId, Limit.unlimited()))
                         .subscribeOn(Schedulers.boundedElastic());
-        return history.flatMapMany(messages -> chatServiceFactory.resolve(conversationType).answer(question, userId, messages));
+        return history.flatMapMany(messages -> {
+            ChatService chatService = chatServiceFactory.resolve(conversationType);
+            Flux<Token> stream = chatService.answer(question, userId, messages, toolCallRecorder);
+            // Keep compatibility with test doubles and third-party strategies that only implement the
+            // original method; production strategies override the recorder-aware overload.
+            return stream != null ? stream : chatService.answer(question, userId, messages);
+        });
+    }
+
+    private static TurnTrace traceForSave(AtomicReference<TurnTrace> turnTrace,
+                                          AtomicReference<ToolCallRecorder> toolCallRecorder) {
+        TurnTrace trace = turnTrace.get();
+        if (trace == null) {
+            ToolCallRecorder recorder = toolCallRecorder.get();
+            trace = recorder == null ? null : TurnTrace.empty().withToolCalls(recorder.calls());
+        }
+        return trace;
     }
 
     /** Dernier échange remplacé par une régénération : historique de contexte (sans cet échange) et messages à supprimer. */

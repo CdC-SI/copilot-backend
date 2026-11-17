@@ -47,6 +47,8 @@ basé sur Spring AI, avec une boucle agentique (le LLM appelle des tools `@Tool`
   sortants — tout nouveau `WebClient` interne applique `CorrelationId.webClientFilter()` ; les `RestClient` issus du
   builder Boot l'ont déjà. Usage LLM d'un tour → métriques `zia.llm.tokens` / `zia.llm.cost` (`TurnUsageEvent`).
 - Respecter le style réactif existant (`Flux<Token>`, SSE) dans les flux de conversation.
+- **Tools** : toujours passer les callbacks par `ToolCallRecorder.wrap(...)` (journal persisté, événements SSE
+  `tool_call`/`tool_result`, approbation `approval_required` des tools listés dans `zia.tools.approval.required-tools`).
 - Prompts LLM centralisés (ex. `RAGPrompts`) et **multilingues** (fr/de/it) : conserver cette structure.
 
 ## Bonnes pratiques

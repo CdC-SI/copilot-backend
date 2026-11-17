@@ -2,6 +2,9 @@ package zas.admin.zec.backend.actions.converse;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.document.Document;
+import org.springframework.ai.support.ToolCallbacks;
+import org.springframework.ai.tool.ToolCallback;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -15,9 +18,14 @@ import zas.admin.zec.backend.rag.UsageTracker;
 import zas.admin.zec.backend.rag.token.Token;
 import zas.admin.zec.backend.rag.token.TurnTraceToken;
 import zas.admin.zec.backend.tools.ConversationAttachmentTool;
+import zas.admin.zec.backend.tools.ToolApprovalService;
+import zas.admin.zec.backend.tools.ToolCallRecorder;
+import zas.admin.zec.backend.tools.ToolContextKeys;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Stratégie {@link ChatService} "sans RAG" : un {@link ChatClient} auquel seul le tool
@@ -38,12 +46,15 @@ import java.util.Map;
 public class AttachmentChatService extends AbstractChatService {
 
     private final ChatClient internalChatClient;
-    private final ConversationAttachmentTool attachmentTool;
+    private final ToolCallback[] toolCallbacks;
+    private final ToolApprovalService toolApprovalService;
 
     public AttachmentChatService(@Qualifier(ChatClientConfig.INTERNAL_CHAT_CLIENT_BUILDER) ChatClient.Builder chatClientBuilder,
-                                  ConversationAttachmentTool attachmentTool) {
+                                  ConversationAttachmentTool attachmentTool,
+                                  ToolApprovalService toolApprovalService) {
         this.internalChatClient = chatClientBuilder.build();
-        this.attachmentTool = attachmentTool;
+        this.toolCallbacks = ToolCallbacks.from(attachmentTool);
+        this.toolApprovalService = toolApprovalService;
     }
 
     @Override
@@ -53,18 +64,29 @@ public class AttachmentChatService extends AbstractChatService {
 
     @Override
     public Flux<Token> answer(Question question, String userId, List<Message> conversationHistory) {
+        return answer(question, userId, conversationHistory, new AtomicReference<>());
+    }
+
+    @Override
+    public Flux<Token> answer(Question question, String userId, List<Message> conversationHistory,
+                              AtomicReference<ToolCallRecorder> recorderReference) {
         // Sink partagé (thread-safe) dans lequel le tool émet des StatusToken (ex. OCR)
         // avant/pendant son traitement, pour notifier le frontend en temps réel.
         Sinks.Many<Token> statusSink = Sinks.many().unicast().onBackpressureBuffer();
 
         Map<String, Object> toolContext = baseToolContext(question, userId, statusSink);
         UsageTracker usageTracker = new UsageTracker();
+        List<Document> retrievedDocuments = new CopyOnWriteArrayList<>();
+        toolContext.put(ToolContextKeys.CTX_RETRIEVED_DOCUMENTS, retrievedDocuments);
+        // Événements tool_call / tool_result et approbation des tools qui l'exigent (T1).
+        ToolCallRecorder toolCallRecorder = new ToolCallRecorder(retrievedDocuments, toolApprovalService);
+        recorderReference.set(toolCallRecorder);
 
         Flux<Token> textTokens = internalChatClient
                 .prompt()
                 .system(attachmentSystemPrompt(question))
                 .messages(conversationHistory.stream().map(this::convertToMessage).toList())
-                .tools(attachmentTool)
+                .toolCallbacks(toolCallRecorder.wrap(toolCallbacks))
                 .toolContext(toolContext)
                 .user(question.query())
                 .stream()
@@ -77,7 +99,9 @@ public class AttachmentChatService extends AbstractChatService {
         // avant et pendant que textTokens streame la réponse du LLM.
         return statusSink.asFlux().mergeWith(textTokens)
                 .concatWith(Mono.fromSupplier(() -> new TurnTraceToken(
-                        TurnTrace.empty().withUsage(new TurnUsage(usageTracker.agentCalls(), List.of())))));
+                        TurnTrace.empty()
+                                .withToolCalls(toolCallRecorder.calls())
+                                .withUsage(new TurnUsage(usageTracker.agentCalls(), List.of())))));
     }
 
     private String attachmentSystemPrompt(Question question) {

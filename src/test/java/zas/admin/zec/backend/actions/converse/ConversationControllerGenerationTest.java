@@ -57,6 +57,42 @@ class ConversationControllerGenerationTest {
     }
 
     @Test
+    @DisplayName("T1 : approbation d'un appel de tool : 204")
+    void approval_approved() throws Exception {
+        when(conversationService.decideToolApproval(USER, "conv", "appr-1", true)).thenReturn(true);
+
+        mockMvc.perform(post("/api/conversations/conv/approvals/appr-1").principal(authentication)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"decision\":\"APPROVE\"}"))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("T1 : refus d'un appel de tool : 204")
+    void approval_rejected() throws Exception {
+        when(conversationService.decideToolApproval(USER, "conv", "appr-1", false)).thenReturn(true);
+
+        mockMvc.perform(post("/api/conversations/conv/approvals/appr-1").principal(authentication)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"decision\":\"REJECT\"}"))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("T1 : demande inconnue, tranchée ou d'un autre utilisateur : 404")
+    void approval_unknown() throws Exception {
+        mockMvc.perform(post("/api/conversations/conv/approvals/appr-1").principal(authentication)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"decision\":\"APPROVE\"}"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("T1 : décision absente : 400")
+    void approval_missingDecision() throws Exception {
+        mockMvc.perform(post("/api/conversations/conv/approvals/appr-1").principal(authentication)
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     @DisplayName("génération refusée : 409 JSON avec le code, malgré Accept: text/event-stream")
     void askQuestion_conflict_returnsJson409() throws Exception {
         when(conversationService.streamAnswer(any(), eq(USER))).thenThrow(
