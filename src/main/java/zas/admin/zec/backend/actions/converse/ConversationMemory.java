@@ -62,6 +62,7 @@ public class ConversationMemory {
     private final TokenCountEstimator estimator = new JTokkitTokenCountEstimator();
     /** Conversations dont le résumé est en cours de génération (une seule compaction à la fois par conversation). */
     private final Set<String> compacting = ConcurrentHashMap.newKeySet();
+    private final Map<String, CompactionState> compactionStates = new ConcurrentHashMap<>();
 
     public ConversationMemory(MemoryProperties properties,
                               ConversationSummaryRepository summaries,
@@ -125,20 +126,38 @@ public class ConversationMemory {
         if (!compacting.add(key)) {
             return;
         }
+        CompactionState state = compactionStates.computeIfAbsent(key, ignored -> new CompactionState());
+        long generation;
+        synchronized (state.lock) {
+            generation = state.generation;
+        }
         Schedulers.boundedElastic().schedule(() -> {
             try {
-                compact(userId, conversationId, language, history.get());
+                synchronized (state.lock) {
+                    if (state.generation == generation) {
+                        compact(userId, conversationId, language, history.get());
+                    }
+                }
             } catch (RuntimeException e) {
                 log.warn("Résumé de la conversation {} impossible", conversationId, e);
             } finally {
                 compacting.remove(key);
+                compactionStates.computeIfPresent(key, (ignored, current) ->
+                        current == state && !compacting.contains(key) ? null : current);
             }
         });
     }
 
     /** Supprime le résumé d'une conversation supprimée. */
     public void forget(String userId, String conversationId) {
-        summaries.delete(userId, conversationId);
+        String key = userId + "|" + conversationId;
+        CompactionState state = compactionStates.computeIfAbsent(key, ignored -> new CompactionState());
+        synchronized (state.lock) {
+            state.generation++;
+            summaries.delete(userId, conversationId);
+        }
+        compactionStates.computeIfPresent(key, (ignored, current) ->
+                current == state && !compacting.contains(key) ? null : current);
     }
 
     /** @return {@code true} si un nouveau résumé a été enregistré */
@@ -255,6 +274,11 @@ public class ConversationMemory {
     }
 
     private record UsableSummary(ConversationSummary summary, int summarizedTurns) {}
+
+    private static final class CompactionState {
+        private final Object lock = new Object();
+        private long generation;
+    }
 
     /** Résumé persisté dont le dernier message couvert figure encore dans l'historique (sinon ignoré). */
     private Optional<UsableSummary> usableSummary(String userId, String conversationId, List<Message> history,

@@ -27,6 +27,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -207,6 +210,38 @@ class ConversationMemoryTest {
         assertFalse(memory(1, 0.5).compact("user-1", "conv", "fr", history()));
 
         verify(summaries, never()).save(any());
+    }
+
+    @Test
+    void deletionWaitsForAnInFlightCompaction() throws Exception {
+        when(chatModel.getOptions()).thenReturn(ToolCallingChatOptions.builder().build());
+        var response = new ChatResponse(List.of(new Generation(new AssistantMessage("- Résumé."))),
+                ChatResponseMetadata.builder().model("qwen").usage(new DefaultUsage(300, 40)).build());
+        var started = new CountDownLatch(1);
+        var release = new CountDownLatch(1);
+        when(chatModel.call(any(Prompt.class))).thenAnswer(invocation -> {
+            started.countDown();
+            assertTrue(release.await(5, TimeUnit.SECONDS));
+            return response;
+        });
+        var memory = memory(1, 0.5);
+
+        memory.compactAsync("user-1", "conv", "fr", ConversationMemoryTest::history);
+        assertTrue(started.await(5, TimeUnit.SECONDS));
+
+        var executor = Executors.newSingleThreadExecutor();
+        try {
+            var deletion = executor.submit(() -> memory.forget("user-1", "conv"));
+            assertFalse(deletion.isDone());
+            release.countDown();
+            deletion.get(5, TimeUnit.SECONDS);
+        } finally {
+            executor.shutdownNow();
+        }
+
+        var order = inOrder(summaries);
+        order.verify(summaries).save(any(ConversationSummary.class));
+        order.verify(summaries).delete("user-1", "conv");
     }
 
     @Test
