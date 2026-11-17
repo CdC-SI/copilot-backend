@@ -37,5 +37,5 @@ public interface MessageFeedbackRepository extends JpaRepository<MessageFeedback
         """, nativeQuery = true)
     List<DailyCountRow> aggregatePerDay(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
-    interface DailyCountRow { java.sql.Date getDay(); long getPositive(); long getNegative(); }
+    interface DailyCountRow { java.time.LocalDate getDay(); long getPositive(); long getNegative(); }
 }
