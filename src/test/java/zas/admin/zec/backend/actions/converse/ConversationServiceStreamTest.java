@@ -98,7 +98,6 @@ class ConversationServiceStreamTest {
                 mock(WorkspaceService.class), mock(ApplicationEventPublisher.class),
                 new TransactionTemplate(mock(PlatformTransactionManager.class)),
                 new AttachmentOcrProperties(AttachmentOcrProperties.Engine.PIPELINE, 1000,
-                        Duration.ofSeconds(5), Duration.ofHours(1)), registry, approvals, new PromptRegistry());
                         Duration.ofSeconds(5), Duration.ofHours(1)), registry, approvals, new PromptRegistry(), memory);
     }
 
