@@ -40,6 +40,8 @@ basé sur Spring AI, avec une boucle agentique (le LLM appelle des tools `@Tool`
   `VISION_CHAT_CLIENT_BUILDER`) et appeler `build()` ; jamais `ChatClient.create(...)` ni d'appel direct au `ChatModel`
   (observations et advisors communs centralisés dans `ChatClientConfig`). En test : `ChatClientConfig.builder(modèle, ObservationRegistry.NOOP)`.
 - Respecter le style réactif existant (`Flux<Token>`, SSE) dans les flux de conversation.
+- **Tools** : toujours passer les callbacks par `ToolCallRecorder.wrap(...)` (journal persisté, événements SSE
+  `tool_call`/`tool_result`, approbation `approval_required` des tools listés dans `zia.tools.approval.required-tools`).
 - Prompts LLM centralisés (ex. `RAGPrompts`) et **multilingues** (fr/de/it) : conserver cette structure.
 
 ## Bonnes pratiques

@@ -117,6 +117,26 @@ public class ConversationController {
                 : ResponseEntity.notFound().build();
     }
 
+    /**
+     * T1 : décision de l'utilisateur sur un appel de tool annoncé par l'événement {@code approval_required}.
+     *
+     * @return 204 si la décision est prise en compte, 404 si la demande est inconnue, déjà tranchée (expirée,
+     * annulée) ou d'un autre utilisateur
+     */
+    @PostMapping("/{conversationId}/approvals/{approvalId}")
+    public ResponseEntity<Void> decideToolApproval(@PathVariable String conversationId, @PathVariable String approvalId,
+                                                   @RequestBody ToolApprovalDecision decision,
+                                                   Authentication authentication) {
+        if (decision == null || decision.decision() == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        var userUuid = userService.getUuid(authentication.getName());
+        boolean approved = decision.decision() == ToolApprovalDecision.Decision.APPROVE;
+        return conversationService.decideToolApproval(userUuid, conversationId, approvalId, approved)
+                ? ResponseEntity.noContent().build()
+                : ResponseEntity.notFound().build();
+    }
+
     /** T1 : {@code event: <type>} et {@code data: <json>}. */
     static ServerSentEvent<String> toServerSentEvent(ChatStreamEvent event) {
         return ServerSentEvent.builder(JSON.writeValueAsString(event.data())).event(event.type()).build();
