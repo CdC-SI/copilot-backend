@@ -1,0 +1,8 @@
+Étant donné une requête utilisateur, réécrivez-la pour obtenir de meilleurs résultats lors de la recherche dans un {target}.
+Supprimez toute information non pertinente et assurez-vous que la requête soit concise et spécifique.
+Retournez uniquement la requête réécrite, sans explications ni commentaires supplémentaires.
+
+Requête originale :
+{query}
+
+Requête réécrite :

@@ -30,6 +30,8 @@ import zas.admin.zec.backend.persistence.entity.MessageEntity;
 import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
 import zas.admin.zec.backend.persistence.repository.ConversationRepository;
 import zas.admin.zec.backend.persistence.repository.ConversationTitleRepository;
+import zas.admin.zec.backend.prompts.PromptId;
+import zas.admin.zec.backend.prompts.PromptRegistry;
 import zas.admin.zec.backend.rag.TurnTrace;
 import zas.admin.zec.backend.rag.token.*;
 
@@ -61,6 +63,7 @@ public class ConversationService {
     private final TransactionTemplate transactionTemplate;
     private final AttachmentOcrProperties attachmentOcrProperties;
     private final GenerationRegistry generationRegistry;
+    private final PromptRegistry promptRegistry;
 
     public ConversationService(ConversationRepository conversationRepository,
                                ConversationTitleRepository conversationTitleRepository,
@@ -72,7 +75,8 @@ public class ConversationService {
                                ApplicationEventPublisher eventPublisher,
                                TransactionTemplate transactionTemplate,
                                AttachmentOcrProperties attachmentOcrProperties,
-                               GenerationRegistry generationRegistry) {
+                               GenerationRegistry generationRegistry,
+                               PromptRegistry promptRegistry) {
 
         this.conversationRepository = conversationRepository;
         this.conversationTitleRepository = conversationTitleRepository;
@@ -85,6 +89,7 @@ public class ConversationService {
         this.transactionTemplate = transactionTemplate;
         this.attachmentOcrProperties = attachmentOcrProperties;
         this.generationRegistry = generationRegistry;
+        this.promptRegistry = promptRegistry;
     }
 
     public List<Source> getSourcesByMessageUuid(String conversationUuid, String messageUuid) {
@@ -731,8 +736,8 @@ public class ConversationService {
         String title;
         try {
             title = chatClient.prompt()
-                    .system(ConversationPrompts.getConversationTitlePrompt(language)
-                            .formatted(initialResponse))
+                    .system(promptRegistry.get(PromptId.CONVERSATION_TITLE, language)
+                            .render("answer", initialResponse))
                     .user(initialQuery)
                     .call()
                     .content();

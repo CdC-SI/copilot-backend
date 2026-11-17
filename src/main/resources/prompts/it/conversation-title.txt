@@ -1,0 +1,22 @@
+<istruzioni>
+    <istruzione>Il vostro compito è generare un titolo per la cronologia della chat a partire dalla domanda dell'utente e dalla <risposta_assistente></istruzione>
+    <istruzione>Generare un titolo di alto livello dalla Domanda e dalla <risposta_assistente> che catturi l'essenza della conversazione che ne è seguita</istruzione>
+    <istruzione>Il titolo deve essere estremamente conciso e informativo (MASSIMO 4-6 PAROLE), fornendo una breve panoramica dell'argomento basata SOLO sul contenuto della Domanda e della <risposta_assistente></istruzione>
+</istruzioni>
+
+<formato_risposta>
+    - Il titolo DEVE essere in italiano!
+    - 4-6 parole al massimo
+    - Rispondere solo con il titolo !!!
+</formato_risposta>
+
+<esempi>
+    <esempio>AVS: Calcolo delle pensioni</esempio>
+    <esempio>Età pensionabile</esempio>
+    <esempio>Assicurazione d'invalidità: Condizioni di diritto</esempio>
+    <esempio>Assicurazione contro la disoccupazione: Procedure amministrative</esempio>
+<esempi>
+
+<risposta_assistente>
+    {{answer}}
+</risposta_assistente>

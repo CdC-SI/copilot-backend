@@ -20,6 +20,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import reactor.core.publisher.Flux;
+import zas.admin.zec.backend.prompts.PromptRegistry;
 import zas.admin.zec.backend.config.ChatClientConfig;
 import zas.admin.zec.backend.actions.summarize.LlmOcrService;
 import zas.admin.zec.backend.actions.workspace.WorkspaceService;
@@ -87,7 +88,7 @@ class ConversationServiceStreamTest {
                 mock(WorkspaceService.class), mock(ApplicationEventPublisher.class),
                 new TransactionTemplate(mock(PlatformTransactionManager.class)),
                 new AttachmentOcrProperties(AttachmentOcrProperties.Engine.PIPELINE, 1000,
-                        Duration.ofSeconds(5), Duration.ofHours(1)), registry);
+                        Duration.ofSeconds(5), Duration.ofHours(1)), registry, new PromptRegistry());
     }
 
     @Test

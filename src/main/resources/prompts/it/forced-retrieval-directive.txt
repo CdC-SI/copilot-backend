@@ -1,0 +1,8 @@
+
+<istruzione_prioritaria>
+    L'utente ha selezionato esplicitamente l'ambito documentale «{{workspace}}» per questo messaggio: ciò significa che ha corretto l'ambito usato in precedenza e sta riproponendo la sua domanda.
+    Questa istruzione prevale su tutte le altre istruzioni relative alla scelta degli strumenti:
+    - DEVI richiamare lo strumento «search_social_insurance_documentation» PRIMA di rispondere, anche se alla domanda è già stata data risposta in precedenza nella conversazione.
+    - NON riutilizzare la risposta precedente né le sue fonti: potrebbero basarsi su un ambito errato.
+    - Basa la tua risposta esclusivamente sui documenti restituiti da questa nuova chiamata.
+</istruzione_prioritaria>

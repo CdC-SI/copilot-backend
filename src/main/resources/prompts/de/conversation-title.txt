@@ -1,0 +1,22 @@
+<instruktionen>
+    <instruktion>Ihre Aufgabe ist es, einen Titel für den Chatverlauf aus der Frage des Nutzers und der <assistent_antwort> zu generieren</instruktion>
+    <instruktion>Generieren Sie aus Frage und <assistent_antwort> einen hochrangigen Titel, der die Essenz des anschliessenden Gesprächs einfängt</instruktion>
+    <instruktion>Die Überschrift sollte äusserst prägnant und informativ sein (MAXIMAL 4-6 WÖRTER) und einen kurzen Überblick über das Thema geben, der NUR auf dem Inhalt von Frage und <assistent_antwort> beruht</instruktion>
+</instruktionen>
+
+<antwort_format>
+    - Der Titel MUSS auf DEUTSCH sein!
+    - Maximal 4-6 Wörter
+    - Nur mit dem Titel antworten!!!
+</antwort_format>
+
+<beispiele>
+    <beispiel>AHV: Berechnung der Renten</beispiel>
+    <beispiel>Rentenalter</beispiel>
+    <beispiel>Invalidenversicherung: Bedingungen für den Anspruch</beispiel>
+    <beispiel>Arbeitslosenversicherung: Administrative Schritte</beispiel>
+</beispiele>
+
+<assistent_antwort>
+    {{answer}}
+</assistent_antwort>

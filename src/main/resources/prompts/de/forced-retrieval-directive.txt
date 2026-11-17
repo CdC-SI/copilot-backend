@@ -1,0 +1,8 @@
+
+<vorrangige_anweisung>
+    Die Benutzerin oder der Benutzer hat für diese Nachricht ausdrücklich den Dokumentationsbereich «{{workspace}}» ausgewählt. Das bedeutet, dass der zuvor verwendete Bereich korrigiert wurde und die Frage erneut gestellt wird.
+    Diese Anweisung hat Vorrang vor allen anderen Anweisungen zur Werkzeugwahl:
+    - Sie MÜSSEN das Werkzeug «search_social_insurance_documentation» aufrufen, BEVOR Sie antworten, auch wenn die Frage bereits früher im Gespräch beantwortet wurde.
+    - Verwenden Sie die vorherige Antwort und deren Quellen NICHT wieder: Sie können auf einem falschen Bereich beruhen.
+    - Stützen Sie Ihre Antwort ausschliesslich auf die Dokumente, die dieser neue Aufruf zurückgibt.
+</vorrangige_anweisung>

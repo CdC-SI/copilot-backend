@@ -47,7 +47,7 @@ basé sur Spring AI, avec une boucle agentique (le LLM appelle des tools `@Tool`
   sortants — tout nouveau `WebClient` interne applique `CorrelationId.webClientFilter()` ; les `RestClient` issus du
   builder Boot l'ont déjà. Usage LLM d'un tour → métriques `zia.llm.tokens` / `zia.llm.cost` (`TurnUsageEvent`).
 - Respecter le style réactif existant (`Flux<Token>`, SSE) dans les flux de conversation.
-- Prompts LLM centralisés (ex. `RAGPrompts`) et **multilingues** (fr/de/it) : conserver cette structure.
+- Prompts LLM dans `src/main/resources/prompts/<fr|de|it>/<clé>.txt`, déclarés dans `PromptId` et servis par `PromptRegistry` (validation au démarrage : fichier présent dans les 3 langues, variables conformes ; repli sur `de`). Variables `{{nom}}` rendues par `Prompt.render` (une passe, variables exactes) ; seuls `query-rewriter`/`query-expander` gardent la syntaxe Spring AI `{nom}` (`Prompt.template()`). La version (SHA-256 court) des prompts utilisés est tracée dans `consulted_sources.prompts` (`TurnTrace.prompts`, tools via `ToolContextKeys.recordPrompt`).
 
 ## Bonnes pratiques
 

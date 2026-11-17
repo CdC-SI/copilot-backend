@@ -27,8 +27,10 @@ import zas.admin.zec.backend.actions.workspace.WorkspaceDto;
 import zas.admin.zec.backend.actions.workspace.WorkspaceService;
 import zas.admin.zec.backend.config.ChatClientConfig;
 import zas.admin.zec.backend.config.properties.RetrievingProperties;
+import zas.admin.zec.backend.prompts.Prompt;
+import zas.admin.zec.backend.prompts.PromptId;
+import zas.admin.zec.backend.prompts.PromptRegistry;
 import zas.admin.zec.backend.rag.ChatStatus;
-import zas.admin.zec.backend.rag.RAGPrompts;
 import zas.admin.zec.backend.rag.TurnUsage;
 import zas.admin.zec.backend.rag.joiner.RankedDocumentJoiner;
 import zas.admin.zec.backend.rag.reranker.DocumentReranker;
@@ -85,6 +87,7 @@ public class RAGTool {
     private final SourceResolver sourceResolver;
     private final WorkspaceService workspaceService;
     private final WorkspaceInferenceMonitoringService workspaceInferenceMonitoringService;
+    private final PromptRegistry promptRegistry;
 
     public RAGTool(
             @Qualifier(ChatClientConfig.INTERNAL_CHAT_CLIENT_BUILDER) ChatClient.Builder chatClientBuilder,
@@ -95,7 +98,8 @@ public class RAGTool {
             JdbcTemplate jdbcTemplate,
             SourceResolver sourceResolver,
             WorkspaceService workspaceService,
-            WorkspaceInferenceMonitoringService workspaceInferenceMonitoringService) {
+            WorkspaceInferenceMonitoringService workspaceInferenceMonitoringService,
+            PromptRegistry promptRegistry) {
 
         this.internalChatClient = chatClientBuilder.build();
         this.documentStore = documentStore;
@@ -106,6 +110,7 @@ public class RAGTool {
         this.sourceResolver = sourceResolver;
         this.workspaceService = workspaceService;
         this.workspaceInferenceMonitoringService = workspaceInferenceMonitoringService;
+        this.promptRegistry = promptRegistry;
     }
 
     @Tool(name = TOOL_NAME, description = """
@@ -161,7 +166,7 @@ public class RAGTool {
         boolean hasAccessToInternalDocuments = !userId.isBlank()
                 && userService.hasAccessToInternalDocuments(userId);
 
-        List<Document> documents = retrieve(query, language, workspace, userId, hasAccessToInternalDocuments);
+        List<Document> documents = retrieve(query, language, workspace, userId, hasAccessToInternalDocuments, context);
 
         // Remonter les documents (avec leurs métadonnées) à l'appelant pour reconstruire les sources.
         if (context.get(ToolContextKeys.CTX_RETRIEVED_DOCUMENTS) instanceof Collection<?> sink) {
@@ -175,7 +180,7 @@ public class RAGTool {
     }
 
     private List<Document> retrieve(String query, String language, String workspace,
-                                    String userId, boolean hasAccessToInternalDocuments) {
+                                    String userId, boolean hasAccessToInternalDocuments, Map<String, Object> context) {
 
         Supplier<Filter.Expression> filterExpressionSupplier =
                 () -> buildExpression(workspace, userId, hasAccessToInternalDocuments);
@@ -190,12 +195,12 @@ public class RAGTool {
 
         // 1. Transform the (already autonomous) query.
         Query transformedQuery = Query.builder().text(query).build();
-        for (var queryTransformer : transformers(language)) {
+        for (var queryTransformer : transformers(language, context)) {
             transformedQuery = queryTransformer.apply(transformedQuery);
         }
 
         // 2. Expand the query into one or multiple queries.
-        List<Query> expandedQueries = expander(language).expand(transformedQuery);
+        List<Query> expandedQueries = expander(language, context).expand(transformedQuery);
 
         // 3. Retrieve documents for each query.
         Map<Query, List<List<Document>>> documentsForQuery = new HashMap<>();
@@ -266,35 +271,35 @@ public class RAGTool {
         return combined.build();
     }
 
-    private List<QueryTransformer> transformers(String language) {
+    private List<QueryTransformer> transformers(String language, Map<String, Object> context) {
         var transformers = new ArrayList<QueryTransformer>();
         // Note: la compression basée sur l'historique est désormais à la charge du LLM agentique,
         // qui doit fournir une requête autonome. Seul le réécriture est conservée ici.
         if (retrievingProperties.queryRewriter().enabled()) {
-            transformers.add(rewriter(language, internalChatClient));
+            transformers.add(rewriter(language, context));
         }
         return transformers;
     }
 
-    private QueryTransformer rewriter(String lang, ChatClient client) {
+    private QueryTransformer rewriter(String lang, Map<String, Object> context) {
+        Prompt prompt = promptRegistry.get(PromptId.QUERY_REWRITER, lang);
+        ToolContextKeys.recordPrompt(context, prompt);
         return RewriteQueryTransformer.builder()
-                .chatClientBuilder(client.mutate())
-                .promptTemplate(new PromptTemplate(
-                        RAGPrompts.getQueryRewriterTemplate(lang)
-                ))
+                .chatClientBuilder(internalChatClient.mutate())
+                .promptTemplate(new PromptTemplate(prompt.template()))
                 .build();
     }
 
-    private QueryExpander expander(String lang) {
+    private QueryExpander expander(String lang, Map<String, Object> context) {
         if (!retrievingProperties.queryExpander().enabled()) {
             return (List::of);
         }
 
+        Prompt prompt = promptRegistry.get(PromptId.QUERY_EXPANDER, lang);
+        ToolContextKeys.recordPrompt(context, prompt);
         return MultiQueryExpander.builder()
                 .chatClientBuilder(internalChatClient.mutate())
-                .promptTemplate(new PromptTemplate(
-                        RAGPrompts.getQueryExpanderTemplate(lang)
-                ))
+                .promptTemplate(new PromptTemplate(prompt.template()))
                 .numberOfQueries(retrievingProperties.queryExpander().numberOfExpansions())
                 .includeOriginal(retrievingProperties.queryExpander().includeOriginal())
                 .build();
@@ -318,8 +323,10 @@ public class RAGTool {
                 return defaultWorkspace;
             }
 
-            String systemPrompt = RAGPrompts.getWorkspaceInferenceTemplate(language)
-                    .formatted(describeWorkspaces(workspaces), defaultWorkspace);
+            Prompt prompt = promptRegistry.get(PromptId.WORKSPACE_INFERENCE, language);
+            ToolContextKeys.recordPrompt(context, prompt);
+            String systemPrompt = prompt.render("workspaces", describeWorkspaces(workspaces),
+                    "default_workspace", defaultWorkspace);
 
             ChatResponse response = internalChatClient.prompt()
                     .system(systemPrompt)

@@ -2,6 +2,7 @@ package zas.admin.zec.backend.tools;
 
 import org.springframework.ai.document.Document;
 import reactor.core.publisher.Sinks;
+import zas.admin.zec.backend.prompts.Prompt;
 import zas.admin.zec.backend.rag.ChatStatus;
 import zas.admin.zec.backend.rag.token.StatusToken;
 import zas.admin.zec.backend.rag.token.Token;
@@ -89,8 +90,23 @@ public final class ToolContextKeys {
      */
     public static final String CTX_LLM_USAGE = "llmUsage";
 
+    /**
+     * Clé d'une {@link Map} thread-safe ({@code <clé>/<langue>} → version) fournie par l'appelant : les tools y
+     * déposent les versions des prompts qu'ils utilisent, tracées avec le tour (cf.
+     * {@link #recordPrompt(Map, Prompt)}).
+     */
+    public static final String CTX_PROMPT_VERSIONS = "promptVersions";
+
     private ToolContextKeys() {
         // Classe utilitaire — pas d'instanciation.
+    }
+
+    /** Dépose la version d'un prompt dans {@link #CTX_PROMPT_VERSIONS}, si l'appelant l'a fourni. */
+    @SuppressWarnings("unchecked")
+    public static void recordPrompt(Map<String, Object> context, Prompt prompt) {
+        if (context.get(CTX_PROMPT_VERSIONS) instanceof Map<?, ?> versions) {
+            ((Map<String, String>) versions).put(prompt.traceKey(), prompt.version());
+        }
     }
 
     /**

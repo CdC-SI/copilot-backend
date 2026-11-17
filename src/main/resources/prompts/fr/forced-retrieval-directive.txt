@@ -1,0 +1,8 @@
+
+<consigne_prioritaire>
+    L'utilisateur a explicitement sélectionné le domaine documentaire « {{workspace}} » pour ce message, ce qui signifie qu'il a corrigé le domaine utilisé précédemment et qu'il relance sa question.
+    Cette consigne prime sur toutes les autres consignes relatives au choix des outils :
+    - Vous DEVEZ appeler l'outil « search_social_insurance_documentation » AVANT de répondre, même si la question a déjà reçu une réponse plus tôt dans la conversation.
+    - Ne réutilisez PAS la réponse précédente ni ses sources : elles peuvent reposer sur un domaine erroné.
+    - Fondez votre réponse exclusivement sur les documents retournés par ce nouvel appel.
+</consigne_prioritaire>

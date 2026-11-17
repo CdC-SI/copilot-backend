@@ -7,7 +7,8 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
 import zas.admin.zec.backend.config.ChatClientConfig;
-import zas.admin.zec.backend.rag.RAGPrompts;
+import zas.admin.zec.backend.prompts.PromptId;
+import zas.admin.zec.backend.prompts.PromptRegistry;
 import zas.admin.zec.backend.rag.token.Token;
 import zas.admin.zec.backend.tools.ConversationAttachmentTool;
 
@@ -20,7 +21,7 @@ import java.util.Map;
  * n'est effectuée : le LLM se comporte comme un assistant généraliste (rédaction, relecture,
  * traduction, reformulation, résumé, exploitation des pièces jointes...) et répond à partir de ses
  * connaissances générales, sans source officielle. Il reste discret sur les sujets internes ou
- * relevant du 1er pilier des assurances sociales (cf. {@code ATTACHMENT_SYSTEM_PROMPT}).
+ * relevant du 1er pilier des assurances sociales (cf. {@link PromptId#ATTACHMENT_SYSTEM}).
  *
  * <p>Active pour les conversations de type {@link ConversationType#NO_RAG}.</p>
  *
@@ -34,11 +35,14 @@ public class AttachmentChatService extends AbstractChatService {
 
     private final ChatClient internalChatClient;
     private final ConversationAttachmentTool attachmentTool;
+    private final PromptRegistry promptRegistry;
 
     public AttachmentChatService(@Qualifier(ChatClientConfig.INTERNAL_CHAT_CLIENT_BUILDER) ChatClient.Builder chatClientBuilder,
-                                  ConversationAttachmentTool attachmentTool) {
+                                  ConversationAttachmentTool attachmentTool,
+                                  PromptRegistry promptRegistry) {
         this.internalChatClient = chatClientBuilder.build();
         this.attachmentTool = attachmentTool;
+        this.promptRegistry = promptRegistry;
     }
 
     @Override
@@ -73,7 +77,7 @@ public class AttachmentChatService extends AbstractChatService {
 
     private String attachmentSystemPrompt(Question question) {
         // Prompt sans RAG : seul le tool de pièces jointes est exposé au LLM.
-        return RAGPrompts.getAttachmentSystemPrompt(question.language())
-                .formatted(question.responseFormat());
+        return promptRegistry.get(PromptId.ATTACHMENT_SYSTEM, question.language())
+                .render("response_format", question.responseFormat());
     }
 }

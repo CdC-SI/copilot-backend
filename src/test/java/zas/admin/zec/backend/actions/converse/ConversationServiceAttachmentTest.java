@@ -15,6 +15,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import zas.admin.zec.backend.prompts.PromptRegistry;
 import zas.admin.zec.backend.config.ChatClientConfig;
 import zas.admin.zec.backend.actions.summarize.LlmOcrService;
 import zas.admin.zec.backend.actions.upload.validation.UploadErrorCode;
@@ -56,7 +57,7 @@ class ConversationServiceAttachmentTest {
                 mock(WorkspaceService.class), eventPublisher,
                 new TransactionTemplate(mock(PlatformTransactionManager.class)),
                 new AttachmentOcrProperties(AttachmentOcrProperties.Engine.PIPELINE, 2,
-                        Duration.ofSeconds(5), Duration.ofHours(1)), new GenerationRegistry());
+                        Duration.ofSeconds(5), Duration.ofHours(1)), new GenerationRegistry(), new PromptRegistry());
     }
 
     private static byte[] pdfWithPages(int pages) throws IOException {
