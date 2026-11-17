@@ -253,8 +253,9 @@ public class ConversationService {
                             });
                 }))
                 .onErrorResume(err -> {
-                    persisted.set(true);
-                    generationRegistry.finish(generation);
+                    if (persisted.compareAndSet(false, true)) {
+                        generationRegistry.finish(generation);
+                    }
                     log.error(err.getMessage(), err);
                     return Flux.just(ChatStreamEvent.error(ChatStreamEvent.GENERATION_FAILED, err.getMessage()));
                 })
