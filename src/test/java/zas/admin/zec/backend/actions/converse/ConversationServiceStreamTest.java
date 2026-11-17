@@ -77,7 +77,8 @@ class ConversationServiceStreamTest {
     private ConversationTitleRepository titleRepository;
     @Mock
     private ChatServiceFactory chatServiceFactory;
-    @Mock
+    // Lenient : le service appelle d'abord la surcharge avec recorder (non stubbée, renvoie null) puis la surcharge stubbée.
+    @Mock(strictness = Mock.Strictness.LENIENT)
     private ChatService chatService;
     @Mock
     private ChatModel chatModel;
