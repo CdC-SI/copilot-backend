@@ -64,7 +64,7 @@ class ConversationServiceTitleTest {
                 new AttachmentOcrProperties(AttachmentOcrProperties.Engine.PIPELINE, 1000,
                         Duration.ofSeconds(5), Duration.ofHours(1)), new GenerationRegistry(),
                 new ToolApprovalService(new ToolApprovalProperties(List.of(), Duration.ofSeconds(1))),
-                new PromptRegistry());
+                new PromptRegistry(), mock(ConversationMemory.class));
     }
 
     @Test

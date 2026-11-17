@@ -17,6 +17,9 @@ import org.springframework.ai.model.tool.ToolCallingChatOptions;
 import reactor.core.publisher.Flux;
 import zas.admin.zec.backend.config.ChatClientConfig;
 import zas.admin.zec.backend.config.properties.DocumentToolProperties;
+import zas.admin.zec.backend.config.properties.MemoryProperties;
+import zas.admin.zec.backend.persistence.repository.ConversationSummaryRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
 import zas.admin.zec.backend.prompts.PromptId;
 import zas.admin.zec.backend.prompts.PromptRegistry;
@@ -55,7 +58,9 @@ class RAGChatServiceTest {
     private final RAGChatService service = new RAGChatService(ChatClientConfig.builder(chatModel, ObservationRegistry.NOOP), mock(RAGTool.class), mock(DocumentTool.class),
             mock(ConversationAttachmentTool.class), mock(WorkspaceInferenceMonitoringService.class),
             new DocumentToolProperties(10), mock(AttachmentRepository.class),
-            new ToolApprovalService(new ToolApprovalProperties(List.of(), Duration.ofSeconds(1))), PROMPTS);
+            new ToolApprovalService(new ToolApprovalProperties(List.of(), Duration.ofSeconds(1))), PROMPTS,
+            new ConversationMemory(new MemoryProperties(12000, 0.6, true), mock(ConversationSummaryRepository.class),
+                   ChatClientConfig.builder(chatModel, ObservationRegistry.NOOP), PROMPTS, mock(ApplicationEventPublisher.class)));
 
     private static final ConsultedSource PROCESS = new ConsultedSource("p", "business_process", "business_process",
             "Processus P", "https://bpanda/p", null, null, "2026.03.02", "Brouillon", "BP-1", null, List.of());

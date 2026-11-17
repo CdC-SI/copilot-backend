@@ -207,6 +207,13 @@ zia:
     # Exemple : models: { "[Qwen/Qwen3-32B]": { input: 0.5, cached-input: 0.1, output: 1.5 } }
     pricing:
       currency: ${LLM_PRICING_CURRENCY:CHF}
+  # B2 : mémoire conversationnelle (fenêtre de l'historique envoyé au LLM, résumé des tours anciens).
+  memory:
+    # Budget estimé (tokens) de l'historique, résumé compris ; au-delà, les tours les plus anciens sont retirés.
+    history-token-budget: ${MEMORY_HISTORY_TOKEN_BUDGET:12000}
+    # Part du budget conservée en tours complets après un résumé (hystérésis, prefix caching).
+    compaction-ratio: ${MEMORY_COMPACTION_RATIO:0.6}
+    summary-enabled: ${MEMORY_SUMMARY_ENABLED:true}
   tools:
     approval:
       # Tools dont chaque appel doit être approuvé par l'utilisateur (T1), séparés par des virgules ; aucun par défaut

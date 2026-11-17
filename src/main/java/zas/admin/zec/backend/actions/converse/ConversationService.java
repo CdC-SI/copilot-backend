@@ -67,6 +67,7 @@ public class ConversationService {
     private final AttachmentOcrProperties attachmentOcrProperties;
     private final GenerationRegistry generationRegistry;
     private final PromptRegistry promptRegistry;
+    private final ConversationMemory conversationMemory;
     private final ToolApprovalService toolApprovalService;
 
     public ConversationService(ConversationRepository conversationRepository,
@@ -81,7 +82,8 @@ public class ConversationService {
                                AttachmentOcrProperties attachmentOcrProperties,
                                GenerationRegistry generationRegistry,
                                ToolApprovalService toolApprovalService,
-                               PromptRegistry promptRegistry) {
+                               PromptRegistry promptRegistry,
+                               ConversationMemory conversationMemory) {
 
         this.conversationRepository = conversationRepository;
         this.conversationTitleRepository = conversationTitleRepository;
@@ -95,6 +97,7 @@ public class ConversationService {
         this.attachmentOcrProperties = attachmentOcrProperties;
         this.generationRegistry = generationRegistry;
         this.promptRegistry = promptRegistry;
+        this.conversationMemory = conversationMemory;
         this.toolApprovalService = toolApprovalService;
     }
 
@@ -149,6 +152,7 @@ public class ConversationService {
         attachmentRepository.deleteByUserIdAndConversationId(userId, conversationId);
         conversationRepository.deleteByUserIdAndConversationId(userId, conversationId);
         conversationTitleRepository.deleteByUserIdAndConversationId(userId, conversationId);
+        conversationMemory.forget(userId, conversationId);
     }
 
     public void renameConversation(String userId, String conversationId, String newTitle) {
@@ -615,6 +619,9 @@ public class ConversationService {
         if (exchange.usage() != null) {
             eventPublisher.publishEvent(new TurnUsageEvent(exchange.usage(), exchange.workspace()));
         }
+        // Résumé des tours anciens si l'historique dépasse le budget (B2), en arrière-plan.
+        conversationMemory.compactAsync(userId, question.conversationId(), question.language(),
+                () -> getConversationHistory(question.conversationId(), userId, Limit.unlimited()));
         return insertPlaceholderTitle(userId, question.conversationId(), question.query(), conversationType);
     }
 

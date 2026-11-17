@@ -77,12 +77,14 @@ class ConversationServiceStreamTest {
     private ConversationTitleRepository titleRepository;
     @Mock
     private ChatServiceFactory chatServiceFactory;
-    @Mock
+    // Lenient : le service appelle d'abord la surcharge avec recorder (non stubbée, renvoie null) puis la surcharge stubbée.
+    @Mock(strictness = Mock.Strictness.LENIENT)
     private ChatService chatService;
     @Mock
     private ChatModel chatModel;
 
     private final GenerationRegistry registry = new GenerationRegistry();
+    private final ConversationMemory memory = mock(ConversationMemory.class);
     private final ToolApprovalService approvals =
             new ToolApprovalService(new ToolApprovalProperties(List.of(), Duration.ofSeconds(5)));
     private ConversationService service;
@@ -97,7 +99,7 @@ class ConversationServiceStreamTest {
                 mock(WorkspaceService.class), mock(ApplicationEventPublisher.class),
                 new TransactionTemplate(mock(PlatformTransactionManager.class)),
                 new AttachmentOcrProperties(AttachmentOcrProperties.Engine.PIPELINE, 1000,
-                        Duration.ofSeconds(5), Duration.ofHours(1)), registry, approvals, new PromptRegistry());
+                        Duration.ofSeconds(5), Duration.ofHours(1)), registry, approvals, new PromptRegistry(), memory);
     }
 
     @Test
