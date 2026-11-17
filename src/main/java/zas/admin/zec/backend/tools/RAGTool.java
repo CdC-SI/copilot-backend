@@ -2,7 +2,6 @@ package zas.admin.zec.backend.tools;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.chat.prompt.PromptTemplate;
@@ -26,6 +25,7 @@ import org.springframework.util.CollectionUtils;
 import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.actions.workspace.WorkspaceDto;
 import zas.admin.zec.backend.actions.workspace.WorkspaceService;
+import zas.admin.zec.backend.config.ChatClientConfig;
 import zas.admin.zec.backend.config.properties.RetrievingProperties;
 import zas.admin.zec.backend.rag.ChatStatus;
 import zas.admin.zec.backend.rag.RAGPrompts;
@@ -87,7 +87,7 @@ public class RAGTool {
     private final WorkspaceInferenceMonitoringService workspaceInferenceMonitoringService;
 
     public RAGTool(
-            @Qualifier("internalChatModel") ChatModel internalChatModel,
+            @Qualifier(ChatClientConfig.INTERNAL_CHAT_CLIENT_BUILDER) ChatClient.Builder chatClientBuilder,
             VectorStore documentStore,
             UserService userService,
             DocumentReranker reranker,
@@ -97,7 +97,7 @@ public class RAGTool {
             WorkspaceService workspaceService,
             WorkspaceInferenceMonitoringService workspaceInferenceMonitoringService) {
 
-        this.internalChatClient = ChatClient.create(internalChatModel);
+        this.internalChatClient = chatClientBuilder.build();
         this.documentStore = documentStore;
         this.userService = userService;
         this.reranker = reranker;

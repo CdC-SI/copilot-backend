@@ -2,11 +2,11 @@ package zas.admin.zec.backend.actions.converse;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
+import zas.admin.zec.backend.config.ChatClientConfig;
 import zas.admin.zec.backend.rag.RAGPrompts;
 import zas.admin.zec.backend.rag.token.Token;
 import zas.admin.zec.backend.tools.ConversationAttachmentTool;
@@ -35,9 +35,9 @@ public class AttachmentChatService extends AbstractChatService {
     private final ChatClient internalChatClient;
     private final ConversationAttachmentTool attachmentTool;
 
-    public AttachmentChatService(@Qualifier("internalChatModel") ChatModel internalChatModel,
+    public AttachmentChatService(@Qualifier(ChatClientConfig.INTERNAL_CHAT_CLIENT_BUILDER) ChatClient.Builder chatClientBuilder,
                                   ConversationAttachmentTool attachmentTool) {
-        this.internalChatClient = ChatClient.create(internalChatModel);
+        this.internalChatClient = chatClientBuilder.build();
         this.attachmentTool = attachmentTool;
     }
 

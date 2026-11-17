@@ -2,7 +2,6 @@ package zas.admin.zec.backend.actions.converse;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.support.ToolCallbacks;
 import org.springframework.ai.tool.ToolCallback;
@@ -11,6 +10,7 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
+import zas.admin.zec.backend.config.ChatClientConfig;
 import zas.admin.zec.backend.config.properties.DocumentToolProperties;
 import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
 import zas.admin.zec.backend.persistence.repository.AttachmentRepository.AttachmentSummary;
@@ -71,14 +71,14 @@ public class RAGChatService extends AbstractChatService {
     private final DocumentToolProperties documentToolProperties;
     private final AttachmentRepository attachmentRepository;
 
-    public RAGChatService(@Qualifier("internalChatModel") ChatModel internalChatModel,
+    public RAGChatService(@Qualifier(ChatClientConfig.INTERNAL_CHAT_CLIENT_BUILDER) ChatClient.Builder chatClientBuilder,
                           RAGTool ragTool,
                           DocumentTool documentTool,
                           ConversationAttachmentTool attachmentTool,
                           WorkspaceInferenceMonitoringService workspaceInferenceMonitoringService,
                           DocumentToolProperties documentToolProperties,
                           AttachmentRepository attachmentRepository) {
-        this.internalChatClient = ChatClient.create(internalChatModel);
+        this.internalChatClient = chatClientBuilder.build();
         this.toolCallbacks = ToolCallbacks.from(ragTool, attachmentTool, documentTool);
         this.workspaceInferenceMonitoringService = workspaceInferenceMonitoringService;
         this.documentToolProperties = documentToolProperties;

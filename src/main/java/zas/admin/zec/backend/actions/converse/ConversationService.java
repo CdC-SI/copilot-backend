@@ -3,7 +3,6 @@ package zas.admin.zec.backend.actions.converse;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.Loader;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.ByteArrayResource;
@@ -22,6 +21,7 @@ import zas.admin.zec.backend.actions.upload.UploadService;
 import zas.admin.zec.backend.actions.upload.validation.UploadErrorCode;
 import zas.admin.zec.backend.actions.upload.validation.UploadException;
 import zas.admin.zec.backend.actions.workspace.WorkspaceService;
+import zas.admin.zec.backend.config.ChatClientConfig;
 import zas.admin.zec.backend.config.properties.AttachmentOcrProperties;
 import zas.admin.zec.backend.persistence.entity.AttachmentEntity;
 import zas.admin.zec.backend.persistence.entity.ConversationTitleEntity;
@@ -65,7 +65,7 @@ public class ConversationService {
                                ConversationTitleRepository conversationTitleRepository,
                                AttachmentRepository attachmentRepository,
                                ChatServiceFactory chatServiceFactory,
-                               @Qualifier("internalChatModel") ChatModel chatModel,
+                               @Qualifier(ChatClientConfig.INTERNAL_CHAT_CLIENT_BUILDER) ChatClient.Builder chatClientBuilder,
                                LlmOcrService ocrService,
                                WorkspaceService workspaceService,
                                ApplicationEventPublisher eventPublisher,
@@ -76,7 +76,7 @@ public class ConversationService {
         this.conversationRepository = conversationRepository;
         this.conversationTitleRepository = conversationTitleRepository;
         this.attachmentRepository = attachmentRepository;
-        this.chatClient = ChatClient.create(chatModel);
+        this.chatClient = chatClientBuilder.build();
         this.chatServiceFactory = chatServiceFactory;
         this.ocrService = ocrService;
         this.workspaceService = workspaceService;

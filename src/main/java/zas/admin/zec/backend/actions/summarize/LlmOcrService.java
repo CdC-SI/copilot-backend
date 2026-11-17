@@ -6,14 +6,15 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.rendering.ImageType;
 import org.apache.pdfbox.rendering.PDFRenderer;
 import org.apache.tika.Tika;
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.content.Media;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.MimeTypeUtils;
+import zas.admin.zec.backend.config.ChatClientConfig;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -36,11 +37,11 @@ public class LlmOcrService {
             "image/tiff"
     );
 
-    private final ChatModel visionModel;
+    private final ChatClient visionChatClient;
     private final Tika tika = new Tika();
 
-    public LlmOcrService(@Qualifier("visionModel") ChatModel visionModel) {
-        this.visionModel = visionModel;
+    public LlmOcrService(@Qualifier(ChatClientConfig.VISION_CHAT_CLIENT_BUILDER) ChatClient.Builder visionChatClientBuilder) {
+        this.visionChatClient = visionChatClientBuilder.build();
     }
 
     public String ocrFile(byte[] fileBytes) throws IOException {
@@ -142,8 +143,7 @@ public class LlmOcrService {
                 .media(new Media(MimeTypeUtils.IMAGE_PNG, new ByteArrayResource(pngBytes)))
                 .build();
 
-        var response = visionModel.call(new Prompt(userMessage));
-        return response.getResult().getOutput().getText();
+        return visionChatClient.prompt(new Prompt(userMessage)).call().content();
     }
 
     private static byte[] renderPagePng(PDFRenderer renderer, int pageIndex, int dpi) throws IOException {

@@ -36,6 +36,9 @@ basé sur Spring AI, avec une boucle agentique (le LLM appelle des tools `@Tool`
 - Injection par constructeur (pas de `@Autowired` sur les champs).
 - **Lombok** conformément à l'existant (`@Slf4j` pour le logging).
 - DTO/payloads en **records** (souvent `@Builder` + validation `jakarta.validation`).
+- **ChatClient** : injecter le builder qualifié (`@Qualifier(ChatClientConfig.INTERNAL_CHAT_CLIENT_BUILDER)` ou
+  `VISION_CHAT_CLIENT_BUILDER`) et appeler `build()` ; jamais `ChatClient.create(...)` ni d'appel direct au `ChatModel`
+  (observations et advisors communs centralisés dans `ChatClientConfig`). En test : `ChatClientConfig.builder(modèle, ObservationRegistry.NOOP)`.
 - Respecter le style réactif existant (`Flux<Token>`, SSE) dans les flux de conversation.
 - Prompts LLM centralisés (ex. `RAGPrompts`) et **multilingues** (fr/de/it) : conserver cette structure.
 

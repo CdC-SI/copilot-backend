@@ -1,5 +1,6 @@
 package zas.admin.zec.backend.actions.converse;
 
+import io.micrometer.observation.ObservationRegistry;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.ai.chat.messages.AssistantMessage;
@@ -12,6 +13,7 @@ import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.model.tool.ToolCallingChatOptions;
 import reactor.core.publisher.Flux;
+import zas.admin.zec.backend.config.ChatClientConfig;
 import zas.admin.zec.backend.config.properties.DocumentToolProperties;
 import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
 import zas.admin.zec.backend.rag.ConsultedSource;
@@ -43,7 +45,7 @@ import static org.mockito.Mockito.*;
 class RAGChatServiceTest {
 
     private final ChatModel chatModel = mock(ChatModel.class);
-    private final RAGChatService service = new RAGChatService(chatModel, mock(RAGTool.class), mock(DocumentTool.class),
+    private final RAGChatService service = new RAGChatService(ChatClientConfig.builder(chatModel, ObservationRegistry.NOOP), mock(RAGTool.class), mock(DocumentTool.class),
             mock(ConversationAttachmentTool.class), mock(WorkspaceInferenceMonitoringService.class),
             new DocumentToolProperties(10), mock(AttachmentRepository.class));
 
