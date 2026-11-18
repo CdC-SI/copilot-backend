@@ -179,6 +179,15 @@ rag:
     enabled: ${RERANKING_ENABLED:true}
     truncate-prompt-tokens: ${RERANKING_TRUNCATE_PROMPT_TOKENS:16384}
     top-k: ${RERANKING_TOP_K:5}
+  # T2 : moteur de recherche de RAGTool. local (défaut) : pgvector, BM25 et reranker du backend ; zia-rag : service
+  # zia-rag (POST /api/v1/retrieval/documents) avec le jeton Blue de l'utilisateur et les réglages rag.retrieving /
+  # rag.reranking (top-k, BM25 → HYBRID, reranker, seuil).
+  retrieval:
+    provider: ${RAG_RETRIEVAL_PROVIDER:local}
+    zia-rag:
+      base-url: ${ZIA_RAG_BASE_URL:}
+      connect-timeout: ${ZIA_RAG_CONNECT_TIMEOUT:2s}
+      read-timeout: ${ZIA_RAG_READ_TIMEOUT:20s}
   document-tool:
     max-tool-calls-per-turn: ${RAG_MAX_TOOL_CALLS_PER_TURN:10}
 zia:

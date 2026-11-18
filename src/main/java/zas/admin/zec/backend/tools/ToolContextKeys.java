@@ -97,6 +97,12 @@ public final class ToolContextKeys {
      */
     public static final String CTX_PROMPT_VERSIONS = "promptVersions";
 
+    /**
+     * Jeton Blue de l'utilisateur ({@code Bearer <jwt>}), transmis aux services internes appelés en son nom
+     * (zia-rag, T2) — non fourni par le LLM. Absent hors authentification JWT.
+     */
+    public static final String CTX_USER_TOKEN = "userToken";
+
     private ToolContextKeys() {
         // Classe utilitaire — pas d'instanciation.
     }

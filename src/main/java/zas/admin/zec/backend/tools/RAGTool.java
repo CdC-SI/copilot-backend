@@ -33,6 +33,7 @@ import zas.admin.zec.backend.prompts.PromptRegistry;
 import zas.admin.zec.backend.rag.ChatStatus;
 import zas.admin.zec.backend.rag.TurnUsage;
 import zas.admin.zec.backend.rag.joiner.RankedDocumentJoiner;
+import zas.admin.zec.backend.rag.remote.ZiaRagDocumentRetriever;
 import zas.admin.zec.backend.rag.reranker.DocumentReranker;
 import zas.admin.zec.backend.rag.retriever.BM25DocumentRetriever;
 import zas.admin.zec.backend.rag.retriever.HybridDocumentRetriever;
@@ -88,6 +89,7 @@ public class RAGTool {
     private final WorkspaceService workspaceService;
     private final WorkspaceInferenceMonitoringService workspaceInferenceMonitoringService;
     private final PromptRegistry promptRegistry;
+    private final ZiaRagDocumentRetriever ziaRagRetriever;
 
     public RAGTool(
             @Qualifier(ChatClientConfig.INTERNAL_CHAT_CLIENT_BUILDER) ChatClient.Builder chatClientBuilder,
@@ -99,7 +101,8 @@ public class RAGTool {
             SourceResolver sourceResolver,
             WorkspaceService workspaceService,
             WorkspaceInferenceMonitoringService workspaceInferenceMonitoringService,
-            PromptRegistry promptRegistry) {
+            PromptRegistry promptRegistry,
+            ZiaRagDocumentRetriever ziaRagRetriever) {
 
         this.internalChatClient = chatClientBuilder.build();
         this.documentStore = documentStore;
@@ -111,6 +114,7 @@ public class RAGTool {
         this.workspaceService = workspaceService;
         this.workspaceInferenceMonitoringService = workspaceInferenceMonitoringService;
         this.promptRegistry = promptRegistry;
+        this.ziaRagRetriever = ziaRagRetriever;
     }
 
     @Tool(name = TOOL_NAME, description = """
@@ -163,10 +167,7 @@ public class RAGTool {
         // Notifier le frontend que la recherche documentaire est en cours.
         ToolContextKeys.emitStatus(context, ChatStatus.RETRIEVAL, language);
 
-        boolean hasAccessToInternalDocuments = !userId.isBlank()
-                && userService.hasAccessToInternalDocuments(userId);
-
-        List<Document> documents = retrieve(query, language, workspace, userId, hasAccessToInternalDocuments, context);
+        List<Document> documents = retrieve(query, language, workspace, userId, context);
 
         // Remonter les documents (avec leurs métadonnées) à l'appelant pour reconstruire les sources.
         if (context.get(ToolContextKeys.CTX_RETRIEVED_DOCUMENTS) instanceof Collection<?> sink) {
@@ -180,8 +181,26 @@ public class RAGTool {
     }
 
     private List<Document> retrieve(String query, String language, String workspace,
-                                    String userId, boolean hasAccessToInternalDocuments, Map<String, Object> context) {
+                                    String userId, Map<String, Object> context) {
 
+        // 1. Transform the (already autonomous) query.
+        Query transformedQuery = Query.builder().text(query).build();
+        for (var queryTransformer : transformers(language, context)) {
+            transformedQuery = queryTransformer.apply(transformedQuery);
+        }
+
+        // 2. Expand the query into one or multiple queries.
+        List<Query> expandedQueries = expander(language, context).expand(transformedQuery);
+
+        // T2 : recherche, reranking et jointure délégués à zia-rag (documents publics et privés de l'utilisateur,
+        // sans filtre sur "organizations").
+        if (ziaRagRetriever.enabled()) {
+            return ziaRagRetriever.retrieve(expandedQueries, sourceResolver.resolve(workspace), userId,
+                    asString(context.get(ToolContextKeys.CTX_USER_TOKEN), null));
+        }
+
+        boolean hasAccessToInternalDocuments = !userId.isBlank()
+                && userService.hasAccessToInternalDocuments(userId);
         Supplier<Filter.Expression> filterExpressionSupplier =
                 () -> buildExpression(workspace, userId, hasAccessToInternalDocuments);
 
@@ -192,15 +211,6 @@ public class RAGTool {
                 .build();
 
         DocumentRetriever documentRetriever = getDocumentRetriever(filterExpressionSupplier, vectorRetriever);
-
-        // 1. Transform the (already autonomous) query.
-        Query transformedQuery = Query.builder().text(query).build();
-        for (var queryTransformer : transformers(language, context)) {
-            transformedQuery = queryTransformer.apply(transformedQuery);
-        }
-
-        // 2. Expand the query into one or multiple queries.
-        List<Query> expandedQueries = expander(language, context).expand(transformedQuery);
 
         // 3. Retrieve documents for each query.
         Map<Query, List<List<Document>>> documentsForQuery = new HashMap<>();

@@ -5,12 +5,17 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import reactor.core.publisher.Flux;
 import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.config.ExceptionsHandler;
+import zas.admin.zec.backend.config.security.UserToken;
 import zas.admin.zec.backend.tools.SecurityLogging;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -90,6 +95,20 @@ class ConversationControllerGenerationTest {
         mockMvc.perform(post("/api/conversations/conv/approvals/appr-1").principal(authentication)
                         .contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("T2 : le jeton Blue de l'utilisateur est posé dans le contexte Reactor du flux de réponse")
+    void askQuestion_putsUserTokenInReactorContext() {
+        when(conversationService.streamAnswer(any(), eq(USER))).thenReturn(Flux.deferContextual(context ->
+                Flux.just(ChatStreamEvent.textDelta(context.getOrDefault(UserToken.CONTEXT_KEY, "absent")))));
+        var jwt = Jwt.withTokenValue("jwt-value").header("alg", "none").claim("sub", "jdoe").build();
+        var controller = new ConversationController(userService, conversationService, mock(SecurityLogging.class));
+
+        var event = controller.askQuestion(new Question("Question ?", null, null, null, null, "conv", true, null),
+                new JwtAuthenticationToken(jwt)).blockFirst();
+
+        assertTrue(event.data().contains("Bearer jwt-value"), event.data());
     }
 
     @Test

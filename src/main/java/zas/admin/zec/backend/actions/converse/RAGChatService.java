@@ -12,6 +12,7 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 import zas.admin.zec.backend.config.ChatClientConfig;
 import zas.admin.zec.backend.config.properties.DocumentToolProperties;
+import zas.admin.zec.backend.config.security.UserToken;
 import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
 import zas.admin.zec.backend.persistence.repository.AttachmentRepository.AttachmentSummary;
 import zas.admin.zec.backend.prompts.Prompt;
@@ -113,6 +114,13 @@ public class RAGChatService extends AbstractChatService {
     @Override
     public Flux<Token> answer(Question question, String userId, List<Message> conversationHistory,
                               AtomicReference<ToolCallRecorder> recorderReference) {
+        // Jeton Blue de l'utilisateur (T2), posé par le contrôleur dans le contexte Reactor du flux.
+        return Flux.deferContextual(reactorContext -> answer(question, userId, conversationHistory, recorderReference,
+                reactorContext.getOrDefault(UserToken.CONTEXT_KEY, null)));
+    }
+
+    private Flux<Token> answer(Question question, String userId, List<Message> conversationHistory,
+                               AtomicReference<ToolCallRecorder> recorderReference, String userToken) {
         // Liste partagée (thread-safe) que le tool alimentera lors d'un éventuel appel.
         List<Document> retrievedDocuments = new CopyOnWriteArrayList<>();
 
@@ -131,6 +139,9 @@ public class RAGChatService extends AbstractChatService {
         toolContext.put(ToolContextKeys.CTX_RESOLVED_WORKSPACE, resolvedWorkspace);
         toolContext.put(ToolContextKeys.CTX_TOOL_CALL_BUDGET,
                 new AtomicInteger(documentToolProperties.maxToolCallsPerTurn()));
+        if (userToken != null) {
+            toolContext.put(ToolContextKeys.CTX_USER_TOKEN, userToken);
+        }
 
         // Extrait (et masque) la balise <turn_meta> de fin de réponse.
         TurnMetaStreamFilter turnMetaFilter = new TurnMetaStreamFilter();
