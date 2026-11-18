@@ -12,6 +12,7 @@ import reactor.core.publisher.Flux;
 import tools.jackson.databind.json.JsonMapper;
 import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.config.security.RequireUser;
+import zas.admin.zec.backend.config.security.UserToken;
 import zas.admin.zec.backend.tools.OpdoPersonalData;
 import zas.admin.zec.backend.tools.SecurityLogging;
 
@@ -99,7 +100,10 @@ public class ConversationController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ServerSentEvent<String>> askQuestion(@ModelAttribute Question question, Authentication authentication) {
         var userUuid = userService.getUuid(authentication.getName());
-        return conversationService.streamAnswer(question.withDefaults(), userUuid).map(ConversationController::toServerSentEvent);
+        String userToken = UserToken.bearer(authentication);
+        return conversationService.streamAnswer(question.withDefaults(), userUuid)
+                .map(ConversationController::toServerSentEvent)
+                .contextWrite(context -> UserToken.with(context, userToken));
     }
 
     /**

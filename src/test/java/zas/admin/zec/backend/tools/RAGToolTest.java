@@ -22,6 +22,7 @@ import zas.admin.zec.backend.config.properties.QueryExpanderProperties;
 import zas.admin.zec.backend.config.properties.QueryRewriterProperties;
 import zas.admin.zec.backend.config.properties.RetrievingProperties;
 import zas.admin.zec.backend.prompts.PromptRegistry;
+import zas.admin.zec.backend.rag.remote.ZiaRagDocumentRetriever;
 import zas.admin.zec.backend.rag.reranker.DocumentReranker;
 import zas.admin.zec.backend.rag.token.Token;
 
@@ -44,7 +45,7 @@ class RAGToolTest {
         var vectorStore = mock(VectorStore.class);
         var tool = new RAGTool(ChatClientConfig.builder(mock(ChatModel.class), ObservationRegistry.NOOP), vectorStore, mock(UserService.class), mock(DocumentReranker.class),
                 mock(RetrievingProperties.class), mock(JdbcTemplate.class), mock(SourceResolver.class),
-                mock(WorkspaceService.class), mock(WorkspaceInferenceMonitoringService.class), new PromptRegistry());
+                mock(WorkspaceService.class), mock(WorkspaceInferenceMonitoringService.class), new PromptRegistry(), localRetrieval());
 
         assertEquals(RAGTool.MISSING_QUERY, tool.searchSocialInsuranceDocumentation(null, new ToolContext(new HashMap<>())));
         assertEquals(RAGTool.MISSING_QUERY, tool.searchSocialInsuranceDocumentation("  ", new ToolContext(new HashMap<>())));
@@ -83,7 +84,7 @@ class RAGToolTest {
         var monitoring = mock(WorkspaceInferenceMonitoringService.class);
 
         var tool = new RAGTool(ChatClientConfig.builder(chatModel, ObservationRegistry.NOOP), mock(VectorStore.class), mock(UserService.class), mock(DocumentReranker.class),
-                retrievalWithoutQueryTransformation(), mock(JdbcTemplate.class), sourceResolver, workspaceService, monitoring, new PromptRegistry());
+                retrievalWithoutQueryTransformation(), mock(JdbcTemplate.class), sourceResolver, workspaceService, monitoring, new PromptRegistry(), localRetrieval());
 
         var resolvedWorkspace = new AtomicReference<String>();
         List<Token> emittedTokens = new CopyOnWriteArrayList<>();
@@ -110,6 +111,47 @@ class RAGToolTest {
                 "Quel est le montant maximal de la cotisation annuelle ?", "AFAC");
         assertEquals("AFAC", resolvedWorkspace.get());
         assertEquals(1, emittedTokens.stream().filter(t -> t.content().startsWith("<workspace_inference>")).count());
+    }
+
+    /**
+     * Provider zia-rag (T2) : les requêtes dérivées, les sources du workspace, l'utilisateur et son jeton sont
+     * transmis à zia-rag ; ni le vector store ni le contrôle des droits internes local ne sont sollicités.
+     */
+    @Test
+    void ziaRagProviderDelegatesRetrieval() {
+        var sourceResolver = mock(SourceResolver.class);
+        when(sourceResolver.resolve("AFAC")).thenReturn(List.of("afac"));
+        var vectorStore = mock(VectorStore.class);
+        var userService = mock(UserService.class);
+        var ziaRag = mock(ZiaRagDocumentRetriever.class);
+        when(ziaRag.enabled()).thenReturn(true);
+        when(ziaRag.retrieve(any(), any(), any(), any())).thenReturn(List.of(Document.builder().id("d1")
+                .text("Cotisation maximale : 530 francs.").metadata(Map.of("source", "afac")).score(0.9).build()));
+
+        var tool = new RAGTool(ChatClientConfig.builder(mock(ChatModel.class), ObservationRegistry.NOOP), vectorStore,
+                userService, mock(DocumentReranker.class), retrievalWithoutQueryTransformation(), mock(JdbcTemplate.class),
+                sourceResolver, mock(WorkspaceService.class), mock(WorkspaceInferenceMonitoringService.class),
+                new PromptRegistry(), ziaRag);
+
+        var retrieved = new ArrayList<Document>();
+        Map<String, Object> context = new HashMap<>();
+        context.put(ToolContextKeys.CTX_USER_ID, "u1");
+        context.put(ToolContextKeys.CTX_WORKSPACE, "AFAC");
+        context.put(ToolContextKeys.CTX_USER_TOKEN, "Bearer jwt");
+        context.put(ToolContextKeys.CTX_RETRIEVED_DOCUMENTS, retrieved);
+
+        String result = tool.searchSocialInsuranceDocumentation("Quelle est la cotisation maximale ?", new ToolContext(context));
+
+        assertTrue(result.contains("Cotisation maximale : 530 francs."));
+        assertEquals(List.of("d1"), retrieved.stream().map(Document::getId).toList());
+        verify(ziaRag).retrieve(argThat(queries -> queries.size() == 1
+                        && queries.getFirst().text().equals("Quelle est la cotisation maximale ?")),
+                eq(List.of("afac")), eq("u1"), eq("Bearer jwt"));
+        verifyNoInteractions(vectorStore, userService);
+    }
+
+    private static ZiaRagDocumentRetriever localRetrieval() {
+        return mock(ZiaRagDocumentRetriever.class);
     }
 
     private static Map<String, Object> referenceContext(AtomicReference<String> resolvedWorkspace) {

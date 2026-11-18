@@ -30,7 +30,7 @@ import zas.admin.zec.backend.observability.CorrelationId;
 @EnableConfigurationProperties({ApplicationProperties.class, FAQSearchProperties.class,
         RerankingProperties.class, DeepLProperties.class, ProxyProperties.class,
         IdentityCheckProperties.class, RetrievingProperties.class, EmbeddingServiceProperties.class,
-        AttachmentOcrProperties.class})
+        AttachmentOcrProperties.class, RagRetrievalProperties.class})
 public class WebClientConfig {
     private final ProxyProperties proxyProperties;
     private final IdentityCheckProperties identityCheckProperties;
