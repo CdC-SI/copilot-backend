@@ -84,8 +84,8 @@ public abstract class AbstractDocumentLookupIT {
     }
 
     protected static DocumentLookup.LookupRequest request(List<MetadataFilterSpec> filters, String userId,
-                                                          boolean internalAccess, String language) {
-        return new DocumentLookup.LookupRequest(filters, 5, userId, internalAccess, language, true);
+                                                          String language) {
+        return new DocumentLookup.LookupRequest(filters, 5, userId, language, true);
     }
 
     protected static List<String> ids(DocumentLookup.LookupResult result) {

@@ -6,7 +6,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.config.properties.ApplicationProperties;
 import zas.admin.zec.backend.persistence.repository.DocumentRepository;
 
@@ -22,8 +21,6 @@ class SettingServiceTest {
     @Mock
     private ApplicationProperties properties;
     @Mock
-    private UserService userService;
-    @Mock
     private DocumentRepository documentRepository;
 
     @InjectMocks
@@ -34,7 +31,7 @@ class SettingServiceTest {
     void getSettings_returnsProjectVersion() {
         when(properties.version()).thenReturn("2.0.0");
 
-        List<String> result = settingService.getSettings(SettingType.PROJECT_VERSION, null);
+        List<String> result = settingService.getSettings(SettingType.PROJECT_VERSION);
 
         assertEquals(List.of("2.0.0"), result);
     }
@@ -42,63 +39,34 @@ class SettingServiceTest {
     @Test
     @DisplayName("getSettings returns enum values for LLM_MODEL")
     void getSettings_returnsEnumValues() {
-        List<String> result = settingService.getSettings(SettingType.LLM_MODEL, null);
+        List<String> result = settingService.getSettings(SettingType.LLM_MODEL);
 
         assertFalse(result.isEmpty());
     }
 
     @Test
-    @DisplayName("getPublicSettings for SOURCE delegates to documentRepository")
-    void getPublicSettings_source() {
-        when(documentRepository.findPublicSources()).thenReturn(List.of("src1", "src2"));
-
-        List<String> result = settingService.getPublicSettings(SettingType.SOURCE);
-
-        assertEquals(List.of("src1", "src2"), result);
-    }
-
-    @Test
-    @DisplayName("getPublicTags with empty sources returns all public tags")
-    void getPublicTags_emptySourcesReturnsAll() {
-        when(documentRepository.findPublicTags()).thenReturn(List.of("tag1"));
-
-        List<String> result = settingService.getPublicTags(List.of());
-
-        assertEquals(List.of("tag1"), result);
-    }
-
-    @Test
-    @DisplayName("getPublicTags with sources filters by sources")
-    void getPublicTags_withSources() {
-        when(documentRepository.findPublicTagsBySources(List.of("src1"))).thenReturn(List.of("tagA"));
-
-        List<String> result = settingService.getPublicTags(List.of("src1"));
-
-        assertEquals(List.of("tagA"), result);
-    }
-
-    @Test
-    @DisplayName("getSources returns all sources for internal user")
-    void getSources_returnsAll_forInternalUser() {
-        when(userService.getUuid("admin")).thenReturn("uuid-1");
-        when(userService.hasAccessToInternalDocuments("uuid-1")).thenReturn(true);
+    @DisplayName("getSettings returns every source, whatever the organizations metadata")
+    void getSettings_returnsAllSources() {
         when(documentRepository.findAllSources()).thenReturn(List.of("internal", "public"));
 
-        List<String> result = settingService.getSettings(SettingType.SOURCE, "admin");
+        List<String> result = settingService.getSettings(SettingType.SOURCE);
 
         assertEquals(List.of("internal", "public"), result);
     }
 
     @Test
-    @DisplayName("getSources returns only public for external user")
-    void getSources_returnsPublicOnly_forExternalUser() {
-        when(userService.getUuid("ext")).thenReturn("uuid-2");
-        when(userService.hasAccessToInternalDocuments("uuid-2")).thenReturn(false);
-        when(documentRepository.findPublicSources()).thenReturn(List.of("public"));
+    @DisplayName("getSettings for TAG returns every tag")
+    void getSettings_returnsAllTags() {
+        when(documentRepository.findAllTags()).thenReturn(List.of("tag1", "tag2"));
 
-        List<String> result = settingService.getSettings(SettingType.SOURCE, "ext");
+        assertEquals(List.of("tag1", "tag2"), settingService.getSettings(SettingType.TAG));
+    }
 
-        assertEquals(List.of("public"), result);
+    @Test
+    @DisplayName("getTags with sources filters by sources only")
+    void getTags_withSources() {
+        when(documentRepository.findTagsBySources(List.of("src1"))).thenReturn(List.of("tagA"));
+
+        assertEquals(List.of("tagA"), settingService.getTags(List.of("src1")));
     }
 }
-

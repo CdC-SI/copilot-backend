@@ -12,7 +12,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * {@link BusinessProcessLookup} sur une vraie base : accès interne, sélection de la version en vigueur,
+ * {@link BusinessProcessLookup} sur une vraie base : sélection de la version en vigueur,
  * préférence de langue avec repli, versions explicites.
  *
  * <p>Processus A : v1 expirée (Validé), v2 en vigueur (Brouillon, fr + de), v3 future (Validé), toutes avec le
@@ -74,17 +74,9 @@ class BusinessProcessLookupIT extends AbstractDocumentLookupIT {
     }
 
     @Test
-    void usersWithoutInternalAccessGetNothing() {
-        var result = lookup.find(request(List.of(eq("process_id", "IT-A")), "u", false, "fr"));
-
-        assertTrue(result.documents().isEmpty());
-        assertEquals(BusinessProcessLookup.NO_ACCESS_NOTICE, result.notice());
-    }
-
-    @Test
     void returnsTheVersionInForceInTheUserLanguage() {
-        var fr = lookup.find(request(List.of(eq("process_id", "IT-A")), "u", true, "fr"));
-        var de = lookup.find(request(List.of(eq("process_id", "IT-A")), "u", true, "de"));
+        var fr = lookup.find(request(List.of(eq("process_id", "IT-A")), "u", "fr"));
+        var de = lookup.find(request(List.of(eq("process_id", "IT-A")), "u", "de"));
 
         assertEquals(List.of(A2_FR), ids(fr));
         assertEquals(List.of(A2_DE), ids(de));
@@ -93,7 +85,7 @@ class BusinessProcessLookupIT extends AbstractDocumentLookupIT {
 
     @Test
     void returnsOneTranslationWhenNoneMatchesTheUserLanguage() {
-        var result = lookup.find(request(List.of(eq("process_id", "IT-A")), "u", true, "it"));
+        var result = lookup.find(request(List.of(eq("process_id", "IT-A")), "u", "it"));
 
         assertEquals(List.of(A2_FR), ids(result));
         assertTrue(result.notice().contains(BusinessProcessLookup.OTHER_LANGUAGE_NOTICE.formatted("it")));
@@ -101,7 +93,7 @@ class BusinessProcessLookupIT extends AbstractDocumentLookupIT {
 
     @Test
     void versionInForceWinsOverTheUserLanguage() {
-        var result = lookup.find(request(List.of(eq("process_id", "IT-C")), "u", true, "de"));
+        var result = lookup.find(request(List.of(eq("process_id", "IT-C")), "u", "de"));
 
         assertEquals(List.of(C2_FR), ids(result));
         assertTrue(result.notice().contains(BusinessProcessLookup.OTHER_LANGUAGE_NOTICE.formatted("de")));
@@ -109,8 +101,8 @@ class BusinessProcessLookupIT extends AbstractDocumentLookupIT {
 
     @Test
     void explicitVersionPrefersTheUserLanguageAmongTranslations() {
-        var fr = lookup.find(request(List.of(eq("process_id", "IT-A"), eq("bpanda_version", "2022.01.01")), "u", true, "fr"));
-        var de = lookup.find(request(List.of(eq("process_id", "IT-A"), eq("bpanda_version", "2022.01.01")), "u", true, "de"));
+        var fr = lookup.find(request(List.of(eq("process_id", "IT-A"), eq("bpanda_version", "2022.01.01")), "u", "fr"));
+        var de = lookup.find(request(List.of(eq("process_id", "IT-A"), eq("bpanda_version", "2022.01.01")), "u", "de"));
 
         assertEquals(List.of(A2_FR), ids(fr));
         assertEquals(List.of(A2_DE), ids(de));
@@ -118,16 +110,16 @@ class BusinessProcessLookupIT extends AbstractDocumentLookupIT {
 
     @Test
     void explicitLanguageFilterOverridesTheUserLanguage() {
-        var result = lookup.find(request(List.of(eq("process_id", "IT-A"), eq("lang", "de")), "u", true, "fr"));
+        var result = lookup.find(request(List.of(eq("process_id", "IT-A"), eq("lang", "de")), "u", "fr"));
 
         assertEquals(List.of(A2_DE), ids(result));
     }
 
     @Test
     void stableIdentifiersReturnTheVersionInForce() {
-        var byBpmnId = lookup.find(request(List.of(eq("bpmn_id", "IT-BPMN-A")), "u", true, "fr"));
-        var byBpmnIdDe = lookup.find(request(List.of(eq("bpmn_id", "IT-BPMN-A")), "u", true, "de"));
-        var byBpandaId = lookup.find(request(List.of(eq("bpanda_id", "IT-BPANDA-IT-A")), "u", true, "fr"));
+        var byBpmnId = lookup.find(request(List.of(eq("bpmn_id", "IT-BPMN-A")), "u", "fr"));
+        var byBpmnIdDe = lookup.find(request(List.of(eq("bpmn_id", "IT-BPMN-A")), "u", "de"));
+        var byBpandaId = lookup.find(request(List.of(eq("bpanda_id", "IT-BPANDA-IT-A")), "u", "fr"));
 
         assertEquals(List.of(A2_FR), ids(byBpmnId));
         assertEquals(List.of(A2_DE), ids(byBpmnIdDe));
@@ -137,7 +129,7 @@ class BusinessProcessLookupIT extends AbstractDocumentLookupIT {
 
     @Test
     void versionCanBeSelectedWithinAStableBpmnId() {
-        var result = lookup.find(request(List.of(eq("bpmn_id", "IT-BPMN-A"), eq("bpanda_version", "2099.01.01")), "u", true, "fr"));
+        var result = lookup.find(request(List.of(eq("bpmn_id", "IT-BPMN-A"), eq("bpanda_version", "2099.01.01")), "u", "fr"));
 
         assertEquals(List.of(A3_FR), ids(result));
         assertNull(result.notice());
@@ -145,8 +137,8 @@ class BusinessProcessLookupIT extends AbstractDocumentLookupIT {
 
     @Test
     void latestOnlyNoticeListsTheOtherVersionsOrTheirAbsence() {
-        var a = lookup.find(request(List.of(eq("process_id", "IT-A")), "u", true, "fr"));
-        var b = lookup.find(request(List.of(eq("process_id", "IT-B")), "u", true, "fr"));
+        var a = lookup.find(request(List.of(eq("process_id", "IT-A")), "u", "fr"));
+        var b = lookup.find(request(List.of(eq("process_id", "IT-B")), "u", "fr"));
 
         assertTrue(a.notice().contains("Other versions of IT-A: "
                 + "2020.01.01 (expired, Validé, valid 2020-01-01T00:00 to 2021-12-31T23:59); "
@@ -157,7 +149,7 @@ class BusinessProcessLookupIT extends AbstractDocumentLookupIT {
 
     @Test
     void explicitVersionReturnsThatVersion() {
-        var result = lookup.find(request(List.of(eq("process_id", "IT-A"), eq("bpanda_version", "2020.01.01")), "u", true, "fr"));
+        var result = lookup.find(request(List.of(eq("process_id", "IT-A"), eq("bpanda_version", "2020.01.01")), "u", "fr"));
 
         assertEquals(List.of(A1_FR), ids(result));
         assertNull(result.notice());
@@ -165,7 +157,7 @@ class BusinessProcessLookupIT extends AbstractDocumentLookupIT {
 
     @Test
     void validityRangeReturnsEveryMatchingVersion() {
-        var result = lookup.find(request(List.of(eq("process_id", "IT-A"), op("valid_from", FilterOp.GTE, "2021-01-01T00:00")), "u", true, "fr"));
+        var result = lookup.find(request(List.of(eq("process_id", "IT-A"), op("valid_from", FilterOp.GTE, "2021-01-01T00:00")), "u", "fr"));
 
         assertEquals(List.of(A3_FR, A2_FR), ids(result));
     }
@@ -173,14 +165,14 @@ class BusinessProcessLookupIT extends AbstractDocumentLookupIT {
     @Test
     void filtersApplyBeforePickingTheLatestVersion() {
         // Aucune version "Validé" en vigueur : la plus récente (future) est retournée.
-        var result = lookup.find(request(List.of(eq("process_id", "IT-A"), eq("process_state", "Validé")), "u", true, "fr"));
+        var result = lookup.find(request(List.of(eq("process_id", "IT-A"), eq("process_state", "Validé")), "u", "fr"));
 
         assertEquals(List.of(A3_FR), ids(result));
     }
 
     @Test
     void nameSearchReturnsOneVersionPerProcessSortedByName() {
-        var result = lookup.find(request(List.of(op("process_name", FilterOp.CONTAINS, "it ")), "u", true, "fr"));
+        var result = lookup.find(request(List.of(op("process_name", FilterOp.CONTAINS, "it ")), "u", "fr"));
 
         assertEquals(List.of(C2_FR, B1_FR, A2_FR), ids(result));
     }
@@ -188,7 +180,7 @@ class BusinessProcessLookupIT extends AbstractDocumentLookupIT {
     @Test
     void limitTruncatesAndFlagsMoreResults() {
         var result = lookup.find(new DocumentLookup.LookupRequest(
-                List.of(op("process_name", FilterOp.CONTAINS, "it ")), 1, "u", true, "fr", true));
+                List.of(op("process_name", FilterOp.CONTAINS, "it ")), 1, "u", "fr", true));
 
         assertEquals(List.of(C2_FR), ids(result));
         assertTrue(result.truncated());
@@ -197,7 +189,7 @@ class BusinessProcessLookupIT extends AbstractDocumentLookupIT {
     @Test
     void metadataOnlySkipsContentAndDropsNullValues() {
         var result = lookup.find(new DocumentLookup.LookupRequest(
-                List.of(eq("process_id", "IT-B")), 5, "u", true, "fr", false));
+                List.of(eq("process_id", "IT-B")), 5, "u", "fr", false));
 
         var document = result.documents().getFirst();
         assertEquals("", document.getText());
@@ -208,7 +200,7 @@ class BusinessProcessLookupIT extends AbstractDocumentLookupIT {
 
     @Test
     void contentIsTheStoredProcessDefinition() {
-        var result = lookup.find(request(List.of(eq("process_id", "IT-B")), "u", true, "fr"));
+        var result = lookup.find(request(List.of(eq("process_id", "IT-B")), "u", "fr"));
 
         assertTrue(result.documents().getFirst().getText().contains("IT Retaxer une période 2022.06.01"));
     }
@@ -216,6 +208,6 @@ class BusinessProcessLookupIT extends AbstractDocumentLookupIT {
     @Test
     void unknownKeysAreRejected() {
         assertThrows(JsonbFilterSqlBuilder.InvalidFilterException.class,
-                () -> lookup.find(request(List.of(eq("organizations", "ZAS")), "u", true, "fr")));
+                () -> lookup.find(request(List.of(eq("organizations", "ZAS")), "u", "fr")));
     }
 }
