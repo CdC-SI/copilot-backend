@@ -15,7 +15,7 @@ import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
  * {@code boundedElastic}), la valeur MDC est enregistrée comme {@code ThreadLocalAccessor} de context-propagation :
  * capturée à la souscription et restaurée par Reactor ({@code spring.reactor.context-propagation=auto}).</p>
  *
- * <p>Propagée sur les appels HTTP sortants internes (reranker, service d'embedding, zia-rag) via
+ * <p>Propagée sur les appels HTTP sortants internes (service d'embedding, zia-rag) via
  * {@link #webClientFilter()} et {@link #restClientInterceptor()}.</p>
  */
 public final class CorrelationId {

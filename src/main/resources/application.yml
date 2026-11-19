@@ -91,8 +91,6 @@ spring:
         embedding-dimensions: ${EMBEDDING_DIMENSIONS:1024}
         vision-model: ${VISION_MODEL}
         vision-base-url: ${VISION_BASE_URL}
-        reranker-model: ${RERANKER_MODEL}
-        reranker-base-url: ${RERANKER_BASE_URL}
 
     vectorstore:
       observations:
@@ -159,35 +157,12 @@ faq:
       limit: ${FAQ_SEMANTIC_MATCHING_LIMIT:10}
       metric: ${FAQ_SEMANTIC_MATCHING_METRIC:cosine_similarity}
 rag:
-  retrieving:
-    top-k: ${RAG_RETRIEVING_TOP_K:5}
-    query-expander:
-      enabled: ${RAG_RETRIEVING_QUERY_EXPANDER_ENABLED:true}
-      number-of-expansions: ${RAG_RETRIEVING_QUERY_EXPANDER_NUMBER_OF_EXPANSIONS:3}
-      include-original: ${RAG_RETRIEVING_QUERY_EXPANDER_INCLUDE_ORIGINAL:true}
-    query-compresser:
-      enabled: ${RAG_RETRIEVING_QUERY_COMPRESSER_ENABLED:true}
-    query-rewriter:
-      enabled: ${RAG_RETRIEVING_QUERY_REWRITER_ENABLED:true}
-    bm25:
-      enabled: ${RAG_RETRIEVING_BM25_ENABLED:false}
-      top-k: ${RAG_RETRIEVING_BM25_TOP_K:2}
-      text-search-config: ${RAG_RETRIEVING_BM25_TEXT_SEARCH_CONFIG:simple}
-  reranking:
-    cohere-api-key: ${COHERE_API_KEY:cohere_api_key}
-    score-threshold: ${RERANKING_SCORE_THRESHOLD:0.5}
-    enabled: ${RERANKING_ENABLED:true}
-    truncate-prompt-tokens: ${RERANKING_TRUNCATE_PROMPT_TOKENS:16384}
-    top-k: ${RERANKING_TOP_K:5}
-  # T2 : moteur de recherche de RAGTool. local (défaut) : pgvector, BM25 et reranker du backend ; zia-rag : service
-  # zia-rag (POST /api/v1/retrieval/documents) avec le jeton Blue de l'utilisateur et les réglages rag.retrieving /
-  # rag.reranking (top-k, BM25 → HYBRID, reranker, seuil).
-  retrieval:
-    provider: ${RAG_RETRIEVAL_PROVIDER:local}
-    zia-rag:
-      base-url: ${ZIA_RAG_BASE_URL:}
-      connect-timeout: ${ZIA_RAG_CONNECT_TIMEOUT:2s}
-      read-timeout: ${ZIA_RAG_READ_TIMEOUT:20s}
+  # Recherche documentaire de RAGTool : service zia-rag (POST /api/v1/retrieval/documents), appelé avec le jeton Blue
+  # de l'utilisateur. Nombre de documents, mode, reranker et seuils : valeurs par défaut de zia-rag (ZIA_RAG_DEFAULT_*).
+  zia-rag:
+    base-url: ${ZIA_RAG_BASE_URL:}
+    connect-timeout: ${ZIA_RAG_CONNECT_TIMEOUT:2s}
+    read-timeout: ${ZIA_RAG_READ_TIMEOUT:20s}
   document-tool:
     max-tool-calls-per-turn: ${RAG_MAX_TOOL_CALLS_PER_TURN:10}
 zia:

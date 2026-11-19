@@ -6,16 +6,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.openai.OpenAiEmbeddingModel;
-import org.springframework.ai.rag.Query;
-import org.springframework.ai.rag.retrieval.search.VectorStoreDocumentRetriever;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.ai.vectorstore.filter.Filter;
 import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -27,8 +23,6 @@ import zas.admin.zec.backend.persistence.MetadataValues;
 import zas.admin.zec.backend.persistence.entity.DocumentEntity;
 import zas.admin.zec.backend.persistence.repository.DocumentRepository;
 import zas.admin.zec.backend.persistence.repository.QuestionRepository;
-import zas.admin.zec.backend.rag.retriever.BM25DocumentRetriever;
-import zas.admin.zec.backend.rag.retriever.HybridDocumentRetriever;
 
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
@@ -36,14 +30,12 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 /**
  * Non-régression des métadonnées {@code Map<String, Object>} de {@link DocumentEntity} sur {@code vector_store} :
- * types JSON natifs (tableaux, nombres), filtres du {@link RAGTool} (vectoriel et BM25), requêtes natives
+ * types JSON natifs (tableaux, nombres), filtres du vector store, requêtes natives
  * de {@link DocumentRepository}, FAQ et lecture tolérante via {@link MetadataValues}.
  * Chaque test s'exécute dans une transaction annulée.
  */
@@ -60,8 +52,7 @@ import static org.mockito.Mockito.when;
         "spring.ai.chat.internal.vision-base-url=http://127.0.0.1:1",
         "spring.ai.chat.internal.embedding-model=test-embedding",
         "spring.ai.chat.internal.embedding-base-url=http://127.0.0.1:1",
-        "spring.ai.chat.internal.reranker-model=test-reranker",
-        "spring.ai.chat.internal.reranker-base-url=http://127.0.0.1:1",
+        "rag.zia-rag.base-url=http://127.0.0.1:1",
         "embedding-service.base-url=http://127.0.0.1:1",
         "spring.activemq.broker-url=tcp://127.0.0.1:1",
         "spring.activemq.user=test",
@@ -93,9 +84,6 @@ class DocumentMetadataIT {
 
     @Autowired
     private VectorStore vectorStore;
-
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
 
     @Autowired
     private FAQService faqService;
@@ -151,59 +139,6 @@ class DocumentMetadataIT {
     }
 
     @Test
-    void ragToolFilterExcludesInternalDocumentsForScalarAndArrayOrganizations() {
-        persistRagToolFixtures();
-
-        assertEquals(Set.of("O1", "O5", "U1"),
-                labels(vectorStore.similaritySearch(request().filterExpression(ragToolFilter(false)).build())));
-        assertEquals(Set.of("O1", "O2", "O3", "O4", "O5", "U1"),
-                labels(vectorStore.similaritySearch(request().filterExpression(ragToolFilter(true)).build())));
-    }
-
-    @Test
-    void ragToolFilterWorksWithBm25() {
-        persistRagToolFixtures();
-        // Documents de remplissage pour donner un IDF significatif au terme recherché
-        for (int i = 0; i < 30; i++) {
-            save("F" + i + " document de remplissage", Map.of("source", "s9", "organizations", "", "user_uuid", ""));
-        }
-        documentRepository.flush();
-
-        var docs = new BM25DocumentRetriever(jdbcTemplate, 20, () -> ragToolFilter(false))
-                .retrieve(new Query("cotisations"));
-
-        assertEquals(Set.of("O1", "O5", "U1"), labels(docs));
-        var o5 = docs.stream().filter(d -> label(d).equals("O5")).findFirst().orElseThrow();
-        assertEquals(List.of("OFAS"), o5.getMetadata().get("organizations"));
-    }
-
-    @Test
-    void hybridRetrievalReturnsDocumentsFoundByBothSearchesOnce() {
-        persistRagToolFixtures();
-        for (int i = 0; i < 30; i++) {
-            save("F" + i + " document de remplissage", Map.of("source", "s9", "organizations", "", "user_uuid", ""));
-        }
-        documentRepository.flush();
-        var vector = VectorStoreDocumentRetriever.builder()
-                .vectorStore(vectorStore).filterExpression(() -> ragToolFilter(false)).topK(50).similarityThreshold(0.0)
-                .build();
-        var bm25 = new BM25DocumentRetriever(jdbcTemplate, 20, () -> ragToolFilter(false));
-        var query = new Query("cotisations");
-
-        var vectorIds = vector.retrieve(query).stream().map(Document::getId).toList();
-        var bm25Ids = bm25.retrieve(query).stream().map(Document::getId).toList();
-        var hybrid = new HybridDocumentRetriever(vector, bm25).retrieve(query);
-        var hybridIds = hybrid.stream().map(Document::getId).toList();
-
-        // Les mêmes lignes sont trouvées par les deux recherches, avec le même identifiant (même format).
-        assertFalse(bm25Ids.isEmpty());
-        assertTrue(vectorIds.containsAll(bm25Ids), () -> "bm25=" + bm25Ids + " vector=" + vectorIds);
-        // Une seule occurrence par document après fusion.
-        assertEquals(hybridIds.size(), new HashSet<>(hybridIds).size());
-        assertEquals(new HashSet<>(vectorIds), new HashSet<>(hybridIds));
-    }
-
-    @Test
     void tagsQueriesUnfoldArraysAndKeepLegacyStrings() {
         save("L", Map.of("source", "t1", "organizations", "", "tags", "a,b"));
         save("X", Map.of("source", "t1", "organizations", "", "tags", List.of("x", "y")));
@@ -252,26 +187,6 @@ class DocumentMetadataIT {
         assertEquals("fr", item.language());
         assertEquals("http://faq", item.answer().url());
         assertEquals(Set.of("AVS", "AI"), Set.copyOf(documentRepository.findTagsBySources(List.of("knowledge_base"))));
-    }
-
-    /**
-     * Sources s1/s2, utilisateur u1. Sans accès interne, seuls O1, O5 et U1 sont attendus.
-     */
-    private void persistRagToolFixtures() {
-        save("O1 cotisations cotisations", Map.of("source", "s1", "organizations", "", "user_uuid", ""));
-        save("O2 cotisations cotisations", Map.of("source", "s1", "organizations", "ZAS", "user_uuid", ""));
-        // Clé "organizations" absente : exclue sans accès interne (comportement historique conservé)
-        save("O3 cotisations cotisations", Map.of("source", "s1", "user_uuid", ""));
-        save("O4 cotisations cotisations", Map.of("source", "s1", "organizations", List.of("ZAS", "OFAS"), "user_uuid", ""));
-        save("O5 cotisations cotisations", Map.of("source", "s2", "organizations", List.of("OFAS"), "user_uuid", ""));
-        save("U1 cotisations cotisations", Map.of("source", "s2", "organizations", "", "user_uuid", "u1"));
-        save("U2 cotisations cotisations", Map.of("source", "s2", "organizations", "", "user_uuid", "u2"));
-        save("S3 cotisations cotisations", Map.of("source", "s3", "organizations", "", "user_uuid", ""));
-        documentRepository.flush();
-    }
-
-    private Filter.Expression ragToolFilter(boolean userHasAccessToInternalDocuments) {
-        return RAGTool.metadataFilter(List.of("s1", "s2"), "u1", userHasAccessToInternalDocuments);
     }
 
     private DocumentEntity save(String content, Map<String, Object> metadata) {

@@ -4,43 +4,25 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.ToolContext;
-import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.document.Document;
-import org.springframework.ai.rag.Query;
-import org.springframework.ai.rag.preretrieval.query.expansion.MultiQueryExpander;
-import org.springframework.ai.rag.preretrieval.query.expansion.QueryExpander;
-import org.springframework.ai.rag.preretrieval.query.transformation.QueryTransformer;
-import org.springframework.ai.rag.preretrieval.query.transformation.RewriteQueryTransformer;
-import org.springframework.ai.rag.retrieval.search.DocumentRetriever;
-import org.springframework.ai.rag.retrieval.search.VectorStoreDocumentRetriever;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
-import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.ai.vectorstore.filter.Filter;
-import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
-import org.springframework.util.CollectionUtils;
-import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.actions.workspace.WorkspaceDto;
 import zas.admin.zec.backend.actions.workspace.WorkspaceService;
 import zas.admin.zec.backend.config.ChatClientConfig;
-import zas.admin.zec.backend.config.properties.RetrievingProperties;
 import zas.admin.zec.backend.prompts.Prompt;
 import zas.admin.zec.backend.prompts.PromptId;
 import zas.admin.zec.backend.prompts.PromptRegistry;
 import zas.admin.zec.backend.rag.ChatStatus;
 import zas.admin.zec.backend.rag.TurnUsage;
-import zas.admin.zec.backend.rag.joiner.RankedDocumentJoiner;
 import zas.admin.zec.backend.rag.remote.ZiaRagDocumentRetriever;
-import zas.admin.zec.backend.rag.reranker.DocumentReranker;
-import zas.admin.zec.backend.rag.retriever.BM25DocumentRetriever;
-import zas.admin.zec.backend.rag.retriever.HybridDocumentRetriever;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -54,6 +36,10 @@ import java.util.stream.Collectors;
  * la question et de la liste des workspaces disponibles — une seule fois par tour : les appels
  * suivants du même tour réutilisent le workspace résolu
  * ({@link ToolContextKeys#CTX_RESOLVED_WORKSPACE}).</p>
+ *
+ * <p>La recherche est déléguée au service zia-rag (une requête par appel, limitée aux sources du workspace) :
+ * mode de recherche, reranking et seuils relèvent de zia-rag ; la requête du LLM est transmise telle quelle (pas de
+ * réécriture ni d'extension dans le backend).</p>
  */
 @Slf4j
 @Component
@@ -63,10 +49,6 @@ public class RAGTool {
 
     private static final String DEFAULT_LANGUAGE = "fr";
 
-    private static final String META_SOURCE = "source";
-    private static final String META_ORGANIZATIONS = "organizations";
-    private static final String META_USER_UUID = "user_uuid";
-    private static final String ORG_ZAS = "ZAS";
     /** Appel sans requête (le LLM a omis l'argument) : message exploitable plutôt qu'une exception. */
     static final String MISSING_QUERY = "<error>The 'query' argument is required: rephrase the user's question as a "
             + "standalone search query and call the tool again.</error>";
@@ -80,11 +62,6 @@ public class RAGTool {
             """;
 
     private final ChatClient internalChatClient;
-    private final VectorStore documentStore;
-    private final UserService userService;
-    private final DocumentReranker reranker;
-    private final RetrievingProperties retrievingProperties;
-    private final JdbcTemplate jdbcTemplate;
     private final SourceResolver sourceResolver;
     private final WorkspaceService workspaceService;
     private final WorkspaceInferenceMonitoringService workspaceInferenceMonitoringService;
@@ -93,11 +70,6 @@ public class RAGTool {
 
     public RAGTool(
             @Qualifier(ChatClientConfig.INTERNAL_CHAT_CLIENT_BUILDER) ChatClient.Builder chatClientBuilder,
-            VectorStore documentStore,
-            UserService userService,
-            DocumentReranker reranker,
-            RetrievingProperties retrievingProperties,
-            JdbcTemplate jdbcTemplate,
             SourceResolver sourceResolver,
             WorkspaceService workspaceService,
             WorkspaceInferenceMonitoringService workspaceInferenceMonitoringService,
@@ -105,11 +77,6 @@ public class RAGTool {
             ZiaRagDocumentRetriever ziaRagRetriever) {
 
         this.internalChatClient = chatClientBuilder.build();
-        this.documentStore = documentStore;
-        this.userService = userService;
-        this.reranker = reranker;
-        this.retrievingProperties = retrievingProperties;
-        this.jdbcTemplate = jdbcTemplate;
         this.sourceResolver = sourceResolver;
         this.workspaceService = workspaceService;
         this.workspaceInferenceMonitoringService = workspaceInferenceMonitoringService;
@@ -167,7 +134,8 @@ public class RAGTool {
         // Notifier le frontend que la recherche documentaire est en cours.
         ToolContextKeys.emitStatus(context, ChatStatus.RETRIEVAL, language);
 
-        List<Document> documents = retrieve(query, language, workspace, userId, context);
+        List<Document> documents = ziaRagRetriever.retrieve(query, sourceResolver.resolve(workspace), userId,
+                asString(context.get(ToolContextKeys.CTX_USER_TOKEN), null));
 
         // Remonter les documents (avec leurs métadonnées) à l'appelant pour reconstruire les sources.
         if (context.get(ToolContextKeys.CTX_RETRIEVED_DOCUMENTS) instanceof Collection<?> sink) {
@@ -180,50 +148,6 @@ public class RAGTool {
         return formatDocuments(documents);
     }
 
-    private List<Document> retrieve(String query, String language, String workspace,
-                                    String userId, Map<String, Object> context) {
-
-        // 1. Transform the (already autonomous) query.
-        Query transformedQuery = Query.builder().text(query).build();
-        for (var queryTransformer : transformers(language, context)) {
-            transformedQuery = queryTransformer.apply(transformedQuery);
-        }
-
-        // 2. Expand the query into one or multiple queries.
-        List<Query> expandedQueries = expander(language, context).expand(transformedQuery);
-
-        // T2 : recherche, reranking et jointure délégués à zia-rag (documents publics et privés de l'utilisateur,
-        // sans filtre sur "organizations").
-        if (ziaRagRetriever.enabled()) {
-            return ziaRagRetriever.retrieve(expandedQueries, sourceResolver.resolve(workspace), userId,
-                    asString(context.get(ToolContextKeys.CTX_USER_TOKEN), null));
-        }
-
-        boolean hasAccessToInternalDocuments = !userId.isBlank()
-                && userService.hasAccessToInternalDocuments(userId);
-        Supplier<Filter.Expression> filterExpressionSupplier =
-                () -> buildExpression(workspace, userId, hasAccessToInternalDocuments);
-
-        var vectorRetriever = VectorStoreDocumentRetriever.builder()
-                .vectorStore(documentStore)
-                .filterExpression(filterExpressionSupplier)
-                .topK(retrievingProperties.topK())
-                .build();
-
-        DocumentRetriever documentRetriever = getDocumentRetriever(filterExpressionSupplier, vectorRetriever);
-
-        // 3. Retrieve documents for each query.
-        Map<Query, List<List<Document>>> documentsForQuery = new HashMap<>();
-        for (Query expandedQuery : expandedQueries) {
-            documentsForQuery.put(expandedQuery, List.of(documentRetriever.retrieve(expandedQuery)));
-        }
-
-        // 4. Join and rerank. Les pièces jointes de la conversation ne sont pas ajoutées aux résultats : l'agent
-        //    les lit via get_attachment_content (liste fournie par le bloc <conversation_attachments>).
-        var documentJoiner = new RankedDocumentJoiner(reranker);
-        return documentJoiner.join(documentsForQuery);
-    }
-
     private String formatDocuments(List<Document> documents) {
         if (documents.isEmpty()) {
             return NO_DOCS_FOUND;
@@ -232,87 +156,6 @@ public class RAGTool {
         return documents.stream()
                 .map(document -> MetadataFormatter.format(document, true, true))
                 .collect(Collectors.joining(System.lineSeparator()));
-    }
-
-    private DocumentRetriever getDocumentRetriever(Supplier<Filter.Expression> filterExpressionSupplier,
-                                                   VectorStoreDocumentRetriever vectorRetriever) {
-        if (retrievingProperties.bm25().enabled()) {
-            var bm25Retriever = new BM25DocumentRetriever(
-                    jdbcTemplate,
-                    retrievingProperties.bm25().topK(),
-                    filterExpressionSupplier
-            );
-            return new HybridDocumentRetriever(vectorRetriever, bm25Retriever);
-        }
-        return vectorRetriever;
-    }
-
-    private Filter.Expression buildExpression(String workspace, String userId, boolean userHasAccessToInternalDocuments) {
-        return metadataFilter(sourceResolver.resolve(workspace), userId, userHasAccessToInternalDocuments);
-    }
-
-    /**
-     * Filtre sur les métadonnées : sources du workspace, exclusion des documents internes ({@code organizations}
-     * contenant {@code ZAS}, valeur scalaire ou tableau) sauf droits, documents publics ou propres à l'utilisateur.
-     */
-    public static Filter.Expression metadataFilter(Collection<String> sources, String userId,
-                                                   boolean userHasAccessToInternalDocuments) {
-        FilterExpressionBuilder builder = new FilterExpressionBuilder();
-        List<FilterExpressionBuilder.Op> ops = new ArrayList<>();
-
-        if (!CollectionUtils.isEmpty(sources)) {
-            ops.add(builder.in(META_SOURCE, List.copyOf(sources)));
-        }
-
-        if (!userHasAccessToInternalDocuments) {
-            // ne() seul ne suffit pas : sur un tableau, "!=" est vrai dès qu'un élément diffère (["ZAS","OFAS"]
-            // passerait) ; nin() exclut tout tableau contenant ZAS. ne() conserve l'exclusion historique des
-            // documents sans clé "organizations" (isNotNull() n'est pas supporté par le converter PgVector).
-            ops.add(builder.and(builder.ne(META_ORGANIZATIONS, ORG_ZAS), builder.nin(META_ORGANIZATIONS, ORG_ZAS)));
-        }
-
-        ops.add(builder.group(builder.or(builder.eq(META_USER_UUID, userId), builder.eq(META_USER_UUID, ""))));
-
-        FilterExpressionBuilder.Op combined = ops.getFirst();
-        for (int i = 1; i < ops.size(); i++) {
-            combined = builder.and(combined, ops.get(i));
-        }
-
-        return combined.build();
-    }
-
-    private List<QueryTransformer> transformers(String language, Map<String, Object> context) {
-        var transformers = new ArrayList<QueryTransformer>();
-        // Note: la compression basée sur l'historique est désormais à la charge du LLM agentique,
-        // qui doit fournir une requête autonome. Seul le réécriture est conservée ici.
-        if (retrievingProperties.queryRewriter().enabled()) {
-            transformers.add(rewriter(language, context));
-        }
-        return transformers;
-    }
-
-    private QueryTransformer rewriter(String lang, Map<String, Object> context) {
-        Prompt prompt = promptRegistry.get(PromptId.QUERY_REWRITER, lang);
-        ToolContextKeys.recordPrompt(context, prompt);
-        return RewriteQueryTransformer.builder()
-                .chatClientBuilder(internalChatClient.mutate())
-                .promptTemplate(new PromptTemplate(prompt.template()))
-                .build();
-    }
-
-    private QueryExpander expander(String lang, Map<String, Object> context) {
-        if (!retrievingProperties.queryExpander().enabled()) {
-            return (List::of);
-        }
-
-        Prompt prompt = promptRegistry.get(PromptId.QUERY_EXPANDER, lang);
-        ToolContextKeys.recordPrompt(context, prompt);
-        return MultiQueryExpander.builder()
-                .chatClientBuilder(internalChatClient.mutate())
-                .promptTemplate(new PromptTemplate(prompt.template()))
-                .numberOfQueries(retrievingProperties.queryExpander().numberOfExpansions())
-                .includeOriginal(retrievingProperties.queryExpander().includeOriginal())
-                .build();
     }
 
     private static String asString(Object value, String defaultValue) {

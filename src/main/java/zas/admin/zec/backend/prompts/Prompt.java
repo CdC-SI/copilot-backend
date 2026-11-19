@@ -41,9 +41,6 @@ public record Prompt(PromptId id, String language, String template, String versi
      * {@code null} est rendue {@code "null"}, comme le faisait {@code String.formatted}.
      */
     public String render(Map<String, ?> variables) {
-        if (id.syntax() != PromptId.Syntax.NAMED) {
-            throw new IllegalStateException("Le prompt " + id + " est rendu par Spring AI : utiliser template()");
-        }
         if (!new TreeSet<>(variables.keySet()).equals(new TreeSet<>(id.variables()))) {
             throw new IllegalArgumentException("Variables du prompt %s : attendues %s, fournies %s"
                     .formatted(id, new TreeSet<>(id.variables()), new TreeSet<>(variables.keySet())));

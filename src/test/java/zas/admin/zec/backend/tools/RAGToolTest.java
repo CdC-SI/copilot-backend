@@ -10,20 +10,12 @@ import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.model.tool.ToolCallingChatOptions;
-import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.jdbc.core.JdbcTemplate;
 import reactor.core.publisher.Sinks;
 import zas.admin.zec.backend.config.ChatClientConfig;
-import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.actions.workspace.WorkspaceDto;
 import zas.admin.zec.backend.actions.workspace.WorkspaceService;
-import zas.admin.zec.backend.config.properties.Bm25Properties;
-import zas.admin.zec.backend.config.properties.QueryExpanderProperties;
-import zas.admin.zec.backend.config.properties.QueryRewriterProperties;
-import zas.admin.zec.backend.config.properties.RetrievingProperties;
 import zas.admin.zec.backend.prompts.PromptRegistry;
 import zas.admin.zec.backend.rag.remote.ZiaRagDocumentRetriever;
-import zas.admin.zec.backend.rag.reranker.DocumentReranker;
 import zas.admin.zec.backend.rag.token.Token;
 
 import java.util.ArrayList;
@@ -42,14 +34,13 @@ class RAGToolTest {
 
     @Test
     void missingQueryReturnsAnErrorMessageInsteadOfThrowing() {
-        var vectorStore = mock(VectorStore.class);
-        var tool = new RAGTool(ChatClientConfig.builder(mock(ChatModel.class), ObservationRegistry.NOOP), vectorStore, mock(UserService.class), mock(DocumentReranker.class),
-                mock(RetrievingProperties.class), mock(JdbcTemplate.class), mock(SourceResolver.class),
-                mock(WorkspaceService.class), mock(WorkspaceInferenceMonitoringService.class), new PromptRegistry(), localRetrieval());
+        var ziaRag = mock(ZiaRagDocumentRetriever.class);
+        var tool = new RAGTool(ChatClientConfig.builder(mock(ChatModel.class), ObservationRegistry.NOOP), mock(SourceResolver.class),
+                mock(WorkspaceService.class), mock(WorkspaceInferenceMonitoringService.class), new PromptRegistry(), ziaRag);
 
         assertEquals(RAGTool.MISSING_QUERY, tool.searchSocialInsuranceDocumentation(null, new ToolContext(new HashMap<>())));
         assertEquals(RAGTool.MISSING_QUERY, tool.searchSocialInsuranceDocumentation("  ", new ToolContext(new HashMap<>())));
-        verifyNoInteractions(vectorStore);
+        verifyNoInteractions(ziaRag);
     }
 
     /** Le workspace déjà résolu dans le tour se relit dans la référence partagée par les appels du tour. */
@@ -83,8 +74,8 @@ class RAGToolTest {
         when(workspaceService.getAll()).thenReturn(List.of(workspace("AFAC"), workspace("RH")));
         var monitoring = mock(WorkspaceInferenceMonitoringService.class);
 
-        var tool = new RAGTool(ChatClientConfig.builder(chatModel, ObservationRegistry.NOOP), mock(VectorStore.class), mock(UserService.class), mock(DocumentReranker.class),
-                retrievalWithoutQueryTransformation(), mock(JdbcTemplate.class), sourceResolver, workspaceService, monitoring, new PromptRegistry(), localRetrieval());
+        var tool = new RAGTool(ChatClientConfig.builder(chatModel, ObservationRegistry.NOOP), sourceResolver, workspaceService,
+                monitoring, new PromptRegistry(), mock(ZiaRagDocumentRetriever.class));
 
         var resolvedWorkspace = new AtomicReference<String>();
         List<Token> emittedTokens = new CopyOnWriteArrayList<>();
@@ -114,24 +105,20 @@ class RAGToolTest {
     }
 
     /**
-     * Provider zia-rag (T2) : les requêtes dérivées, les sources du workspace, l'utilisateur et son jeton sont
-     * transmis à zia-rag ; ni le vector store ni le contrôle des droits internes local ne sont sollicités.
+     * La recherche est déléguée à zia-rag : la requête du LLM telle quelle (sans réécriture ni extension), les
+     * sources du workspace, l'utilisateur et son jeton ; aucun appel LLM hors inférence du workspace.
      */
     @Test
-    void ziaRagProviderDelegatesRetrieval() {
+    void retrievalIsDelegatedToZiaRag() {
+        var chatModel = mock(ChatModel.class);
         var sourceResolver = mock(SourceResolver.class);
         when(sourceResolver.resolve("AFAC")).thenReturn(List.of("afac"));
-        var vectorStore = mock(VectorStore.class);
-        var userService = mock(UserService.class);
         var ziaRag = mock(ZiaRagDocumentRetriever.class);
-        when(ziaRag.enabled()).thenReturn(true);
         when(ziaRag.retrieve(any(), any(), any(), any())).thenReturn(List.of(Document.builder().id("d1")
                 .text("Cotisation maximale : 530 francs.").metadata(Map.of("source", "afac")).score(0.9).build()));
 
-        var tool = new RAGTool(ChatClientConfig.builder(mock(ChatModel.class), ObservationRegistry.NOOP), vectorStore,
-                userService, mock(DocumentReranker.class), retrievalWithoutQueryTransformation(), mock(JdbcTemplate.class),
-                sourceResolver, mock(WorkspaceService.class), mock(WorkspaceInferenceMonitoringService.class),
-                new PromptRegistry(), ziaRag);
+        var tool = new RAGTool(ChatClientConfig.builder(chatModel, ObservationRegistry.NOOP), sourceResolver,
+                mock(WorkspaceService.class), mock(WorkspaceInferenceMonitoringService.class), new PromptRegistry(), ziaRag);
 
         var retrieved = new ArrayList<Document>();
         Map<String, Object> context = new HashMap<>();
@@ -144,24 +131,12 @@ class RAGToolTest {
 
         assertTrue(result.contains("Cotisation maximale : 530 francs."));
         assertEquals(List.of("d1"), retrieved.stream().map(Document::getId).toList());
-        verify(ziaRag).retrieve(argThat(queries -> queries.size() == 1
-                        && queries.getFirst().text().equals("Quelle est la cotisation maximale ?")),
-                eq(List.of("afac")), eq("u1"), eq("Bearer jwt"));
-        verifyNoInteractions(vectorStore, userService);
-    }
-
-    private static ZiaRagDocumentRetriever localRetrieval() {
-        return mock(ZiaRagDocumentRetriever.class);
+        verify(ziaRag).retrieve("Quelle est la cotisation maximale ?", List.of("afac"), "u1", "Bearer jwt");
+        verifyNoInteractions(chatModel);
     }
 
     private static Map<String, Object> referenceContext(AtomicReference<String> resolvedWorkspace) {
         return Map.of(ToolContextKeys.CTX_RESOLVED_WORKSPACE, resolvedWorkspace);
-    }
-
-    /** Récupération sans réécriture ni extension de requête et sans BM25 : seule l'inférence appelle le LLM. */
-    private static RetrievingProperties retrievalWithoutQueryTransformation() {
-        return new RetrievingProperties(5, null, new QueryRewriterProperties(false),
-                new QueryExpanderProperties(false, 0, false), new Bm25Properties(false, 0, null));
     }
 
     private static WorkspaceDto workspace(String name) {
