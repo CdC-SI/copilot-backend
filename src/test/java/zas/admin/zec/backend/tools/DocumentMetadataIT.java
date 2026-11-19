@@ -149,9 +149,7 @@ class DocumentMetadataIT {
         documentRepository.flush();
 
         assertEquals(setOf("a,b", "x", "y", null, "z"), new HashSet<>(documentRepository.findTagsBySources(List.of("t1"))));
-        assertEquals(setOf("a,b", "x", "y", null), new HashSet<>(documentRepository.findPublicTagsBySources(List.of("t1"))));
         assertEquals(setOf("a,b", "x", "y", null, "z", "w"), new HashSet<>(documentRepository.findAllTags()));
-        assertEquals(setOf("a,b", "x", "y", null, "w"), new HashSet<>(documentRepository.findPublicTags()));
         assertEquals(documentRepository.findAllTags().size(), new HashSet<>(documentRepository.findAllTags()).size());
     }
 

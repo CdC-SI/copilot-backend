@@ -20,7 +20,6 @@ import java.util.stream.Collectors;
  * Recherche exacte par métadonnées dans les processus métier ({@code business_process}).
  *
  * <ul>
- *   <li><b>Accès</b> : processus internes ZAS, réservés aux utilisateurs ayant accès aux documents internes.</li>
  *   <li><b>Version</b> : sauf filtre explicite sur une version ({@code id}, {@code bpanda_version},
  *       {@code valid_from}, {@code valid_to}), seule la dernière version de chaque processus est retournée —
  *       de préférence celle en vigueur ({@code valid_from <= now < valid_to}), sinon la plus récente
@@ -47,8 +46,6 @@ public class BusinessProcessLookup implements DocumentLookup {
             {JsonbFilterSqlBuilder.KEY_ID, "bpanda_version", "valid_from", "valid_to"};
     private static final DateTimeFormatter ISO_MINUTES = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm");
 
-    static final String NO_ACCESS_NOTICE =
-            "Business processes are internal documents: the current user is not allowed to access them.";
     static final String LATEST_ONLY_NOTICE =
             "Only the latest version (in force if any) of each process is returned. "
                     + "Filter on bpanda_version, valid_from or valid_to to obtain another version.";
@@ -78,10 +75,6 @@ public class BusinessProcessLookup implements DocumentLookup {
 
     @Override
     public LookupResult find(LookupRequest request) {
-        if (!request.hasInternalAccess()) {
-            return new LookupResult(List.of(), false, NO_ACCESS_NOTICE);
-        }
-
         var fragment = sqlBuilder.build(request.filters());
         boolean versionPinned = sqlBuilder.hasFilterOn(request.filters(), VERSION_KEYS);
         String language = request.language() != null ? request.language().strip() : "";

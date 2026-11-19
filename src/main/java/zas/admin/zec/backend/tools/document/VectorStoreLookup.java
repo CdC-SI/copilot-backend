@@ -15,8 +15,7 @@ import java.util.List;
 /**
  * Recherche exacte par métadonnées dans les chunks de documentation ({@code vector_store}).
  *
- * <p>Règles d'accès (documents internes ZAS, documents personnels d'autres utilisateurs) exprimées par
- * {@link #accessFilter}, converti en jsonpath par le {@link PgVectorFilterExpressionConverter}. Les résultats sont triés par document parent
+ * <p>Règle d'accès (documents personnels des autres utilisateurs exclus) exprimée par {@link #accessFilter}, converti en jsonpath par le {@link PgVectorFilterExpressionConverter}. Les résultats sont triés par document parent
  * puis par index de chunk, ce qui facilite la lecture de chunks voisins.</p>
  */
 @Slf4j
@@ -27,9 +26,7 @@ public class VectorStoreLookup implements DocumentLookup {
             JsonbFilterSqlBuilder.KEY_ID, "doc_id", "chunk_index", "title", "source", "url",
             "doc_type", "process_id", "bpmn_id", "lang", "version");
     private static final List<String> NUMERIC_KEYS = List.of("chunk_index");
-    private static final String META_ORGANIZATIONS = "organizations";
     private static final String META_USER_UUID = "user_uuid";
-    private static final String ORG_ZAS = "ZAS";
 
     private static final String CHUNK_INDEX_ORDER =
             "(CASE WHEN metadata ->> 'chunk_index' ~ '^[0-9]+$' THEN (metadata ->> 'chunk_index')::int END)";
@@ -56,7 +53,7 @@ public class VectorStoreLookup implements DocumentLookup {
     public LookupResult find(LookupRequest request) {
         var fragment = sqlBuilder.build(request.filters());
         String accessClause = accessConverter.convertExpression(
-                accessFilter(request.userId(), request.hasInternalAccess()));
+                accessFilter(request.userId()));
 
         String sql = """
                 SELECT id::text AS id, %s AS content, metadata::text AS metadata
@@ -80,20 +77,11 @@ public class VectorStoreLookup implements DocumentLookup {
     }
 
     /**
-     * Documents visibles : exclusion des documents internes ({@code organizations} contenant {@code ZAS}, valeur
-     * scalaire ou tableau) sauf droits, documents publics ou propres à l'utilisateur.
+     * Documents visibles : documents publics ({@code user_uuid} vide) et documents propres à l'utilisateur. Tous les
+     * utilisateurs étant internes, la métadonnée {@code organizations} n'est plus filtrée.
      */
-    static Filter.Expression accessFilter(String userId, boolean userHasAccessToInternalDocuments) {
+    static Filter.Expression accessFilter(String userId) {
         FilterExpressionBuilder builder = new FilterExpressionBuilder();
-        FilterExpressionBuilder.Op ownOrPublic =
-                builder.group(builder.or(builder.eq(META_USER_UUID, userId), builder.eq(META_USER_UUID, "")));
-        if (userHasAccessToInternalDocuments) {
-            return ownOrPublic.build();
-        }
-        // ne() seul ne suffit pas : sur un tableau, "!=" est vrai dès qu'un élément diffère (["ZAS","OFAS"]
-        // passerait) ; nin() exclut tout tableau contenant ZAS. ne() conserve l'exclusion historique des
-        // documents sans clé "organizations" (isNotNull() n'est pas supporté par le converter PgVector).
-        return builder.and(builder.and(builder.ne(META_ORGANIZATIONS, ORG_ZAS), builder.nin(META_ORGANIZATIONS, ORG_ZAS)),
-                ownOrPublic).build();
+        return builder.group(builder.or(builder.eq(META_USER_UUID, userId), builder.eq(META_USER_UUID, ""))).build();
     }
 }

@@ -13,7 +13,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * {@link VectorStoreLookup} sur une vraie base (jsonb, index V17) : navigation par doc_id / chunk_index,
- * règles d'accès identiques à RAGTool (documents internes, personnels) et robustesse des filtres.
+ * règle d'accès (documents personnels des autres utilisateurs exclus, métadonnée organizations ignorée) et
+ * robustesse des filtres.
  */
 class VectorStoreLookupIT extends AbstractDocumentLookupIT {
 
@@ -92,7 +93,7 @@ class VectorStoreLookupIT extends AbstractDocumentLookupIT {
 
     @Test
     void readsNeighbourChunksInChunkOrder() {
-        var result = lookup.find(request(List.of(eq("doc_id", "IT-D1"), in("chunk_index", "10", "1")), USER_A, false, "fr"));
+        var result = lookup.find(request(List.of(eq("doc_id", "IT-D1"), in("chunk_index", "10", "1")), USER_A, "fr"));
 
         assertEquals(List.of(D1_C1, D1_C10), ids(result));
         assertFalse(result.truncated());
@@ -100,56 +101,49 @@ class VectorStoreLookupIT extends AbstractDocumentLookupIT {
 
     @Test
     void chunkIndexRangeIsNumericNotLexicographic() {
-        var result = lookup.find(request(List.of(eq("doc_id", "IT-D1"), op("chunk_index", FilterOp.GTE, "2")), USER_A, false, "fr"));
+        var result = lookup.find(request(List.of(eq("doc_id", "IT-D1"), op("chunk_index", FilterOp.GTE, "2")), USER_A, "fr"));
 
         assertEquals(List.of(D1_C2, D1_C10), ids(result));
     }
 
     @Test
     void chunkIndexStoredAsStringIsMatchedNumerically() {
-        var result = lookup.find(request(List.of(eq("doc_id", "IT-D2"), eq("chunk_index", "0")), USER_A, true, "fr"));
+        var result = lookup.find(request(List.of(eq("doc_id", "IT-D2"), eq("chunk_index", "0")), USER_A, "fr"));
 
         assertEquals(List.of(INTERNAL), ids(result));
     }
 
     @Test
     void limitTruncatesAndFlagsMoreResults() {
-        var result = lookup.find(new DocumentLookup.LookupRequest(List.of(eq("doc_id", "IT-D1")), 2, USER_A, false, "fr", true));
+        var result = lookup.find(new DocumentLookup.LookupRequest(List.of(eq("doc_id", "IT-D1")), 2, USER_A, "fr", true));
 
         assertEquals(List.of(D1_C0, D1_C1), ids(result));
         assertTrue(result.truncated());
     }
 
     @Test
-    void internalDocumentsRequireInternalAccess() {
-        assertTrue(lookup.find(request(List.of(eq("doc_id", "IT-D2")), USER_A, false, "fr")).documents().isEmpty());
-        assertTrue(lookup.find(request(List.of(eq("doc_id", "IT-D3")), USER_A, false, "fr")).documents().isEmpty());
-        assertEquals(List.of(INTERNAL), ids(lookup.find(request(List.of(eq("doc_id", "IT-D2")), USER_A, true, "fr"))));
-        assertEquals(List.of(INTERNAL_SCALAR), ids(lookup.find(request(List.of(eq("doc_id", "IT-D3")), USER_A, true, "fr"))));
-    }
-
-    @Test
-    void documentsWithoutOrganizationsAreHiddenFromExternalUsersOnly() {
-        // Règle historique de RAGTool, réutilisée telle quelle.
-        assertTrue(lookup.find(request(List.of(eq("doc_id", "IT-D4")), USER_A, false, "fr")).documents().isEmpty());
-        assertEquals(List.of(NO_ORGANIZATIONS), ids(lookup.find(request(List.of(eq("doc_id", "IT-D4")), USER_A, true, "fr"))));
+    void organizationsMetadataDoesNotRestrictAccess() {
+        // Tous les utilisateurs sont internes : ZAS (tableau ou valeur scalaire) ou clé absente, tout est visible.
+        assertEquals(List.of(INTERNAL), ids(lookup.find(request(List.of(eq("doc_id", "IT-D2")), USER_A, "fr"))));
+        assertEquals(List.of(INTERNAL_SCALAR), ids(lookup.find(request(List.of(eq("doc_id", "IT-D3")), USER_A, "fr"))));
+        assertEquals(List.of(NO_ORGANIZATIONS), ids(lookup.find(request(List.of(eq("doc_id", "IT-D4")), USER_B, "fr"))));
     }
 
     @Test
     void personalDocumentsAreVisibleToTheirOwnerOnly() {
-        assertEquals(List.of(PERSONAL_A), ids(lookup.find(request(List.of(eq("doc_id", "IT-D5")), USER_A, true, "fr"))));
-        assertTrue(lookup.find(request(List.of(eq("doc_id", "IT-D5")), USER_B, true, "fr")).documents().isEmpty());
+        assertEquals(List.of(PERSONAL_A), ids(lookup.find(request(List.of(eq("doc_id", "IT-D5")), USER_A, "fr"))));
+        assertTrue(lookup.find(request(List.of(eq("doc_id", "IT-D5")), USER_B, "fr")).documents().isEmpty());
     }
 
     @Test
     void findsById() {
-        assertEquals(List.of(D1_C1), ids(lookup.find(request(List.of(eq("id", D1_C1)), USER_A, false, "fr"))));
+        assertEquals(List.of(D1_C1), ids(lookup.find(request(List.of(eq("id", D1_C1)), USER_A, "fr"))));
     }
 
     @Test
     void metadataOnlyKeepsNativeJsonTypesWithoutContent() {
         var result = lookup.find(new DocumentLookup.LookupRequest(
-                List.of(eq("doc_id", "IT-D1"), eq("chunk_index", "0")), 5, USER_A, false, "fr", false));
+                List.of(eq("doc_id", "IT-D1"), eq("chunk_index", "0")), 5, USER_A, "fr", false));
 
         var document = result.documents().getFirst();
         assertEquals("", document.getText());
@@ -162,22 +156,22 @@ class VectorStoreLookupIT extends AbstractDocumentLookupIT {
 
     @Test
     void findsProcessDescriptionsByDocType() {
-        var result = lookup.find(request(List.of(eq("doc_type", "business_process"), eq("process_id", "IT-PROC-A")), USER_A, true, "fr"));
+        var result = lookup.find(request(List.of(eq("doc_type", "business_process"), eq("process_id", "IT-PROC-A")), USER_A, "fr"));
 
         assertEquals(List.of(PROCESS_DESCRIPTION), ids(result));
     }
 
     @Test
     void valuesAreBoundNotInjected() {
-        var result = lookup.find(request(List.of(op("title", FilterOp.CONTAINS, "x' OR '1'='1")), USER_A, true, "fr"));
+        var result = lookup.find(request(List.of(op("title", FilterOp.CONTAINS, "x' OR '1'='1")), USER_A, "fr"));
 
         assertTrue(result.documents().isEmpty());
-        assertEquals(4, ids(lookup.find(request(List.of(eq("doc_id", "IT-D1")), USER_A, false, "fr"))).size());
+        assertEquals(4, ids(lookup.find(request(List.of(eq("doc_id", "IT-D1")), USER_A, "fr"))).size());
     }
 
     @Test
     void unknownKeysAreRejected() {
         assertThrows(JsonbFilterSqlBuilder.InvalidFilterException.class,
-                () -> lookup.find(request(List.of(eq("user_uuid", "")), USER_A, true, "fr")));
+                () -> lookup.find(request(List.of(eq("user_uuid", "")), USER_A, "fr")));
     }
 }

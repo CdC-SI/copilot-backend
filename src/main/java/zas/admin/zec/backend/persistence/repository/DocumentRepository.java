@@ -65,21 +65,6 @@ public interface DocumentRepository extends JpaRepository<DocumentEntity, UUID> 
 
     @Query(value = """
         SELECT DISTINCT t.tag AS tag
-        """ + TAGS_FROM + """
-        WHERE v.metadata ->> 'organizations' IS NULL OR v.metadata ->> 'organizations' = ''
-        """, nativeQuery = true)
-    List<String> findPublicTags();
-
-    @Query(value = """
-        SELECT DISTINCT t.tag AS tag
-        """ + TAGS_FROM + """
-        WHERE v.metadata ->> 'source' IN :sources
-        AND (v.metadata ->> 'organizations' IS NULL OR v.metadata ->> 'organizations' = '')
-        """, nativeQuery = true)
-    List<String> findPublicTagsBySources(List<String> sources);
-
-    @Query(value = """
-        SELECT DISTINCT t.tag AS tag
         """ + TAGS_FROM, nativeQuery = true)
     List<String> findAllTags();
 
@@ -89,13 +74,6 @@ public interface DocumentRepository extends JpaRepository<DocumentEntity, UUID> 
         WHERE v.metadata ->> 'source' IN :sources
         """, nativeQuery = true)
     List<String> findTagsBySources(List<String> sources);
-
-    @Query(value = """
-        SELECT DISTINCT metadata ->> 'source' AS source
-        FROM vector_store
-        WHERE metadata ->> 'organizations' IS NULL OR metadata ->> 'organizations' = ''
-        """, nativeQuery = true)
-    List<String> findPublicSources();
 
     @Query(value = """
         SELECT DISTINCT metadata ->> 'source' AS source

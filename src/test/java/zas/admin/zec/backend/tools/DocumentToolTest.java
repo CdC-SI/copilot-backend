@@ -4,7 +4,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.tool.annotation.Tool;
-import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.tools.document.*;
 
 import java.util.ArrayList;
@@ -50,7 +49,7 @@ class DocumentToolTest {
 
     @Test
     void limitIsCappedAtFiveDocumentsPerCall() {
-        var tool = new DocumentTool(List.of(lookup(8)), mock(UserService.class));
+        var tool = new DocumentTool(List.of(lookup(8)));
 
         String result = call(tool, 20);
         call(tool, null);

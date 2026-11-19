@@ -6,7 +6,6 @@ import org.springframework.ai.document.Document;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
-import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.rag.ChatStatus;
 import zas.admin.zec.backend.tools.document.*;
 
@@ -47,12 +46,10 @@ public class DocumentTool {
             """;
 
     private final Map<DocumentCollection, DocumentLookup> lookups;
-    private final UserService userService;
 
-    public DocumentTool(List<DocumentLookup> lookups, UserService userService) {
+    public DocumentTool(List<DocumentLookup> lookups) {
         this.lookups = lookups.stream().collect(Collectors.toMap(DocumentLookup::collection, Function.identity(),
                 (a, b) -> a, () -> new EnumMap<>(DocumentCollection.class)));
-        this.userService = userService;
     }
 
     @Tool(name = TOOL_NAME, description = """
@@ -113,11 +110,10 @@ public class DocumentTool {
             return "<error>Unsupported collection '%s'.</error>".formatted(target);
         }
 
-        boolean hasInternalAccess = !userId.isBlank() && userService.hasAccessToInternalDocuments(userId);
         DocumentLookup.LookupResult result;
         try {
             result = lookup.find(new DocumentLookup.LookupRequest(
-                    filters, effectiveLimit, userId, hasInternalAccess, language, type.includesContent()));
+                    filters, effectiveLimit, userId, language, type.includesContent()));
         } catch (JsonbFilterSqlBuilder.InvalidFilterException e) {
             log.debug("DocumentTool : filtre invalide {} ({})", filters, e.getMessage());
             return "<error>%s</error>".formatted(e.getMessage());

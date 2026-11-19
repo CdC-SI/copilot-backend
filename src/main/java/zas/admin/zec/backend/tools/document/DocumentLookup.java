@@ -6,8 +6,8 @@ import java.util.List;
 
 /**
  * Recherche exacte par métadonnées dans une collection donnée (cf. {@link DocumentCollection}).
- * Les implémentations appliquent systématiquement les règles d'accès (documents internes, documents
- * personnels) en plus des filtres fournis par le LLM.
+ * Les implémentations appliquent systématiquement les règles d'accès (documents personnels des autres
+ * utilisateurs exclus) en plus des filtres fournis par le LLM.
  */
 public interface DocumentLookup {
 
@@ -22,12 +22,11 @@ public interface DocumentLookup {
      * @param filters                 filtres fournis par le LLM
      * @param limit                   nombre maximal de résultats
      * @param userId                  utilisateur courant
-     * @param hasInternalAccess       accès aux documents internes (ZAS)
      * @param language                langue de l'utilisateur (préférence par défaut si pertinente)
      * @param includeContent          charger le contenu (sinon seules les métadonnées sont lues)
      */
     record LookupRequest(List<MetadataFilterSpec> filters, int limit, String userId,
-                         boolean hasInternalAccess, String language, boolean includeContent) {}
+                         String language, boolean includeContent) {}
 
     /**
      * @param documents résultats (métadonnées complètes ; marqueur de collection renseigné)
