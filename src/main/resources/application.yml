@@ -160,7 +160,7 @@ rag:
   # Recherche documentaire de RAGTool : service zia-rag (POST /api/v1/retrieval/documents), appelé avec le jeton Blue
   # de l'utilisateur. Nombre de documents, mode, reranker et seuils : valeurs par défaut de zia-rag (ZIA_RAG_DEFAULT_*).
   zia-rag:
-    base-url: ${ZIA_RAG_BASE_URL}
+    base-url: ${ZIA_RAG_BASE_URL:}
     connect-timeout: ${ZIA_RAG_CONNECT_TIMEOUT:2s}
     read-timeout: ${ZIA_RAG_READ_TIMEOUT:20s}
   document-tool:
