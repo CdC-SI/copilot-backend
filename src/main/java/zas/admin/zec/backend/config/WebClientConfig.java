@@ -28,9 +28,8 @@ import zas.admin.zec.backend.observability.CorrelationId;
 @Configuration
 @EnableJpaAuditing
 @EnableConfigurationProperties({ApplicationProperties.class, FAQSearchProperties.class,
-        RerankingProperties.class, DeepLProperties.class, ProxyProperties.class,
-        IdentityCheckProperties.class, RetrievingProperties.class, EmbeddingServiceProperties.class,
-        AttachmentOcrProperties.class, RagRetrievalProperties.class})
+        DeepLProperties.class, ProxyProperties.class, IdentityCheckProperties.class,
+        EmbeddingServiceProperties.class, AttachmentOcrProperties.class, ZiaRagProperties.class})
 public class WebClientConfig {
     private final ProxyProperties proxyProperties;
     private final IdentityCheckProperties identityCheckProperties;
@@ -58,7 +57,7 @@ public class WebClientConfig {
     }
 
     /**
-     * Builder des appels internes (reranker, service d'embedding) : observé (spans client, {@code traceparent}) et
+     * Builder des appels internes (service d'embedding) : observé (spans client, {@code traceparent}) et
      * porteur de l'en-tête {@code X-Correlation-Id}.
      */
     @Bean(name = "clientBuilderForInternalCalls")

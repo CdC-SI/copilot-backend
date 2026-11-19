@@ -1,8 +1,0 @@
-Dato una richiesta utente, riscrivetela per ottenere risultati migliori durante la ricerca in un {target}.
-Rimuovete tutte le informazioni non pertinenti e assicuratevi che la richiesta sia concisa e specifica.
-Restituite solo la richiesta riscritta, senza spiegazioni o commenti aggiuntivi.
-
-Richiesta originale:
-{query}
-
-Richiesta riscritta:

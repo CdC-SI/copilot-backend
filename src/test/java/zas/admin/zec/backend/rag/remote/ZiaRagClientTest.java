@@ -11,7 +11,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestClient;
-import zas.admin.zec.backend.config.properties.RagRetrievalProperties;
+import zas.admin.zec.backend.config.properties.ZiaRagProperties;
 import zas.admin.zec.backend.observability.CorrelationId;
 
 import java.util.List;
@@ -25,8 +25,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 /** Contrat HTTP avec zia-rag : corps de requête, en-têtes Blue et de corrélation, lecture des documents. */
 class ZiaRagClientTest {
 
-    private static final RagRetrievalProperties.ZiaRag ZIA_RAG =
-            new RagRetrievalProperties.ZiaRag("http://zia-rag", null, null);
+    private static final ZiaRagProperties ZIA_RAG = new ZiaRagProperties("http://zia-rag", null, null);
 
     private MockRestServiceServer server;
     private ZiaRagClient client;
@@ -52,8 +51,7 @@ class ZiaRagClientTest {
                 .andExpect(header(CorrelationId.HEADER, "corr-1"))
                 .andExpect(content().json("""
                         {"question": "Quelle cotisation ?", "userId": "u1",
-                         "config": {"topK": 5, "useReranker": true, "searchMode": "VECTOR",
-                                    "metadataFilters": {"source": ["afac"]}, "minRerankScore": 0.5}}
+                         "config": {"metadataFilters": {"source": ["afac"]}}}
                         """, true))
                 .andRespond(withSuccess("""
                         [{"id": "d1", "text": "Texte", "metadata": {"source": "afac"}, "score": 0.8,
@@ -61,7 +59,7 @@ class ZiaRagClientTest {
                         """, MediaType.APPLICATION_JSON));
 
         var documents = client.retrieve(new ZiaRagClient.Request("Quelle cotisation ?",
-                new ZiaRagClient.Config(5, true, "VECTOR", Map.of("source", List.of("afac")), 0.5), "u1"), "Bearer jwt");
+                new ZiaRagClient.Config(Map.of("source", List.of("afac"))), "u1"), "Bearer jwt");
 
         server.verify();
         assertEquals(1, documents.size());
@@ -76,12 +74,11 @@ class ZiaRagClientTest {
         server.expect(requestTo("http://zia-rag/api/v1/retrieval/documents"))
                 .andExpect(headerDoesNotExist("Blue"))
                 .andExpect(content().json("""
-                        {"question": "q", "config": {"topK": 5, "useReranker": false, "searchMode": "HYBRID"}}
+                        {"question": "q"}
                         """, true))
                 .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
 
-        assertTrue(client.retrieve(new ZiaRagClient.Request("q",
-                new ZiaRagClient.Config(5, false, "HYBRID", null, null), null), null).isEmpty());
+        assertTrue(client.retrieve(new ZiaRagClient.Request("q", null, null), null).isEmpty());
         server.verify();
     }
 
@@ -90,15 +87,13 @@ class ZiaRagClientTest {
         server.expect(requestTo("http://zia-rag/api/v1/retrieval/documents"))
                 .andRespond(withStatus(HttpStatus.SERVICE_UNAVAILABLE));
 
-        var request = new ZiaRagClient.Request("q", new ZiaRagClient.Config(5, false, "VECTOR", null, null), null);
+        var request = new ZiaRagClient.Request("q", null, null);
         assertThrows(HttpServerErrorException.class, () -> client.retrieve(request, null));
     }
 
     @Test
-    void requiresBaseUrlWhenEnabled() {
-        var properties = new RagRetrievalProperties(RagRetrievalProperties.Provider.ZIA_RAG,
-                new RagRetrievalProperties.ZiaRag(" ", null, null));
-        assertThrows(IllegalStateException.class,
-                () -> ZiaRagClient.configure(RestClient.builder(), properties.ziaRag(), ObservationRegistry.NOOP));
+    void requiresBaseUrl() {
+        assertThrows(IllegalStateException.class, () -> ZiaRagClient.configure(RestClient.builder(),
+                new ZiaRagProperties(" ", null, null), ObservationRegistry.NOOP));
     }
 }

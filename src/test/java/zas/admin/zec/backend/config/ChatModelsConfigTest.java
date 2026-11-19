@@ -79,7 +79,7 @@ class ChatModelsConfigTest {
         beanFactory.registerSingleton("observationRegistry", observationRegistry);
         return new ChatModelsConfig(new InternalChatModelProperties(
                 "test-key", "vision-model", baseUrl, "chat-model", baseUrl + "/",
-                "embedding-model", baseUrl, 1024, "reranker-model", baseUrl),
+                "embedding-model", baseUrl, 1024),
                 new LlmResilienceProperties(Duration.ofSeconds(10), Duration.ofSeconds(10), 2,
                         Duration.ofMillis(1), Duration.ofMillis(5),
                         new LlmResilienceProperties.CircuitBreaker(50, 20, 10, Duration.ofSeconds(30)), fallback),

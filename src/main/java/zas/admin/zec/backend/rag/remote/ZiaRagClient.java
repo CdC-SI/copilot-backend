@@ -12,7 +12,7 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
-import zas.admin.zec.backend.config.properties.RagRetrievalProperties;
+import zas.admin.zec.backend.config.properties.ZiaRagProperties;
 import zas.admin.zec.backend.observability.CorrelationId;
 
 import java.util.List;
@@ -31,22 +31,19 @@ public class ZiaRagClient {
     private final RestClient restClient;
 
     @Autowired
-    public ZiaRagClient(RagRetrievalProperties properties, ObjectProvider<ObservationRegistry> observationRegistry) {
-        this(properties.ziaRagEnabled()
-                ? configure(RestClient.builder(), properties.ziaRag(),
-                        observationRegistry.getIfUnique(() -> ObservationRegistry.NOOP)).build()
-                : null);
+    public ZiaRagClient(ZiaRagProperties properties, ObjectProvider<ObservationRegistry> observationRegistry) {
+        this(configure(RestClient.builder(), properties,
+                observationRegistry.getIfUnique(() -> ObservationRegistry.NOOP)).build());
     }
 
     ZiaRagClient(RestClient restClient) {
         this.restClient = restClient;
     }
 
-    static RestClient.Builder configure(RestClient.Builder builder, RagRetrievalProperties.ZiaRag ziaRag,
+    static RestClient.Builder configure(RestClient.Builder builder, ZiaRagProperties ziaRag,
                                         ObservationRegistry observationRegistry) {
         if (ziaRag.baseUrl() == null || ziaRag.baseUrl().isBlank()) {
-            throw new IllegalStateException("rag.retrieval.zia-rag.base-url (ZIA_RAG_BASE_URL) est requis "
-                    + "quand rag.retrieval.provider=zia-rag");
+            throw new IllegalStateException("rag.zia-rag.base-url (ZIA_RAG_BASE_URL) est requis");
         }
         var settings = HttpClientSettings.defaults().withTimeouts(ziaRag.connectTimeout(), ziaRag.readTimeout());
         return builder
@@ -58,9 +55,6 @@ public class ZiaRagClient {
 
     /** Documents les plus pertinents pour la requête ; {@code bearer} : jeton Blue de l'utilisateur ({@code Bearer <jwt>}). */
     public List<Document> retrieve(Request request, String bearer) {
-        if (restClient == null) {
-            throw new IllegalStateException("zia-rag n'est pas le provider de recherche (rag.retrieval.provider)");
-        }
         List<RetrievedDocument> documents = restClient.post()
                 .uri(DOCUMENTS_PATH)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -79,10 +73,12 @@ public class ZiaRagClient {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public record Request(String question, Config config, String userId) {}
 
-    /** Configuration de la recherche zia-rag ({@code RetrievalConfig}). */
+    /**
+     * Configuration de la recherche zia-rag ({@code RetrievalConfig}) : seul le filtre sur les métadonnées est
+     * transmis, les autres réglages sont les valeurs par défaut de zia-rag.
+     */
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record Config(Integer topK, Boolean useReranker, String searchMode,
-                         Map<String, List<String>> metadataFilters, Double minRerankScore) {}
+    public record Config(Map<String, List<String>> metadataFilters) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     record RetrievedDocument(String id, String text, Map<String, Object> metadata, Double score) {

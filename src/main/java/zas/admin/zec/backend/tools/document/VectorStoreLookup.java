@@ -2,11 +2,12 @@ package zas.admin.zec.backend.tools.document;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
+import org.springframework.ai.vectorstore.filter.Filter;
+import org.springframework.ai.vectorstore.filter.FilterExpressionBuilder;
 import org.springframework.ai.vectorstore.filter.FilterExpressionConverter;
 import org.springframework.ai.vectorstore.pgvector.PgVectorFilterExpressionConverter;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
-import zas.admin.zec.backend.tools.RAGTool;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,9 +15,8 @@ import java.util.List;
 /**
  * Recherche exacte par métadonnées dans les chunks de documentation ({@code vector_store}).
  *
- * <p>Les règles d'accès sont identiques à celles de {@link RAGTool} (documents internes ZAS,
- * documents personnels d'autres utilisateurs) et réutilisent le même filtre, converti en jsonpath
- * par le {@link PgVectorFilterExpressionConverter}. Les résultats sont triés par document parent
+ * <p>Règles d'accès (documents internes ZAS, documents personnels d'autres utilisateurs) exprimées par
+ * {@link #accessFilter}, converti en jsonpath par le {@link PgVectorFilterExpressionConverter}. Les résultats sont triés par document parent
  * puis par index de chunk, ce qui facilite la lecture de chunks voisins.</p>
  */
 @Slf4j
@@ -27,6 +27,9 @@ public class VectorStoreLookup implements DocumentLookup {
             JsonbFilterSqlBuilder.KEY_ID, "doc_id", "chunk_index", "title", "source", "url",
             "doc_type", "process_id", "bpmn_id", "lang", "version");
     private static final List<String> NUMERIC_KEYS = List.of("chunk_index");
+    private static final String META_ORGANIZATIONS = "organizations";
+    private static final String META_USER_UUID = "user_uuid";
+    private static final String ORG_ZAS = "ZAS";
 
     private static final String CHUNK_INDEX_ORDER =
             "(CASE WHEN metadata ->> 'chunk_index' ~ '^[0-9]+$' THEN (metadata ->> 'chunk_index')::int END)";
@@ -53,7 +56,7 @@ public class VectorStoreLookup implements DocumentLookup {
     public LookupResult find(LookupRequest request) {
         var fragment = sqlBuilder.build(request.filters());
         String accessClause = accessConverter.convertExpression(
-                RAGTool.metadataFilter(List.of(), request.userId(), request.hasInternalAccess()));
+                accessFilter(request.userId(), request.hasInternalAccess()));
 
         String sql = """
                 SELECT id::text AS id, %s AS content, metadata::text AS metadata
@@ -74,5 +77,23 @@ public class VectorStoreLookup implements DocumentLookup {
 
         boolean truncated = rows.size() > request.limit();
         return new LookupResult(truncated ? rows.subList(0, request.limit()) : rows, truncated, null);
+    }
+
+    /**
+     * Documents visibles : exclusion des documents internes ({@code organizations} contenant {@code ZAS}, valeur
+     * scalaire ou tableau) sauf droits, documents publics ou propres à l'utilisateur.
+     */
+    static Filter.Expression accessFilter(String userId, boolean userHasAccessToInternalDocuments) {
+        FilterExpressionBuilder builder = new FilterExpressionBuilder();
+        FilterExpressionBuilder.Op ownOrPublic =
+                builder.group(builder.or(builder.eq(META_USER_UUID, userId), builder.eq(META_USER_UUID, "")));
+        if (userHasAccessToInternalDocuments) {
+            return ownOrPublic.build();
+        }
+        // ne() seul ne suffit pas : sur un tableau, "!=" est vrai dès qu'un élément diffère (["ZAS","OFAS"]
+        // passerait) ; nin() exclut tout tableau contenant ZAS. ne() conserve l'exclusion historique des
+        // documents sans clé "organizations" (isNotNull() n'est pas supporté par le converter PgVector).
+        return builder.and(builder.and(builder.ne(META_ORGANIZATIONS, ORG_ZAS), builder.nin(META_ORGANIZATIONS, ORG_ZAS)),
+                ownOrPublic).build();
     }
 }

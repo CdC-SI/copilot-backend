@@ -1,94 +1,40 @@
 package zas.admin.zec.backend.rag.remote;
 
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
-import org.springframework.ai.rag.Query;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
-import zas.admin.zec.backend.config.properties.RagRetrievalProperties;
-import zas.admin.zec.backend.config.properties.RerankingProperties;
-import zas.admin.zec.backend.config.properties.RetrievingProperties;
 
-import java.util.*;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 
 /**
- * Recherche documentaire de {@code RAGTool} déléguée à zia-rag (T2) : un appel par requête dérivée (réécriture,
- * extension), puis jointure comme {@code RankedDocumentJoiner} (seuil, dédoublonnage au meilleur score, tri, limite).
- * La configuration reprend {@code rag.retrieving} et {@code rag.reranking} : top-k, mode hybride si BM25 est activé,
- * reranker et seuil de score.
+ * Recherche documentaire de {@code RAGTool}, déléguée à zia-rag : seuls la question, le filtre de sources et
+ * l'utilisateur sont transmis ; nombre de documents, mode de recherche, reranking et seuils sont les valeurs par
+ * défaut de zia-rag ({@code zia.rag.retrieval.*}).
  */
-@Slf4j
 @Component
 public class ZiaRagDocumentRetriever {
 
     static final String META_SOURCE = "source";
-    private static final int DEFAULT_LIMIT_WHEN_RERANKER_DISABLED = 10;
 
     private final ZiaRagClient client;
-    private final RagRetrievalProperties retrievalProperties;
-    private final RetrievingProperties retrievingProperties;
-    private final RerankingProperties rerankingProperties;
 
-    public ZiaRagDocumentRetriever(ZiaRagClient client, RagRetrievalProperties retrievalProperties,
-                                   RetrievingProperties retrievingProperties, RerankingProperties rerankingProperties) {
+    public ZiaRagDocumentRetriever(ZiaRagClient client) {
         this.client = client;
-        this.retrievalProperties = retrievalProperties;
-        this.retrievingProperties = retrievingProperties;
-        this.rerankingProperties = rerankingProperties;
-    }
-
-    public boolean enabled() {
-        return retrievalProperties.ziaRagEnabled();
     }
 
     /**
-     * Documents pertinents pour les requêtes, limités aux sources données (toutes si vide) ; documents publics et
-     * privés de {@code userId}. Un échec sur une requête est ignoré tant qu'au moins une requête aboutit.
+     * Documents pertinents pour la question, limités aux sources données (toutes si vide) : documents publics et
+     * privés de {@code userId}. {@code bearer} : jeton Blue de l'utilisateur.
      */
-    public List<Document> retrieve(List<Query> queries, Collection<String> sources, String userId, String bearer) {
-        var config = config(sources);
+    public List<Document> retrieve(String question, Collection<String> sources, String userId, String bearer) {
         String user = userId == null || userId.isBlank() ? null : userId;
-        List<Document> retrieved = new ArrayList<>();
-        RuntimeException lastFailure = null;
-        int failures = 0;
-        for (Query query : queries) {
-            try {
-                retrieved.addAll(client.retrieve(new ZiaRagClient.Request(query.text(), config, user), bearer));
-            } catch (RuntimeException e) {
-                failures++;
-                lastFailure = e;
-                log.warn("zia-rag : échec de la recherche pour une requête ({})", e.getMessage());
-            }
-        }
-        if (lastFailure != null && failures == queries.size()) {
-            throw lastFailure;
-        }
-        return join(retrieved);
+        return client.retrieve(new ZiaRagClient.Request(question, config(sources), user), bearer);
     }
 
-    ZiaRagClient.Config config(Collection<String> sources) {
-        boolean reranking = Boolean.TRUE.equals(rerankingProperties.enabled());
-        boolean hybrid = retrievingProperties.bm25() != null && Boolean.TRUE.equals(retrievingProperties.bm25().enabled());
-        Map<String, List<String>> filters = CollectionUtils.isEmpty(sources)
-                ? null : Map.of(META_SOURCE, List.copyOf(sources));
-        return new ZiaRagClient.Config(retrievingProperties.topK(), reranking, hybrid ? "HYBRID" : "VECTOR", filters,
-                reranking ? rerankingProperties.scoreThreshold().doubleValue() : null);
-    }
-
-    List<Document> join(List<Document> documents) {
-        float threshold = rerankingProperties.scoreThreshold();
-        long limit = Boolean.TRUE.equals(rerankingProperties.enabled())
-                ? rerankingProperties.topK() : DEFAULT_LIMIT_WHEN_RERANKER_DISABLED;
-        return documents.stream()
-                .filter(document -> document.getScore() != null && document.getScore() > threshold)
-                .collect(Collectors.toMap(Document::getId, Function.identity(),
-                        (existing, duplicate) -> duplicate.getScore() > existing.getScore() ? duplicate : existing,
-                        LinkedHashMap::new))
-                .values().stream()
-                .sorted(Comparator.comparingDouble(Document::getScore).reversed())
-                .limit(limit)
-                .toList();
+    static ZiaRagClient.Config config(Collection<String> sources) {
+        return CollectionUtils.isEmpty(sources)
+                ? null : new ZiaRagClient.Config(Map.of(META_SOURCE, List.copyOf(sources)));
     }
 }

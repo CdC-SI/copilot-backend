@@ -1,8 +1,0 @@
-Angesichts einer Benutzeranfrage, schreiben Sie diese um, um bessere Ergebnisse bei der Suche in einem {target} zu erzielen.
-Entfernen Sie alle irrelevanten Informationen und stellen Sie sicher, dass die Anfrage prägnant und spezifisch ist.
-Geben Sie nur die umgeschriebene Anfrage zurück, ohne zusätzliche Erklärungen oder Kommentare.
-
-Originalanfrage:
-{query}
-
-Umgeschriebene Anfrage:
