@@ -52,7 +52,9 @@ import java.util.concurrent.atomic.AtomicReference;
  * inférence précédente) : une consigne prioritaire est alors ajoutée au message utilisateur courant pour rendre
  * l'appel à {@link RAGTool} obligatoire (et non au system prompt, qui reste identique d'un tour à l'autre).
  *
- * <p>Active pour les conversations de type {@link ConversationType#COMPLETE}.</p>
+ * <p>Agent unique (F17) : utilisé pour toutes les conversations ({@link ConversationType#COMPLETE}). Le system prompt
+ * impose la recherche documentaire pour le domaine officiel (1er pilier, RH, CdC) et laisse le LLM répondre
+ * directement aux demandes générales.</p>
  *
  * <p>Les données non fournies par le LLM (userId, langue, workspace, conversationId, budget d'appels)
  * transitent par le {@code ToolContext}. Les documents récupérés par les tools sont collectés via une

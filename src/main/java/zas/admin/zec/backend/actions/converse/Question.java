@@ -13,7 +13,8 @@ public record Question(
     String responseStyle,
     String responseFormat,
     String conversationId,
-    Boolean ragEnabled,
+    // Ignoré depuis l'agent unique (F17) : accepté pour la compatibilité des clients, à retirer ensuite.
+    @Deprecated(forRemoval = true) Boolean ragEnabled,
     // Régénération / édition : identifiant de la réponse à remplacer, qui doit être la dernière de la conversation.
     // La dernière question et cette réponse sont exclues du contexte, puis supprimées à l'enregistrement du nouvel échange.
     String replaceMessageId) {
@@ -26,8 +27,7 @@ public record Question(
             this.responseStyle() != null ? this.responseStyle() : "DETAILED",
             this.responseFormat() != null ? this.responseFormat() : "COMPLETE",
             this.conversationId() != null ? this.conversationId() : UUID.randomUUID().toString(),
-            // Rétrocompatibilité : si absent, toutes les fonctionnalités (RAG + Attachment) sont actives.
-            this.ragEnabled() != null ? this.ragEnabled() : Boolean.TRUE,
+            this.ragEnabled(),
             this.replaceMessageId() != null && !this.replaceMessageId().isBlank() ? this.replaceMessageId() : null
         );
     }
