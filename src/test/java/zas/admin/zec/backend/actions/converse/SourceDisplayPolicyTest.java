@@ -86,6 +86,20 @@ class SourceDisplayPolicyTest {
     }
 
     @Test
+    void explicitlyEmptyUsedAfterAFollowupDisplaysNoSource() {
+        // Changement de sujet après une clarification documentaire : la demande générale ne reprend pas ses sources.
+        var history = List.of(
+                user("q1"), assistant("précisez ?", new TurnTrace(TurnStatus.FOLLOWUP, List.of(doc("a"))), List.of()),
+                user("Écris-moi un poème sur l'automne"));
+
+        var outcome = SourceDisplayPolicy.decide(Optional.of(new TurnMeta(TurnStatus.ANSWER, List.of(), true)),
+                List.of(doc("b")), history, "c");
+
+        assertTrue(outcome.displayed().isEmpty());
+        assertEquals(List.of("b"), outcome.trace().sources().stream().map(ConsultedSource::id).toList());
+    }
+
+    @Test
     void usedRestrictsDisplayedSourcesToTheDeclaredDocuments() {
         var outcome = SourceDisplayPolicy.decide(meta(TurnStatus.ANSWER, "p", "a"),
                 List.of(doc("a"), doc("b"), process("p")), List.of(), "c");

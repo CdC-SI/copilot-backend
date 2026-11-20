@@ -1,19 +1,14 @@
 package zas.admin.zec.backend.actions.converse;
 
 /**
- * Type d'une conversation, déterminé une fois pour toutes à la première question qui
- * l'initie, puis immuable pendant toute la durée de vie de la conversation.
+ * Type d'une conversation, persisté dans {@code chat_title} et renvoyé avec les titres.
  *
- * <p>Sert de critère de sélection à {@link ChatServiceFactory} : contrairement au flag
- * {@link Question#ragEnabled()} (qui peut varier d'une question à l'autre au sein d'une
- * même conversation), le {@code ConversationType} est figé et persisté dès la création de
- * la conversation.</p>
+ * <p>Sert de critère de sélection à {@link ChatServiceFactory}. Depuis l'agent unique (F17), toutes les
+ * conversations sont de type {@link #COMPLETE} : l'ancien type {@code NO_RAG} (conversation « sans Corpus »)
+ * a été migré (V25).</p>
  */
 public enum ConversationType {
 
-    /** Fonctionnalités complètes : RAG + pièces jointes ({@link RAGChatService}). */
-    COMPLETE,
-
-    /** Pièces jointes uniquement, sans recherche documentaire ({@link AttachmentChatService}). */
-    NO_RAG
+    /** Agent unique : recherche documentaire, documents, pièces jointes et demandes générales ({@link RAGChatService}). */
+    COMPLETE
 }

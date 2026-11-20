@@ -25,7 +25,6 @@ import zas.admin.zec.backend.config.ChatClientConfig;
 import zas.admin.zec.backend.config.properties.AttachmentOcrProperties;
 import zas.admin.zec.backend.observability.TurnUsageEvent;
 import zas.admin.zec.backend.persistence.entity.AttachmentEntity;
-import zas.admin.zec.backend.persistence.entity.ConversationTitleEntity;
 import zas.admin.zec.backend.persistence.entity.MessageEntity;
 import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
 import zas.admin.zec.backend.persistence.repository.ConversationRepository;
@@ -131,7 +130,7 @@ public class ConversationService {
             save(message, userId, conversationId);
         }
 
-        // Flux FAQ : pas de notion de ragEnabled, conversation toujours de type COMPLETE.
+        // Flux FAQ : conversation de type COMPLETE, comme toutes les conversations.
         if (insertPlaceholderTitle(userId, conversationId, messages.get(0).message(), ConversationType.COMPLETE)) {
             generateConversationTitle(messages.get(0).message(), messages.get(1).message(), userId, conversationId,
                     messages.get(0).lang());
@@ -194,10 +193,8 @@ public class ConversationService {
         // pour qu'aucun enregistrement n'ait lieu (l'éventuel échange remplacé est alors conservé).
         AtomicBoolean persisted = new AtomicBoolean(false);
 
-        // Type de la conversation : figé à sa création (1re question), immuable ensuite.
-        // Pour une conversation existante, on réutilise le type persisté ; pour une nouvelle
-        // conversation, on conserve l'usage actuel du flag ragEnabled.
-        ConversationType conversationType = resolveConversationType(question, userId);
+        // Agent unique (F17) : toutes les conversations sont de type COMPLETE (ragEnabled est ignoré).
+        ConversationType conversationType = ConversationType.COMPLETE;
 
         // Régénération / édition : la réponse à remplacer doit être la dernière de la conversation (409 sinon).
         // Le dernier échange est exclu du contexte, puis supprimé à l'enregistrement du nouvel échange.
@@ -366,20 +363,6 @@ public class ConversationService {
 
     private static <T> CompletableFuture<T> callAsync(Supplier<T> task) {
         return CompletableFuture.supplyAsync(task, runnable -> Schedulers.boundedElastic().schedule(runnable));
-    }
-
-    /**
-     * Détermine le {@link ConversationType} applicable à la question courante : si la
-     * conversation existe déjà (ligne {@code chat_title} présente), son type persisté est
-     * réutilisé tel quel (immutable) ; sinon (nouvelle conversation), le type est dérivé du
-     * flag {@link Question#ragEnabled()} fourni par le client, comme actuellement.
-     */
-    private ConversationType resolveConversationType(Question question, String userId) {
-        return conversationTitleRepository.findByUserIdAndConversationId(userId, question.conversationId())
-                .map(ConversationTitleEntity::getConversationType)
-                .orElseGet(() -> question.ragEnabled() != null && !question.ragEnabled()
-                        ? ConversationType.NO_RAG
-                        : ConversationType.COMPLETE);
     }
 
     /**

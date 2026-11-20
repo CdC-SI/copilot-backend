@@ -8,10 +8,8 @@ import java.util.List;
  */
 public enum PromptId {
 
-    /** Prompt système de l'agent RAG ({@code RAGChatService}). */
+    /** Prompt système de l'agent unique ({@code RAGChatService}). */
     AGENTIC_SYSTEM("agentic-system", "response_format"),
-    /** Prompt système des conversations sans RAG ({@code AttachmentChatService}). */
-    ATTACHMENT_SYSTEM("attachment-system", "response_format"),
     /** Consigne de recherche obligatoire lorsque l'utilisateur a choisi le workspace. */
     FORCED_RETRIEVAL_DIRECTIVE("forced-retrieval-directive", "workspace"),
     /** Classification de la question parmi les workspaces ({@code RAGTool}). */

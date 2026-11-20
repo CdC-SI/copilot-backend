@@ -18,9 +18,10 @@ import java.util.*;
  * <ul>
  *   <li>{@link TurnStatus#ANSWER} : les documents déclarés dans {@code used} (ceux sur lesquels la réponse s'appuie),
  *       pris parmi les documents du tour, des questions de suivi précédentes et des tours antérieurs, plus les pièces
- *       jointes lues pendant le tour (toujours affichées). Si {@code used}
- *       est vide ou ne contient aucun identifiant valide : documents consultés pendant le tour + pendant les questions
- *       de suivi immédiatement précédentes.</li>
+ *       jointes lues pendant le tour (toujours affichées). Si {@code used} est explicitement vide
+ *       ({@code used=""} : réponse sans document, ex. demande générale) : seules les pièces jointes lues pendant le
+ *       tour. Si {@code used} est absent ou ne contient aucun identifiant valide : documents consultés pendant le
+ *       tour + pendant les questions de suivi immédiatement précédentes.</li>
  *   <li>{@link TurnStatus#FOLLOWUP} : aucune source affichée (elles sont conservées dans la trace du tour).</li>
  *   <li>{@link TurnStatus#REFUSAL} : aucune source affichée.</li>
  *   <li>{@link TurnStatus#UNKNOWN} (balise absente / invalide) : comportement historique, sources du tour.</li>
@@ -64,14 +65,21 @@ final class SourceDisplayPolicy {
         List<SourceToken> displayed = switch (status) {
             case FOLLOWUP, REFUSAL -> List.of();
             case UNKNOWN -> displayed(current);
-            case ANSWER -> answerSources(current, history, used, currentById, earlier, conversationId);
+            case ANSWER -> answerSources(current, history, used, meta.get().noDocuments(), currentById, earlier,
+                    conversationId);
         };
         return new Outcome(status, displayed, new TurnTrace(status, current, used, List.of()));
     }
 
     private static List<SourceToken> answerSources(List<ConsultedSource> current, List<Message> history,
-                                                   UsedDocuments used, Map<String, ConsultedSource> currentById,
+                                                   UsedDocuments used, boolean noDocuments,
+                                                   Map<String, ConsultedSource> currentById,
                                                    Map<String, ConsultedSource> earlier, String conversationId) {
+        if (noDocuments) {
+            // Réponse déclarée sans document : pas de repli vers les sources consultées (ni celles d'un suivi
+            // précédent), seules les pièces jointes lues pendant le tour restent affichées.
+            return displayed(current.stream().filter(ConsultedSource::isAttachment).toList());
+        }
         List<ConsultedSource> consulted = new ArrayList<>(current);
         consulted.addAll(pendingFollowupSources(history));
         if (used.isEmpty()) {

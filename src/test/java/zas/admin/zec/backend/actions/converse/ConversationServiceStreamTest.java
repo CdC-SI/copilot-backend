@@ -446,7 +446,6 @@ class ConversationServiceStreamTest {
                 .query("Question ?")
                 .language("fr")
                 .conversationId(CONVERSATION)
-                .ragEnabled(true)
                 .replaceMessageId(replaceMessageId)
                 .build()
                 .withDefaults();

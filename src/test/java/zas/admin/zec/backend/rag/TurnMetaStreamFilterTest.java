@@ -64,6 +64,21 @@ class TurnMetaStreamFilterTest {
     }
 
     @Test
+    void distinguishesExplicitlyEmptyUsedFromMissingOrInvalidIds() {
+        var empty = new TurnMetaStreamFilter();
+        run(empty, "Bonjour !<turn_meta status=\"answer\" used=\"\"/>");
+        assertTrue(empty.meta().orElseThrow().noDocuments());
+
+        var missing = new TurnMetaStreamFilter();
+        run(missing, "Réponse.<turn_meta status=\"answer\"/>");
+        assertFalse(missing.meta().orElseThrow().noDocuments());
+
+        var invalid = new TurnMetaStreamFilter();
+        run(invalid, "Réponse.<turn_meta status=\"answer\" used=\";;\"/>");
+        assertFalse(invalid.meta().orElseThrow().noDocuments());
+    }
+
+    @Test
     void acceptsReuseAsAliasOfUsedWithoutDuplicates() {
         var filter = new TurnMetaStreamFilter();
         run(filter, "Réponse.<turn_meta used=\"a, b\" status=\"answer\" reuse=\"b,c\"/>");

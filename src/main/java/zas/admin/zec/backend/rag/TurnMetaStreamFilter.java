@@ -31,9 +31,16 @@ public final class TurnMetaStreamFilter {
     /**
      * Métadonnées de fin de tour extraites.
      *
-     * @param usedIds identifiants déclarés par l'agent (attributs {@code used} et {@code reuse}), non encore validés
+     * @param usedIds     identifiants déclarés par l'agent (attributs {@code used} et {@code reuse}), non encore validés
+     * @param noDocuments {@code used} présent et vide ({@code used=""}) : réponse déclarée sans document, à distinguer
+     *                    d'un attribut absent ou d'identifiants invalides (repli sur les sources consultées)
      */
-    public record TurnMeta(TurnStatus status, List<String> usedIds) {}
+    public record TurnMeta(TurnStatus status, List<String> usedIds, boolean noDocuments) {
+
+        public TurnMeta(TurnStatus status, List<String> usedIds) {
+            this(status, usedIds, false);
+        }
+    }
 
     /** @return le texte pouvant être émis immédiatement (éventuellement vide). */
     public String accept(String chunk) {
@@ -103,6 +110,8 @@ public final class TurnMetaStreamFilter {
     private void parse(String rawTag) {
         TurnStatus status = TurnStatus.UNKNOWN;
         List<String> used = new ArrayList<>();
+        boolean usedPresent = false;
+        boolean usedBlank = true;
         Matcher m = ATTRIBUTE.matcher(rawTag);
         while (m.find()) {
             String name = m.group(1).toLowerCase(Locale.ROOT);
@@ -110,6 +119,8 @@ public final class TurnMetaStreamFilter {
             if ("status".equals(name)) {
                 status = TurnStatus.fromKey(value);
             } else if ("used".equals(name) || "reuse".equals(name)) {
+                usedPresent = true;
+                usedBlank &= value.isBlank();
                 Arrays.stream(value.split("[,\\s]+"))
                         .map(String::strip)
                         .filter(id -> DOCUMENT_ID.matcher(id).matches())
@@ -117,7 +128,7 @@ public final class TurnMetaStreamFilter {
                         .forEach(used::add);
             }
         }
-        meta = new TurnMeta(status, List.copyOf(used));
+        meta = new TurnMeta(status, List.copyOf(used), usedPresent && usedBlank);
     }
 
     private static int partialOpenSuffix(CharSequence s) {

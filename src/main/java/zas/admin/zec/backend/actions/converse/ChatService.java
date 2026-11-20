@@ -10,15 +10,9 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * Stratégie de génération de réponse pour une {@link Question} donnée (pattern Strategy).
  *
- * <p>Deux implémentations coexistent :</p>
- * <ul>
- *   <li>{@link RAGChatService} : fonctionnalités complètes (RAG + pièces jointes).</li>
- *   <li>{@link AttachmentChatService} : uniquement les pièces jointes, sans recherche documentaire.</li>
- * </ul>
- *
- * <p>{@link ChatServiceFactory} sélectionne l'implémentation à utiliser en fonction du
- * {@link ConversationType} de la conversation (déterminé une fois pour toutes à sa création,
- * cf. {@link ConversationType}).</p>
+ * <p>Une seule implémentation : {@link RAGChatService} (agent unique : recherche documentaire, documents,
+ * pièces jointes et demandes générales). {@link ChatServiceFactory} sélectionne l'implémentation en fonction du
+ * {@link ConversationType} de la conversation, ce qui permet d'ajouter d'autres stratégies.</p>
  */
 public interface ChatService {
 
