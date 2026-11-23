@@ -146,6 +146,43 @@ class CitationStreamFilterTest {
     }
 
     @Test
+    void stripMarkersKeepsCode() {
+        String text = "Regex `[^1]` et ``a`[^2]`` [^3]\n```\nx = \"[^4]\"\n~~~\n````\nFin [^5] `ouvert [^6]\n";
+
+        assertEquals("Regex `[^1]` et ``a`[^2]``\n```\nx = \"[^4]\"\n~~~\n````\nFin `ouvert\n",
+                CitationStreamFilter.stripMarkers(text));
+    }
+
+    @Test
+    void fencesCloseOnlyOnAMatchingLine() {
+        var filter = filter(A);
+
+        String text = stream(filter, "````md\n```\nx[1]\n~~~\ny = \"```\" + a[1]\n", "````\nVoir [1]\n~~~\nz[1]\n~~~ \nFin [1]");
+
+        assertEquals("````md\n```\nx[1]\n~~~\ny = \"```\" + a[1]\n````\nVoir [^1]\n~~~\nz[1]\n~~~ \nFin [^1]", text);
+    }
+
+    @Test
+    void fenceStateIsKeptAcrossChunksSplitInsideTheFence() {
+        var filter = filter(A);
+
+        String text = stream(filter, "``", "`\na[1]\n`", "``", "\n[1]");
+
+        assertEquals("```\na[1]\n```\n[^1]", text);
+    }
+
+    @Test
+    void markdownLinkAndImageLabelsAreNotCitations() {
+        var filter = filter(A, B);
+
+        String text = stream(filter, "Voir [2](https://x/doc) et ![1](img.png) puis [1", "]", "(https://y) [2]\n[1]: https://z\nok [1]: oui");
+
+        assertEquals("Voir [2](https://x/doc) et ![1](img.png) puis [1](https://y) [^1]\n[1]: https://z\nok [^2]: oui", text);
+        assertEquals(2, filter.citations().size());
+        assertEquals(0, filter.unknownRefs());
+    }
+
+    @Test
     void refsAreStablePerId() {
         var refs = new CitationRefs();
         assertTrue(refs.isEmpty());
