@@ -27,18 +27,26 @@ public final class SourceToken implements Token {
     private final String subsection;
     private final String version;
     private final String title;
+    /** Numéro de citation affiché dans la réponse ({@code [^n]}, F2a) ; {@code null} si la source n'est pas citée. */
+    private final Integer citation;
 
     private SourceToken(String documentId, SourceType type, String url, String filename,
                         String pageNumber, String subsection, String version, String title) {
+        this(documentId, type, url, filename, toRange(pageNumber), subsection, version, title, null);
+    }
+
+    private SourceToken(String documentId, SourceType type, String url, String filename,
+                        String pageNumber, String subsection, String version, String title, Integer citation) {
 
         this.documentId = documentId;
         this.type = type;
         this.url = url != null ? url : "";
         this.filename = filename != null ? filename : "";
-        this.pageNumber = toRange(pageNumber);
+        this.pageNumber = pageNumber != null ? pageNumber : "";
         this.subsection = subsection != null ? subsection : "";
         this.version = version != null ? version : "";
         this.title = title != null ? title : "";
+        this.citation = citation;
     }
 
     public static SourceToken fromURL(String url) {
@@ -90,7 +98,24 @@ public final class SourceToken implements Token {
         return documentId;
     }
 
-    private String toRange(String pageNumber) {
+    public Integer citation() {
+        return citation;
+    }
+
+    /** Copie numérotée ({@code [^n]} dans la réponse). */
+    public SourceToken withCitation(int number) {
+        return new SourceToken(documentId, type, url, filename, pageNumber, subsection, version, title, number);
+    }
+
+    /**
+     * Clé d'affichage : deux sources de même clé apparaissent identiques à l'écran (type, lien, page, section, version,
+     * titre) ; elles sont fusionnées et partagent un même numéro de citation.
+     */
+    public String displayKey() {
+        return String.join("|", type.name(), url, filename, pageNumber, subsection, version, title);
+    }
+
+    private static String toRange(String pageNumber) {
         if (pageNumber == null || pageNumber.isEmpty()) {
             return "";
         }

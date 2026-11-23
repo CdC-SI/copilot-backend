@@ -9,7 +9,8 @@ import java.util.Map;
 /**
  * Événement du flux de réponse (T1), transmis en SSE sous la forme {@code event: <type>} + {@code data: <json de data>}.
  * <p>
- * Ordre garanti : {@code start} en premier, puis {@code status} / {@code text_delta} / {@code source} /
+ * Ordre garanti : {@code start} en premier, puis {@code status} / {@code text_delta} / {@code citation} /
+ * {@code source} /
  * {@code suggestion} / {@code workspace} / {@code tool_call} / {@code tool_result} / {@code approval_required}, et
  * enfin un seul événement terminal : {@code done} (émis uniquement après
  * l'enregistrement de l'échange en base) ou {@code error} (rien n'est enregistré). Le flux peut rester ouvert après
@@ -28,6 +29,7 @@ public record ChatStreamEvent(String type, Object data) {
     public static final String STATUS = "status";
     public static final String TEXT_DELTA = "text_delta";
     public static final String SOURCE = "source";
+    public static final String CITATION = "citation";
     public static final String SUGGESTION = "suggestion";
     public static final String WORKSPACE = "workspace";
     public static final String TOOL_CALL = "tool_call";
@@ -45,6 +47,12 @@ public record ChatStreamEvent(String type, Object data) {
     public record Status(String code, String label) {}
 
     public record TextDelta(String text) {}
+
+    /**
+     * Première citation d'une source dans la réponse (F2a), émise avant le {@code text_delta} qui contient son marqueur
+     * {@code [^n]}. Les événements {@code source} de fin de tour restent la liste qui fait foi.
+     */
+    public record Citation(int n, Source source) {}
 
     public record Suggestion(String text) {}
 
@@ -81,6 +89,10 @@ public record ChatStreamEvent(String type, Object data) {
 
     public static ChatStreamEvent source(Source source) {
         return new ChatStreamEvent(SOURCE, source);
+    }
+
+    public static ChatStreamEvent citation(int number, Source source) {
+        return new ChatStreamEvent(CITATION, new Citation(number, source));
     }
 
     public static ChatStreamEvent suggestion(String text) {

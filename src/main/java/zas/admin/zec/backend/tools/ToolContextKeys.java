@@ -4,6 +4,7 @@ import org.springframework.ai.document.Document;
 import reactor.core.publisher.Sinks;
 import zas.admin.zec.backend.prompts.Prompt;
 import zas.admin.zec.backend.rag.ChatStatus;
+import zas.admin.zec.backend.rag.CitationRefs;
 import zas.admin.zec.backend.rag.token.StatusToken;
 import zas.admin.zec.backend.rag.token.Token;
 
@@ -103,8 +104,19 @@ public final class ToolContextKeys {
      */
     public static final String CTX_USER_TOKEN = "userToken";
 
+    /**
+     * Clé d'un {@link CitationRefs} fourni par l'appelant : références courtes ({@code ref}) des extraits lus pendant le
+     * tour, que l'agent cite {@code [n]} (cf. {@link #citationRef(Map, String)}).
+     */
+    public static final String CTX_CITATION_REFS = "citationRefs";
+
     private ToolContextKeys() {
         // Classe utilitaire — pas d'instanciation.
+    }
+
+    /** Référence de citation de l'extrait {@code id}, ou {@code null} si l'appelant ne gère pas les citations. */
+    public static Integer citationRef(Map<String, Object> context, String id) {
+        return id != null && context.get(CTX_CITATION_REFS) instanceof CitationRefs refs ? refs.refFor(id) : null;
     }
 
     /** Dépose la version d'un prompt dans {@link #CTX_PROMPT_VERSIONS}, si l'appelant l'a fourni. */

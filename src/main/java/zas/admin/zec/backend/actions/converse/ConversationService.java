@@ -31,6 +31,7 @@ import zas.admin.zec.backend.persistence.repository.ConversationRepository;
 import zas.admin.zec.backend.persistence.repository.ConversationTitleRepository;
 import zas.admin.zec.backend.prompts.PromptId;
 import zas.admin.zec.backend.prompts.PromptRegistry;
+import zas.admin.zec.backend.rag.CitationStreamFilter;
 import zas.admin.zec.backend.rag.TurnTrace;
 import zas.admin.zec.backend.rag.TurnUsage;
 import zas.admin.zec.backend.rag.token.*;
@@ -188,6 +189,8 @@ public class ConversationService {
         // Structures thread-safe : relues par le thread d'annulation pendant que le flux de tokens écrit.
         StringBuffer assistantMessage = new StringBuffer();
         Set<Source> sources = ConcurrentHashMap.newKeySet();
+        // Sources citées pendant le flux (F2a) : conservées même si le tour s'arrête avant les sources de fin (Stop).
+        Map<Integer, Source> citedSources = new ConcurrentHashMap<>();
         Set<String> suggestions = ConcurrentHashMap.newKeySet();
         // Garantit un seul enregistrement de l'échange (fin normale, Stop OU déconnexion) ; pris aussi en cas d'erreur
         // pour qu'aucun enregistrement n'ait lieu (l'éventuel échange remplacé est alors conservé).
@@ -244,6 +247,11 @@ public class ConversationService {
                         }
                         yield Flux.<ChatStreamEvent>empty();
                     }
+                    case CitationToken citationToken -> {
+                        var source = Source.fromToken(citationToken.source());
+                        citedSources.putIfAbsent(citationToken.number(), source);
+                        yield Flux.just(ChatStreamEvent.citation(citationToken.number(), source));
+                    }
                     case WorkspaceToken workspaceToken -> {
                         workspace.set(workspaceToken.name());
                         yield Flux.just(ChatStreamEvent.workspace(workspaceToken.name()));
@@ -263,7 +271,7 @@ public class ConversationService {
                     }
                     // Passage à SAVING atomique avec le Stop : un Stop accepté est toujours reflété ici.
                     boolean interrupted = generationRegistry.saving(generation);
-                    var exchange = new StreamedExchange(assistantMessage.toString(), List.copyOf(sources),
+                    var exchange = new StreamedExchange(assistantMessage.toString(), savedSources(sources, citedSources),
                             List.copyOf(suggestions), workspace.get(),
                             traceForSave(turnTrace, toolCallRecorder, promptVersions), turnUsage.get());
                     // suppressCancel : une déconnexion pendant l'enregistrement ne l'annule pas.
@@ -301,7 +309,7 @@ public class ConversationService {
                     // Un tool en attente d'approbation ne bloque pas au-delà de la déconnexion.
                     toolApprovalService.cancelAll(userId, question.conversationId());
                     generationRegistry.saving(generation);
-                    var exchange = new StreamedExchange(assistantMessage.toString(), List.copyOf(sources),
+                    var exchange = new StreamedExchange(assistantMessage.toString(), savedSources(sources, citedSources),
                             List.copyOf(suggestions), workspace.get(),
                             traceForSave(turnTrace, toolCallRecorder, promptVersions), turnUsage.get());
                     saveAsync(generation, () -> saveExchange(question, userId, assistantMessageId, exchange, timestamp,
@@ -699,19 +707,42 @@ public class ConversationService {
         conversationRepository.save(entity);
     }
 
+    /**
+     * Sources enregistrées avec la réponse : sources citées d'abord (dans l'ordre des numéros), puis les autres. Une
+     * source citée pendant le flux mais absente des sources de fin de tour (Stop, déconnexion) est ajoutée, pour que
+     * chaque marqueur {@code [^n]} du texte enregistré ait sa source.
+     */
+    static List<Source> savedSources(Collection<Source> sources, Map<Integer, Source> citedSources) {
+        List<Source> saved = new ArrayList<>(sources);
+        Set<Integer> numbers = new HashSet<>();
+        saved.forEach(s -> {
+            if (s.citation() != null) {
+                numbers.add(s.citation());
+            }
+        });
+        citedSources.forEach((number, source) -> {
+            if (numbers.add(number)) {
+                saved.add(source);
+            }
+        });
+        saved.sort(Comparator.comparing(Source::citation, Comparator.nullsLast(Comparator.naturalOrder())));
+        return List.copyOf(saved);
+    }
+
     static String toSourceString(Source src) {
         // Old format for strings that still have only link or FILE:link
         if (src.type() != SourceType.BUSINESS_PROCESS
             && src.pageNumber() == null
             && src.subsection() == null
-            && src.version() == null) {
+            && src.version() == null
+            && src.citation() == null) {
             return src.type() == SourceType.FILE
                     ? "%s:%s".formatted(SourceType.FILE.name(), src.link())
                     : src.link();
         }
 
-        // New extended format: TYPE|link|page|subsection|version|documentId|title
-        return String.join(DELIM,
+        // New extended format: TYPE|link|page|subsection|version|documentId|title[|citation]
+        String extended = String.join(DELIM,
                 src.type().name(),
                 sanitize(src.link()),
                 sanitize(src.pageNumber()),
@@ -720,6 +751,8 @@ public class ConversationService {
                 src.documentId() == null ? "" : src.documentId(),
                 sanitize(src.title())
                 );
+        // Numéro de citation (F2a) : champ ajouté en fin, absent pour une source non citée (rétrocompatible).
+        return src.citation() == null ? extended : extended + DELIM + src.citation();
     }
 
     /**
@@ -750,8 +783,8 @@ public class ConversationService {
 
         /* -------- new strings (pipe-separated) -------- */
         String[] parts = raw.split("\\|", -1);      // keep empty tail segments
-        //       0       1      2         3          4          5          6
-        //      TYPE | link | page | subsection | version | documentId | title
+        //       0       1      2         3          4          5          6        7
+        //      TYPE | link | page | subsection | version | documentId | title | citation
         SourceType type       = SourceType.valueOf(parts[0]);
         String link           = parts[1];
         String pageNumber     = optionalPart(parts, 2);
@@ -759,8 +792,21 @@ public class ConversationService {
         String version        = optionalPart(parts, 4);
         String documentId     = parts.length > 5 ? parts[5] : generateLegacyDocId(parts);
         String title          = optionalPart(parts, 6);
+        Integer citation      = citationPart(parts, 7);
 
-        return new Source(documentId, type, link, pageNumber, subsection, version, title);
+        return new Source(documentId, type, link, pageNumber, subsection, version, title, citation);
+    }
+
+    private static Integer citationPart(String[] parts, int index) {
+        String raw = optionalPart(parts, index);
+        if (raw == null) {
+            return null;
+        }
+        try {
+            return Integer.valueOf(raw);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     private static String generateLegacyDocId(String[] sourceParts) {
@@ -777,7 +823,7 @@ public class ConversationService {
         try {
             title = chatClient.prompt()
                     .system(promptRegistry.get(PromptId.CONVERSATION_TITLE, language)
-                            .render("answer", initialResponse))
+                            .render("answer", CitationStreamFilter.stripMarkers(initialResponse)))
                     .user(initialQuery)
                     .call()
                     .content();

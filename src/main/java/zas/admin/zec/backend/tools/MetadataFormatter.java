@@ -82,10 +82,21 @@ public final class MetadataFormatter {
      * @param includeMetadata inclure le bloc {@code <metadata>}
      */
     public static String format(Document document, boolean includeContent, boolean includeMetadata) {
+        return format(document, includeContent, includeMetadata, null);
+    }
+
+    /**
+     * @param ref référence de citation (attribut {@code ref}, F2a), seulement pour un extrait avec contenu ; ignorée
+     *            si {@code null}
+     */
+    public static String format(Document document, boolean includeContent, boolean includeMetadata, Integer ref) {
         String nl = System.lineSeparator();
         var sb = new StringBuilder();
         String header = "<document id=\"%s\" collection=\"%s\"".formatted(
                 document.getId(), collectionKey(document));
+        if (includeContent && ref != null) {
+            header += " ref=\"%d\"".formatted(ref);
+        }
         if (includeContent) {
             sb.append(header).append('>').append(nl)
                     .append(Objects.requireNonNullElse(document.getText(), "")).append(nl)

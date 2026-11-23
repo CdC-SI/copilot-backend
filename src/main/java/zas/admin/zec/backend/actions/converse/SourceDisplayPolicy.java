@@ -1,6 +1,7 @@
 package zas.admin.zec.backend.actions.converse;
 
 import lombok.extern.slf4j.Slf4j;
+import zas.admin.zec.backend.rag.CitationStreamFilter;
 import zas.admin.zec.backend.rag.ConsultedSource;
 import zas.admin.zec.backend.rag.TurnMetaStreamFilter.TurnMeta;
 import zas.admin.zec.backend.rag.TurnStatus;
@@ -13,7 +14,9 @@ import zas.admin.zec.backend.tools.document.DocumentCollection;
 import java.util.*;
 
 /**
- * Décide des sources affichées en fin de tour selon le statut déclaré par l'agent ({@code <turn_meta>}).
+ * Décide des sources affichées en fin de tour. Les sources citées dans la réponse ({@code [^n]}, F2a) font foi : si la
+ * réponse en contient, ce sont elles qui sont affichées (numérotées), suivies des pièces jointes lues pendant le tour.
+ * Sinon, selon le statut déclaré par l'agent ({@code <turn_meta>}) :
  *
  * <ul>
  *   <li>{@link TurnStatus#ANSWER} : les documents déclarés dans {@code used} (ceux sur lesquels la réponse s'appuie),
@@ -44,6 +47,16 @@ final class SourceDisplayPolicy {
 
     static Outcome decide(Optional<TurnMeta> meta, List<ConsultedSource> currentTurn, List<Message> history,
                           String conversationId) {
+        return decide(meta, currentTurn, history, conversationId, List.of());
+    }
+
+    /**
+     * @param citations sources citées dans la réponse (F2a), dans l'ordre des numéros. Elles font foi : si la réponse
+     *                  en contient, ce sont les sources affichées (numérotées), quel que soit le statut, suivies des
+     *                  pièces jointes lues pendant le tour et non citées. Sinon, règles de {@code used} ci-dessus.
+     */
+    static Outcome decide(Optional<TurnMeta> meta, List<ConsultedSource> currentTurn, List<Message> history,
+                          String conversationId, List<CitationStreamFilter.Citation> citations) {
 
         List<ConsultedSource> current = dedupe(currentTurn);
         TurnStatus status = meta.map(TurnMeta::status).orElse(TurnStatus.UNKNOWN);
@@ -62,13 +75,39 @@ final class SourceDisplayPolicy {
         used.unknown().forEach(id ->
                 log.warn("Source déclarée (used) inconnue ignorée : '{}' (conversation {})", id, conversationId));
 
-        List<SourceToken> displayed = switch (status) {
-            case FOLLOWUP, REFUSAL -> List.of();
-            case UNKNOWN -> displayed(current);
-            case ANSWER -> answerSources(current, history, used, meta.get().noDocuments(), currentById, earlier,
-                    conversationId);
-        };
+        List<SourceToken> displayed;
+        if (!citations.isEmpty()) {
+            displayed = cited(citations, current);
+        } else {
+            displayed = switch (status) {
+                case FOLLOWUP, REFUSAL -> List.of();
+                case UNKNOWN -> displayed(current);
+                case ANSWER -> answerSources(current, history, used, meta.get().noDocuments(), currentById, earlier,
+                        conversationId);
+            };
+            if (status == TurnStatus.ANSWER && !displayed.isEmpty()) {
+                // Suivi de la fiabilité des citations (T4 : suppression éventuelle de used).
+                log.info("Réponse sans citation malgré {} source(s) affichée(s) (conversation {})", displayed.size(),
+                        conversationId);
+            }
+        }
         return new Outcome(status, displayed, new TurnTrace(status, current, used, List.of()));
+    }
+
+    /** Sources citées numérotées, puis pièces jointes lues pendant le tour mais non citées (toujours affichées). */
+    private static List<SourceToken> cited(List<CitationStreamFilter.Citation> citations, List<ConsultedSource> current) {
+        Map<String, SourceToken> byDisplay = new LinkedHashMap<>();
+        citations.stream()
+                .sorted(Comparator.comparingInt(CitationStreamFilter.Citation::number))
+                .forEach(c -> {
+                    SourceToken token = c.source().toSourceToken();
+                    byDisplay.putIfAbsent(token.displayKey(), token.withCitation(c.number()));
+                });
+        current.stream()
+                .filter(ConsultedSource::isAttachment)
+                .map(ConsultedSource::toSourceToken)
+                .forEach(token -> byDisplay.putIfAbsent(token.displayKey(), token));
+        return List.copyOf(byDisplay.values());
     }
 
     private static List<SourceToken> answerSources(List<ConsultedSource> current, List<Message> history,
@@ -124,7 +163,7 @@ final class SourceDisplayPolicy {
                 continue;
             }
             SourceToken token = s.toSourceToken();
-            byDisplay.putIfAbsent(displayKey(token), token);
+            byDisplay.putIfAbsent(token.displayKey(), token);
         }
         return List.copyOf(byDisplay.values());
     }
@@ -137,13 +176,6 @@ final class SourceDisplayPolicy {
     /** Chunk de documentation décrivant un processus ({@code doc_type = business_process}). */
     private static boolean isProcessDescription(ConsultedSource s) {
         return MetadataFormatter.DOC_TYPE_BUSINESS_PROCESS.equals(s.docType()) && !isProcess(s);
-    }
-
-    private static String displayKey(SourceToken token) {
-        Map<String, String> m = token.metadata();
-        return String.join("|", token.type().name(), m.get(SourceToken.KEY_URL), m.get(SourceToken.KEY_FILENAME),
-                m.get(SourceToken.KEY_PAGE_NUMBER), m.get(SourceToken.KEY_SUBSECTION), m.get(SourceToken.KEY_VERSION),
-                m.get(SourceToken.KEY_TITLE));
     }
 
     /** Sources consultées pendant les questions de suivi consécutives précédant ce tour. */

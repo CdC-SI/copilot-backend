@@ -156,10 +156,12 @@ public class ConversationAttachmentTool {
      * {@link ToolContextKeys#CTX_RETRIEVED_DOCUMENTS} (sources affichées, {@code <retrieved_sources>}).
      */
     private static String read(Map<String, Object> context, AttachmentEntity entity) {
+        Integer ref = null;
         if (entity.getStatus() == AttachmentStatus.PROCESSED && entity.getContent() != null) {
             depositDocument(context, entity);
+            ref = ToolContextKeys.citationRef(context, documentId(entity.getId()));
         }
-        return formatContent(entity);
+        return formatContent(entity, ref);
     }
 
     private static void depositDocument(Map<String, Object> context, AttachmentEntity entity) {
@@ -185,7 +187,7 @@ public class ConversationAttachmentTool {
         return UUID.nameUUIDFromBytes(("attachment:" + attachmentId).getBytes(StandardCharsets.UTF_8)).toString();
     }
 
-    private static String formatContent(AttachmentEntity entity) {
+    private static String formatContent(AttachmentEntity entity, Integer ref) {
         if (entity.getStatus() == AttachmentStatus.PENDING) {
             return "Le fichier « %s » est encore en cours de traitement OCR. Veuillez patienter et réessayer dans quelques instants."
                     .formatted(entity.getFilename());
@@ -194,9 +196,10 @@ public class ConversationAttachmentTool {
             return "Le traitement OCR du fichier « %s » a échoué. Le contenu n'est pas disponible."
                     .formatted(entity.getFilename());
         }
-        // L'id (stable) permet à l'agent de citer la pièce jointe dans <turn_meta used="...">.
-        return "<attachment id=\"%s\" filename=\"%s\">%n%s%n</attachment>".formatted(
-                documentId(entity.getId()), entity.getFilename(), entity.getContent());
+        // L'id (stable) permet à l'agent de déclarer la pièce jointe dans <turn_meta used="...">, la ref de la citer.
+        return "<attachment id=\"%s\"%s filename=\"%s\">%n%s%n</attachment>".formatted(
+                documentId(entity.getId()), ref != null ? " ref=\"%d\"".formatted(ref) : "", entity.getFilename(),
+                entity.getContent());
     }
 
     private static Map<String, Object> contextMap(ToolContext toolContext) {

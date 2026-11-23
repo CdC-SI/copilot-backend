@@ -145,16 +145,17 @@ public class RAGTool {
         }
 
         log.debug("RAGTool retrieved {} documents for query '{}'", documents.size(), query);
-        return formatDocuments(documents);
+        return formatDocuments(documents, context);
     }
 
-    private String formatDocuments(List<Document> documents) {
+    private String formatDocuments(List<Document> documents, Map<String, Object> context) {
         if (documents.isEmpty()) {
             return NO_DOCS_FOUND;
         }
 
         return documents.stream()
-                .map(document -> MetadataFormatter.format(document, true, true))
+                .map(document -> MetadataFormatter.format(document, true, true,
+                        ToolContextKeys.citationRef(context, document.getId())))
                 .collect(Collectors.joining(System.lineSeparator()));
     }
 

@@ -20,9 +20,12 @@ import java.util.*;
  * @param usage     tokens du tour ; {@code null} si non mesurés (et après relecture)
  * @param prompts   versions des prompts utilisés par le tour ({@code <clé>/<langue>} → version, cf.
  *                  {@code PromptRegistry})
+ * @param citations références des extraits et sources citées (F2a, clés {@code citation_refs} et {@code citations},
+ *                  absentes si vides)
  */
 public record TurnTrace(TurnStatus status, List<ConsultedSource> sources, UsedDocuments used,
-                        List<ToolCallRecord> toolCalls, TurnUsage usage, Map<String, String> prompts) {
+                        List<ToolCallRecord> toolCalls, TurnUsage usage, Map<String, String> prompts,
+                        TurnCitations citations) {
 
     private static final String KEY_STATUS = "turn_status";
     private static final String KEY_USED = "used";
@@ -31,6 +34,8 @@ public record TurnTrace(TurnStatus status, List<ConsultedSource> sources, UsedDo
     private static final String KEY_USED_UNKNOWN = "used_unknown";
     private static final String KEY_SOURCES = "sources";
     private static final String KEY_PROMPTS = "prompts";
+    private static final String KEY_CITATION_REFS = "citation_refs";
+    private static final String KEY_CITATIONS = "citations";
 
     public TurnTrace {
         status = status != null ? status : TurnStatus.UNKNOWN;
@@ -38,6 +43,12 @@ public record TurnTrace(TurnStatus status, List<ConsultedSource> sources, UsedDo
         used = used != null ? used : UsedDocuments.none();
         toolCalls = toolCalls != null ? List.copyOf(toolCalls) : List.of();
         prompts = prompts != null ? Collections.unmodifiableMap(new TreeMap<>(prompts)) : Map.of();
+        citations = citations != null ? citations : TurnCitations.none();
+    }
+
+    public TurnTrace(TurnStatus status, List<ConsultedSource> sources, UsedDocuments used, List<ToolCallRecord> toolCalls,
+                     TurnUsage usage, Map<String, String> prompts) {
+        this(status, sources, used, toolCalls, usage, prompts, TurnCitations.none());
     }
 
     public TurnTrace(TurnStatus status, List<ConsultedSource> sources, UsedDocuments used, List<ToolCallRecord> toolCalls,
@@ -58,7 +69,7 @@ public record TurnTrace(TurnStatus status, List<ConsultedSource> sources, UsedDo
     }
 
     public TurnTrace withToolCalls(List<ToolCallRecord> calls) {
-        return new TurnTrace(status, sources, used, calls, usage, prompts);
+        return new TurnTrace(status, sources, used, calls, usage, prompts, citations);
     }
 
     public Map<String, Object> toMap() {
@@ -74,15 +85,25 @@ public record TurnTrace(TurnStatus status, List<ConsultedSource> sources, UsedDo
         if (!prompts.isEmpty()) {
             map.put(KEY_PROMPTS, prompts);
         }
+        if (!citations.refs().isEmpty()) {
+            map.put(KEY_CITATION_REFS, citations.refsAsMap());
+        }
+        if (!citations.cited().isEmpty()) {
+            map.put(KEY_CITATIONS, citations.citedAsMaps());
+        }
         return map;
     }
 
     public TurnTrace withUsage(TurnUsage turnUsage) {
-        return new TurnTrace(status, sources, used, toolCalls, turnUsage, prompts);
+        return new TurnTrace(status, sources, used, toolCalls, turnUsage, prompts, citations);
     }
 
     public TurnTrace withPrompts(Map<String, String> promptVersions) {
-        return new TurnTrace(status, sources, used, toolCalls, usage, promptVersions);
+        return new TurnTrace(status, sources, used, toolCalls, usage, promptVersions, citations);
+    }
+
+    public TurnTrace withCitations(TurnCitations turnCitations) {
+        return new TurnTrace(status, sources, used, toolCalls, usage, prompts, turnCitations);
     }
 
     /** Contenu de {@code chat_history.tool_calls}. */
@@ -114,7 +135,8 @@ public record TurnTrace(TurnStatus status, List<ConsultedSource> sources, UsedDo
                 }
             });
         }
-        return new TurnTrace(status, sources, used, List.of(), null, prompts);
+        return new TurnTrace(status, sources, used, List.of(), null, prompts,
+                TurnCitations.fromMaps(map.get(KEY_CITATION_REFS), map.get(KEY_CITATIONS)));
     }
 
     private static List<String> strings(Object raw) {

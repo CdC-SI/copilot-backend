@@ -61,6 +61,11 @@ basé sur Spring AI, avec une boucle agentique (le LLM appelle des tools `@Tool`
   CdC) et laisse le LLM répondre directement aux demandes générales ; `Question.ragEnabled` est ignoré (à retirer).
 - **Tools** : toujours passer les callbacks par `ToolCallRecorder.wrap(...)` (journal persisté, événements SSE
   `tool_call`/`tool_result`, approbation `approval_required` des tools listés dans `zia.tools.approval.required-tools`).
+- **Citations** (F2a) : tout extrait lu avec son contenu reçoit une référence courte par tour (`ref` de `<document>` /
+  `<attachment>`, via `ToolContextKeys.citationRef` et `CitationRefs`) ; l'agent écrit `[ref]`, `CitationStreamFilter`
+  le remplace par `[^n]` (numéro affiché, ordre de première citation, partagé par les extraits d'une même source) et
+  émet l'événement SSE `citation`. Les sources citées font foi pour l'affichage (`used` en repli) ; numéro persisté en
+  fin de `chat_history.sources` et table des refs dans la trace. Les marqueurs sont retirés de l'historique envoyé au LLM.
 
 ## Bonnes pratiques
 

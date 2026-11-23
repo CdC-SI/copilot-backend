@@ -2,13 +2,17 @@ package zas.admin.zec.backend.actions.converse;
 
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
+import zas.admin.zec.backend.rag.CitationRefs;
+import zas.admin.zec.backend.rag.CitationStreamFilter;
 import zas.admin.zec.backend.rag.ConsultedSource;
+import zas.admin.zec.backend.rag.TurnCitations;
 import zas.admin.zec.backend.rag.TurnMetaStreamFilter.TurnMeta;
 import zas.admin.zec.backend.rag.TurnStatus;
 import zas.admin.zec.backend.rag.TurnTrace;
 import zas.admin.zec.backend.rag.UsedDocuments;
 import zas.admin.zec.backend.rag.token.SourceToken;
 import zas.admin.zec.backend.rag.token.Token;
+import zas.admin.zec.backend.tools.MetadataFormatter;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -318,5 +322,68 @@ class SourceDisplayPolicyTest {
         var history = List.of(user("q1"), assistant("a1", null, null));
         assertEquals("", SERVICE.retrievedSourcesForCurrentTurn(history));
         assertEquals("q1", SERVICE.toPromptMessages(List.of(user("q1"))).getFirst().getText());
+    }
+
+    @Test
+    void citationMarkersAreRemovedFromTheHistorySentToTheModel() {
+        var history = List.of(
+                user("q1"), assistant("Le délai est de 30 jours [^1][^2].\n", new TurnTrace(TurnStatus.ANSWER, List.of()), List.of()),
+                user("q2"), assistant("Ancien [^1] texte.", null, List.of()));
+
+        var texts = SERVICE.toPromptMessages(history).stream().map(m -> m.getText()).toList();
+
+        assertEquals("Le délai est de 30 jours.\n<turn_meta status=\"answer\" used=\"\"/>", texts.get(1));
+        assertEquals("Ancien texte.", texts.get(3));
+    }
+
+    private static CitationStreamFilter.Citation citation(int number, ConsultedSource source) {
+        return new CitationStreamFilter.Citation(number, number, source);
+    }
+
+    @Test
+    void citedSourcesAreDisplayedNumberedWhateverTheUsedDeclaration() {
+        var attachment = new ConsultedSource("att", MetadataFormatter.COLLECTION_ATTACHMENT, null, "lettre.pdf", null,
+                null, null, null, "personal.uploads", null, null, List.of());
+        var outcome = SourceDisplayPolicy.decide(meta(TurnStatus.ANSWER, "a"),
+                List.of(doc("a"), doc("b"), process("p"), attachment), List.of(), "c",
+                List.of(citation(2, doc("a")), citation(1, process("p"))));
+
+        assertEquals(List.of("p", "a", "att"), ids(outcome.displayed()));
+        assertEquals(java.util.Arrays.asList(1, 2, null),
+                outcome.displayed().stream().map(SourceToken::citation).toList());
+    }
+
+    @Test
+    void citationsAreDisplayedEvenForAFollowup() {
+        var outcome = SourceDisplayPolicy.decide(meta(TurnStatus.FOLLOWUP), List.of(doc("a")), List.of(), "c",
+                List.of(citation(1, doc("a"))));
+
+        assertEquals(List.of("a"), ids(outcome.displayed()));
+        assertEquals(TurnStatus.FOLLOWUP, outcome.trace().status());
+    }
+
+    @Test
+    void usedIsTheFallbackWithoutCitations() {
+        var outcome = SourceDisplayPolicy.decide(meta(TurnStatus.ANSWER, "b"), List.of(doc("a"), doc("b")), List.of(),
+                "c", List.of());
+
+        assertEquals(List.of("b"), ids(outcome.displayed()));
+        assertNull(outcome.displayed().getFirst().citation());
+    }
+
+    @Test
+    void traceKeepsTheCitationTable() {
+        var refs = new CitationRefs();
+        refs.refFor("a");
+        refs.refFor("b");
+        var trace = new TurnTrace(TurnStatus.ANSWER, List.of(doc("a"), doc("b")))
+                .withCitations(TurnCitations.of(refs, List.of(new CitationStreamFilter.Citation(1, 2, doc("b")))));
+
+        Map<String, Object> map = trace.toMap();
+        assertEquals(Map.of("1", "a", "2", "b"), map.get("citation_refs"));
+        assertEquals(List.of(Map.of("n", 1, "ref", 2, "id", "b")), map.get("citations"));
+        assertEquals(trace.citations(), TurnTrace.fromMap(map).citations());
+        assertFalse(new TurnTrace(TurnStatus.ANSWER, List.of()).toMap().containsKey("citations"));
+        assertTrue(TurnTrace.fromMap(Map.of("turn_status", "answer")).citations().isEmpty());
     }
 }

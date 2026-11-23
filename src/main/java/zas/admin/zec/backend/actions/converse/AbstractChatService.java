@@ -6,6 +6,7 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
+import zas.admin.zec.backend.rag.CitationStreamFilter;
 import zas.admin.zec.backend.rag.TurnStatus;
 import zas.admin.zec.backend.rag.TurnTrace;
 import zas.admin.zec.backend.rag.token.TextToken;
@@ -82,12 +83,15 @@ abstract class AbstractChatService implements ChatService {
      * {@code answer}. Rendu déterministe (prefix caching). Historique antérieur à la trace : texte inchangé.
      */
     static String withTurnMeta(Message message) {
+        // Les marqueurs [^n] ne renvoient qu'aux références de leur propre tour : retirés pour que le modèle ne les
+        // recopie pas.
+        String text = CitationStreamFilter.stripMarkers(message.message());
         TurnTrace trace = message.turnTrace();
         if (trace == null) {
-            return message.message();
+            return text;
         }
         TurnStatus status = trace.status() == TurnStatus.UNKNOWN ? TurnStatus.ANSWER : trace.status();
-        return message.message().stripTrailing() + "\n<turn_meta status=\"" + status.key() + "\" used=\""
+        return text.stripTrailing() + "\n<turn_meta status=\"" + status.key() + "\" used=\""
                 + String.join(",", trace.used().declared()) + "\"/>";
     }
 
