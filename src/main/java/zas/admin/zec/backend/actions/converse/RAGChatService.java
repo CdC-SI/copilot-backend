@@ -197,11 +197,11 @@ public class RAGChatService extends AbstractChatService {
                 .map(response -> turnMetaFilter.accept(extractText(response)))
                 // La balise <turn_meta> est retirée du flux ; le reliquat éventuel est émis en fin de flux.
                 .concatWith(Mono.fromSupplier(turnMetaFilter::flush))
-                .map(citationFilter::accept)
-                .concatWith(Mono.fromSupplier(citationFilter::flush))
-                .filter(text -> !text.isEmpty())
-                // Une source citée pour la première fois est annoncée juste avant le texte qui porte son marqueur.
-                .concatMapIterable(text -> textWithCitations(text, citationFilter))
+                // Une source citée pour la première fois est annoncée juste avant le texte qui porte son marqueur :
+                // filtrage et collecte des citations dans le même mapper séquentiel (le filtre n'est pas thread-safe).
+                .concatMapIterable(text -> textWithCitations(citationFilter.accept(text), citationFilter))
+                .concatWith(Flux.defer(() -> Flux.fromIterable(
+                        textWithCitations(citationFilter.flush(), citationFilter))))
                 .doOnComplete(() -> {
                     // La consigne de prompt n'offre pas de garantie stricte : on trace les cas où le
                     // LLM a malgré tout ignoré la recherche documentaire.
@@ -244,14 +244,19 @@ public class RAGChatService extends AbstractChatService {
                 .concatWith(sourceTokens).concatWith(workspaceToken);
     }
 
-    /** Événements {@link CitationToken} des sources citées pour la première fois dans {@code text}, puis le texte. */
+    /**
+     * Événements {@link CitationToken} des sources citées pour la première fois dans {@code text} (texte déjà filtré
+     * par {@code citationFilter}), puis le texte s'il n'est pas vide.
+     */
     static List<Token> textWithCitations(String text, CitationStreamFilter citationFilter) {
         List<Token> tokens = new ArrayList<>();
         for (var citation : citationFilter.drainNewCitations()) {
             tokens.add(new CitationToken(citation.number(),
                     citation.source().toSourceToken().withCitation(citation.number())));
         }
-        tokens.add(new TextToken(text));
+        if (!text.isEmpty()) {
+            tokens.add(new TextToken(text));
+        }
         return tokens;
     }
 

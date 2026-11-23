@@ -152,6 +152,8 @@ class RAGChatServiceTest {
         assertEquals("a", citation.source().documentId());
         assertEquals("Délai [^1].", emitted.get(1).content());
         assertEquals(1, RAGChatService.textWithCitations("suite", filter).size());
+        // Texte retenu par le filtre (marqueur incomplet) : pas de jeton vide.
+        assertTrue(RAGChatService.textWithCitations(filter.accept("[1"), filter).isEmpty());
     }
 
     @Test
