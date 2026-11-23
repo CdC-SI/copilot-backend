@@ -15,9 +15,15 @@ basé sur Spring AI, avec une boucle agentique (le LLM appelle des tools `@Tool`
 - Utiliser `mvn` (pas `./mvnw` / `mvnw.cmd`). Privilégier le mode hors-ligne `-o` quand possible.
 - Compiler : `mvn -o compile`
 - Tests : `mvn -o test` ; un seul test : `mvn -o test -Dtest=NomDeLaClasseTest`
-- Build complet (référence, utilisé par le `Jenkinsfile`) : `mvn clean verify`
-- Tests d'intégration `*IT` (Testcontainers, **Docker requis**) : ex. `mvn -o test -Dtest=MigrationStartupIT`.
+- Build complet (référence, utilisé par le `Jenkinsfile`) : `mvn clean verify`. Il exécute les tests unitaires (surefire),
+  puis les tests d'intégration `*IT` (failsafe, **Docker requis**, un échec casse le build), puis le rapport de couverture
+  JaCoCo (`target/site/jacoco/index.html`) et ses seuils (`jacoco.minimum.*` dans le `pom.xml`). Ces seuils sont à cliquet :
+  on les relève au niveau atteint, on ne les baisse jamais.
+- Tests d'intégration `*IT` (Testcontainers) seuls : ex. `mvn -o test -Dtest=MigrationStartupIT`.
   `ChatModelsConfigTest` (`src/test/java/zas/admin/zec/backend/config/ChatModelsConfigTest.java`) contient un stub HTTP du LLM réutilisable.
+- Mockito est chargé comme agent Java (`argLine` de surefire et failsafe). Un `argLine` ajouté doit garder `@{argLine}`,
+  qui porte l'agent JaCoCo.
+- Tout nouveau code s'accompagne de ses tests ; une baisse de couverture fait échouer `verify`.
 - Après une modification, valider au minimum avec `mvn -o compile` avant de conclure.
 
 ## Organisation du code (`zas.admin.zec.backend`)
