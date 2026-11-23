@@ -49,11 +49,24 @@ public class UploadService {
     }
 
     public record Doc(String filename, MediaType mediaType, ByteArrayResource content) {}
-    public Doc download(String filename) {
-        TempSourceDocumentEntity byFileName = sourceDocumentRepository.findByFileName(filename)
-                .orElseThrow(() -> new IllegalArgumentException("Document not found: " + filename));
 
-        return new Doc(filename, SourceDocumentType.mediaTypeOf(filename), new ByteArrayResource(byFileName.getContent()));
+    /**
+     * Document téléchargeable par l'utilisateur : son propre document personnel de ce nom, sinon le document public
+     * (ajouté par un administrateur) de ce nom. Les documents personnels des autres utilisateurs ne sont jamais servis.
+     * À nom égal, le plus récent est retenu.
+     *
+     * @throws DocumentNotFoundException si aucun document accessible ne porte ce nom
+     */
+    public Doc download(String filename, String userUuid) {
+        var ids = sourceDocumentRepository.findIdsByFileNameAndUserUuid(filename, userUuid);
+        if (ids.isEmpty()) {
+            ids = sourceDocumentRepository.findPublicIdsByFileName(filename);
+        }
+        TempSourceDocumentEntity document = ids.stream().findFirst()
+                .flatMap(sourceDocumentRepository::findById)
+                .orElseThrow(() -> new DocumentNotFoundException(filename));
+
+        return new Doc(filename, SourceDocumentType.mediaTypeOf(filename), new ByteArrayResource(document.getContent()));
     }
 
     @Transactional

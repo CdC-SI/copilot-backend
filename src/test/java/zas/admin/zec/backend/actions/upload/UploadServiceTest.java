@@ -50,20 +50,36 @@ class UploadServiceTest {
         uploadService = new UploadService(adminDocUploadStrategyFactory, tempSourceDocumentRepository, vectorStore, tempSourceDocumentRepository, eventPublisher, retentionConfigService);
     }
 
-    @Test
-    @DisplayName("download returns doc when found")
-    void download_returnsDoc_whenFound() {
+    private static TempSourceDocumentEntity document(String filename, String userUuid) {
         TempSourceDocumentEntity entity = new TempSourceDocumentEntity();
-        entity.setFileName("test.pdf");
+        entity.setFileName(filename);
+        entity.setUserUuid(userUuid);
         entity.setContent("hello".getBytes());
+        return entity;
+    }
 
-        when(tempSourceDocumentRepository.findByFileName("test.pdf")).thenReturn(Optional.of(entity));
+    @Test
+    @DisplayName("download sert le document personnel de l'utilisateur en priorité")
+    void download_returnsOwnDocumentFirst() {
+        when(tempSourceDocumentRepository.findIdsByFileNameAndUserUuid("test.pdf", "user-a")).thenReturn(List.of(7L, 3L));
+        when(tempSourceDocumentRepository.findById(7L)).thenReturn(Optional.of(document("test.pdf", "user-a")));
 
-        var result = uploadService.download("test.pdf");
+        var result = uploadService.download("test.pdf", "user-a");
 
         assertEquals("test.pdf", result.filename());
         assertEquals(MediaType.APPLICATION_PDF, result.mediaType());
         assertNotNull(result.content());
+        verify(tempSourceDocumentRepository, never()).findPublicIdsByFileName(any());
+    }
+
+    @Test
+    @DisplayName("download sert le document public à défaut de document personnel")
+    void download_fallsBackToPublicDocument() {
+        when(tempSourceDocumentRepository.findIdsByFileNameAndUserUuid("guide.pdf", "user-a")).thenReturn(List.of());
+        when(tempSourceDocumentRepository.findPublicIdsByFileName("guide.pdf")).thenReturn(List.of(5L));
+        when(tempSourceDocumentRepository.findById(5L)).thenReturn(Optional.of(document("guide.pdf", null)));
+
+        assertEquals("guide.pdf", uploadService.download("guide.pdf", "user-a").filename());
     }
 
     @ParameterizedTest
@@ -78,21 +94,19 @@ class UploadServiceTest {
     })
     @DisplayName("download returns media type derived from file extension")
     void download_returnsMediaTypeFromExtension(String filename, String expectedMediaType) {
-        TempSourceDocumentEntity entity = new TempSourceDocumentEntity();
-        entity.setFileName(filename);
-        entity.setContent("hello".getBytes());
+        when(tempSourceDocumentRepository.findIdsByFileNameAndUserUuid(filename, "user-a")).thenReturn(List.of(1L));
+        when(tempSourceDocumentRepository.findById(1L)).thenReturn(Optional.of(document(filename, "user-a")));
 
-        when(tempSourceDocumentRepository.findByFileName(filename)).thenReturn(Optional.of(entity));
-
-        assertEquals(MediaType.parseMediaType(expectedMediaType), uploadService.download(filename).mediaType());
+        assertEquals(MediaType.parseMediaType(expectedMediaType), uploadService.download(filename, "user-a").mediaType());
     }
 
     @Test
-    @DisplayName("download throws when not found")
+    @DisplayName("download : 404 si aucun document accessible (le document personnel d'un autre utilisateur n'est jamais cherché)")
     void download_throwsWhenNotFound() {
-        when(tempSourceDocumentRepository.findByFileName("missing.pdf")).thenReturn(Optional.empty());
+        when(tempSourceDocumentRepository.findIdsByFileNameAndUserUuid("missing.pdf", "user-a")).thenReturn(List.of());
+        when(tempSourceDocumentRepository.findPublicIdsByFileName("missing.pdf")).thenReturn(List.of());
 
-        assertThrows(IllegalArgumentException.class, () -> uploadService.download("missing.pdf"));
+        assertThrows(DocumentNotFoundException.class, () -> uploadService.download("missing.pdf", "user-a"));
     }
 
     @Test

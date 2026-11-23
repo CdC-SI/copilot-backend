@@ -20,6 +20,10 @@ public interface AttachmentRepository extends JpaRepository<AttachmentEntity, Lo
     void deleteByIdAndUserId(Long attachmentId, String userId);
     void deleteByUserIdAndConversationId(String userId, String conversationId);
 
+    /** Identifiants des pièces jointes d'un utilisateur (résolution d'un identifiant de source, sans contenu). */
+    @Query("SELECT a.id FROM AttachmentEntity a WHERE a.userId = :userId")
+    List<Long> findIdsByUserId(@Param("userId") String userId);
+
     /** Liste légère des pièces jointes (sans contenu OCR ni octets du fichier), dans l'ordre d'upload. */
     List<AttachmentSummary> findSummariesByConversationIdAndUserIdOrderByIdAsc(String conversationId, String userId);
 

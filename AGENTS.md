@@ -66,6 +66,12 @@ basé sur Spring AI, avec une boucle agentique (le LLM appelle des tools `@Tool`
   le remplace par `[^n]` (numéro affiché, ordre de première citation, partagé par les extraits d'une même source) et
   émet l'événement SSE `citation`. Les sources citées font foi pour l'affichage (`used` en repli) ; numéro persisté en
   fin de `chat_history.sources` et table des refs dans la trace. Les marqueurs sont retirés de l'historique envoyé au LLM.
+- **Accès aux sources** (F2b, `actions/sourceview`) : `GET /api/source-documents/{id}` (métadonnées, extrait, mode
+  d'affichage) et `/{id}/file` (PDF `inline`, sinon `attachment` ; `nosniff`, `CSP: sandbox`, `no-store`), où `id` est
+  le `documentId` d'une source (chunk, pièce jointe ou processus). Accès : chunk public ou personnel de l'utilisateur,
+  pièce jointe de ses conversations, processus ; fichier public réservé aux utilisateurs internes. Inconnu ou
+  inaccessible → 404 (indistinguables). `/api/sources/{name}` désigne les sources de workspace. Tout accès à un
+  `temp_source_document` passe par le propriétaire (`user_uuid`) : jamais de recherche par nom de fichier seul.
 
 ## Bonnes pratiques
 
