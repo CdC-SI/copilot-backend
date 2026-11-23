@@ -16,8 +16,12 @@ mvn -o clean verify
 
 If dependencies are not cached, repeat without `-o` using the configured Maven repositories.
 
-The optional integration check starts an isolated PostgreSQL container using the existing
-test image configuration, applies Flyway migrations, and exercises HTTP and pgvector:
+`verify` runs the unit tests, then the integration tests (`*IT`, Testcontainers: **Docker is required**), then
+the JaCoCo coverage report (`target/site/jacoco/index.html`) and its minimum thresholds
+(`jacoco.minimum.*` in `pom.xml`, raised as coverage grows, never lowered).
+
+The integration tests start isolated PostgreSQL containers using the existing test image configuration, apply
+Flyway migrations, and exercise HTTP and pgvector. A single one can be run with:
 
 ```powershell
 mvn -o test -Dtest=MigrationStartupIT
