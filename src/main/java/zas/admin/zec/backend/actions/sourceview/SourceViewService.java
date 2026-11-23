@@ -1,6 +1,8 @@
 package zas.admin.zec.backend.actions.sourceview;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.tika.Tika;
+import org.springframework.http.InvalidMediaTypeException;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -9,8 +11,8 @@ import zas.admin.zec.backend.actions.sourceview.SourceView.SourceDisplay;
 import zas.admin.zec.backend.actions.sourceview.SourceView.SourceOrigin;
 import zas.admin.zec.backend.actions.sourceview.SourceViewRepository.StoredDocument;
 import zas.admin.zec.backend.actions.upload.model.SourceDocumentType;
-import zas.admin.zec.backend.persistence.entity.AttachmentEntity;
 import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
+import zas.admin.zec.backend.persistence.repository.AttachmentRepository.AttachmentPreview;
 import zas.admin.zec.backend.persistence.repository.TempSourceDocumentRepository;
 import zas.admin.zec.backend.tools.ConversationAttachmentTool;
 import zas.admin.zec.backend.tools.MetadataFormatter;
@@ -42,6 +44,7 @@ public class SourceViewService {
 
     static final int MAX_EXCERPT_LENGTH = 6000;
     static final String STATE_PERSONAL_UPLOADS = "personal.uploads";
+    private static final Tika TIKA = new Tika();
 
     private final SourceViewRepository repository;
     private final TempSourceDocumentRepository documentRepository;
@@ -148,20 +151,36 @@ public class SourceViewService {
         return documentRepository.findPublicIdsByFileName(filename).stream().findFirst();
     }
 
-    private Optional<AttachmentEntity> findAttachment(String documentId, String userId) {
+    private Optional<AttachmentPreview> findAttachment(String documentId, String userId) {
         return attachmentRepository.findIdsByUserId(userId).stream()
                 .filter(attachmentId -> ConversationAttachmentTool.documentId(attachmentId).equals(documentId))
                 .findFirst()
-                .flatMap(attachmentRepository::findById);
+                .flatMap(attachmentRepository::findPreviewById);
     }
 
-    private static Resolved fromAttachment(String id, AttachmentEntity attachment) {
+    /**
+     * Pièce jointe : le type est détecté sur le contenu (comme à l'upload, qui accepte PDF et images quel que soit le
+     * nom) ; seul le fichier servi par {@code /file} est chargé en entier.
+     */
+    private Resolved fromAttachment(String id, AttachmentPreview attachment) {
         String filename = attachment.getFilename();
         var excerpt = excerpt(attachment.getContent());
-        var view = new SourceView(id, SourceOrigin.ATTACHMENT, isPdf(filename) ? SourceDisplay.PDF : SourceDisplay.DOWNLOAD,
+        boolean pdf = MediaType.APPLICATION_PDF.equals(detect(attachment.getHeader()));
+        var view = new SourceView(id, SourceOrigin.ATTACHMENT, pdf ? SourceDisplay.PDF : SourceDisplay.DOWNLOAD,
                 filename, null, null, null, null, STATE_PERSONAL_UPLOADS, excerpt.text(), excerpt.truncated(), true);
-        return new Resolved(view, () -> Optional.of(
-                new SourceFile(filename, SourceDocumentType.mediaTypeOf(filename), attachment.getFileBytes())));
+        return new Resolved(view, () -> attachmentRepository.findFileBytesById(attachment.getId())
+                .map(bytes -> new SourceFile(filename, detect(bytes), bytes)));
+    }
+
+    private static MediaType detect(byte[] bytes) {
+        if (bytes == null || bytes.length == 0) {
+            return MediaType.APPLICATION_OCTET_STREAM;
+        }
+        try {
+            return MediaType.parseMediaType(TIKA.detect(bytes));
+        } catch (InvalidMediaTypeException e) {
+            return MediaType.APPLICATION_OCTET_STREAM;
+        }
     }
 
     private static Resolved fromProcess(StoredDocument process) {

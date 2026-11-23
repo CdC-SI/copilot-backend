@@ -18,12 +18,12 @@ public interface TempSourceDocumentRepository extends JpaRepository<TempSourceDo
 
     Optional<TempSourceDocumentEntity> findByFileNameAndUserUuid(String filename, String userUuid);
 
-    /** Documents personnels de {@code userUuid} portant ce nom, du plus récent au plus ancien (sans charger le contenu). */
-    @Query("SELECT d.id FROM TempSourceDocumentEntity d WHERE d.fileName = :fileName AND d.userUuid = :userUuid ORDER BY d.id DESC")
+    /** Documents personnels de {@code userUuid} portant ce nom et ayant un fichier, du plus récent au plus ancien (sans charger le contenu). */
+    @Query("SELECT d.id FROM TempSourceDocumentEntity d WHERE d.fileName = :fileName AND d.userUuid = :userUuid AND d.content IS NOT NULL ORDER BY d.id DESC")
     List<Long> findIdsByFileNameAndUserUuid(@Param("fileName") String fileName, @Param("userUuid") String userUuid);
 
-    /** Documents publics (ajoutés par un administrateur, sans {@code user_uuid}) portant ce nom, du plus récent au plus ancien. */
-    @Query("SELECT d.id FROM TempSourceDocumentEntity d WHERE d.fileName = :fileName AND d.userUuid IS NULL ORDER BY d.id DESC")
+    /** Documents publics (ajoutés par un administrateur, sans {@code user_uuid}) portant ce nom et ayant un fichier, du plus récent au plus ancien. */
+    @Query("SELECT d.id FROM TempSourceDocumentEntity d WHERE d.fileName = :fileName AND d.userUuid IS NULL AND d.content IS NOT NULL ORDER BY d.id DESC")
     List<Long> findPublicIdsByFileName(@Param("fileName") String fileName);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

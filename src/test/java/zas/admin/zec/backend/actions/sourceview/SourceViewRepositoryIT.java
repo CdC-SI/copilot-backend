@@ -3,14 +3,21 @@ package zas.admin.zec.backend.actions.sourceview;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import zas.admin.zec.backend.actions.converse.AttachmentStatus;
+import zas.admin.zec.backend.actions.upload.model.EmbeddingStatus;
+import zas.admin.zec.backend.persistence.entity.AttachmentEntity;
+import zas.admin.zec.backend.persistence.entity.TempSourceDocumentEntity;
+import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
+import zas.admin.zec.backend.persistence.repository.TempSourceDocumentRepository;
 import zas.admin.zec.backend.tools.document.AbstractDocumentLookupIT;
 
+import java.util.Arrays;
 import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Règle d'accès des chunks de {@link SourceViewRepository} sur une vraie base pgvector. */
+/** Requêtes de l'accès aux sources (règle d'accès des chunks, aperçu des pièces jointes, fichiers) sur une vraie base pgvector. */
 class SourceViewRepositoryIT extends AbstractDocumentLookupIT {
 
     private static final UUID PUBLIC = UUID.fromString("a0000000-0000-0000-0000-000000000001");
@@ -21,6 +28,10 @@ class SourceViewRepositoryIT extends AbstractDocumentLookupIT {
 
     @Autowired
     private SourceViewRepository repository;
+    @Autowired
+    private AttachmentRepository attachmentRepository;
+    @Autowired
+    private TempSourceDocumentRepository documentRepository;
 
     @BeforeEach
     void insertData() {
@@ -68,5 +79,52 @@ class SourceViewRepositoryIT extends AbstractDocumentLookupIT {
         assertThat(process.get().metadata()).containsEntry("process_name", "Rentes");
 
         assertThat(repository.findProcess(PUBLIC)).isEmpty();
+    }
+
+    @Test
+    void attachmentPreview_readsTextAndFileHeaderOnly() {
+        byte[] bytes = new byte[2048];
+        Arrays.fill(bytes, (byte) 'x');
+        System.arraycopy("%PDF-1.7".getBytes(), 0, bytes, 0, 8);
+        var attachment = new AttachmentEntity();
+        attachment.setUserId("user-a");
+        attachment.setConversationId("conv-1");
+        attachment.setFilename("scan");
+        attachment.setFileSize((long) bytes.length);
+        attachment.setFileBytes(bytes);
+        attachment.setContent("Texte OCR");
+        attachment.setStatus(AttachmentStatus.PROCESSED);
+        Long id = attachmentRepository.saveAndFlush(attachment).getId();
+
+        var preview = attachmentRepository.findPreviewById(id);
+
+        assertThat(preview).isPresent();
+        assertThat(preview.get().getId()).isEqualTo(id);
+        assertThat(preview.get().getFilename()).isEqualTo("scan");
+        assertThat(preview.get().getContent()).isEqualTo("Texte OCR");
+        assertThat(preview.get().getHeader()).hasSize(512).startsWith("%PDF-1.7".getBytes());
+        assertThat(attachmentRepository.findIdsByUserId("user-a")).contains(id);
+        assertThat(attachmentRepository.findIdsByUserId("user-b")).doesNotContain(id);
+    }
+
+    @Test
+    void documentIds_skipDocumentsWithoutFile_andSeparateOwners() {
+        Long withoutFile = saveDocument("doc.pdf", "user-a", null);
+        Long own = saveDocument("doc.pdf", "user-a", new byte[]{1});
+        Long other = saveDocument("doc.pdf", "user-b", new byte[]{2});
+        Long publicDoc = saveDocument("doc.pdf", null, new byte[]{3});
+
+        assertThat(documentRepository.findIdsByFileNameAndUserUuid("doc.pdf", "user-a")).containsExactly(own)
+                .doesNotContain(withoutFile, other);
+        assertThat(documentRepository.findPublicIdsByFileName("doc.pdf")).containsExactly(publicDoc);
+    }
+
+    private Long saveDocument(String fileName, String owner, byte[] content) {
+        var document = new TempSourceDocumentEntity();
+        document.setFileName(fileName);
+        document.setUserUuid(owner);
+        document.setContent(content);
+        document.setStatus(EmbeddingStatus.PROCESSED);
+        return documentRepository.saveAndFlush(document).getId();
     }
 }

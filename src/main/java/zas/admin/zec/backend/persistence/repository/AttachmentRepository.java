@@ -24,6 +24,24 @@ public interface AttachmentRepository extends JpaRepository<AttachmentEntity, Lo
     @Query("SELECT a.id FROM AttachmentEntity a WHERE a.userId = :userId")
     List<Long> findIdsByUserId(@Param("userId") String userId);
 
+    /**
+     * Aperçu d'une pièce jointe pour le panneau des sources : texte extrait et premiers octets du fichier (détection du
+     * type), sans charger le fichier complet.
+     */
+    @Query(value = """
+        SELECT id, filename, content, substring(file_bytes FROM 1 FOR 512) AS header
+        FROM attachment
+        WHERE id = :id
+        """, nativeQuery = true)
+    Optional<AttachmentPreview> findPreviewById(@Param("id") Long id);
+
+    interface AttachmentPreview {
+        Long getId();
+        String getFilename();
+        String getContent();
+        byte[] getHeader();
+    }
+
     /** Liste légère des pièces jointes (sans contenu OCR ni octets du fichier), dans l'ordre d'upload. */
     List<AttachmentSummary> findSummariesByConversationIdAndUserIdOrderByIdAsc(String conversationId, String userId);
 

@@ -10,7 +10,6 @@ import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.actions.sourceview.SourceView.SourceDisplay;
 import zas.admin.zec.backend.actions.sourceview.SourceView.SourceOrigin;
 import zas.admin.zec.backend.actions.sourceview.SourceViewRepository.StoredDocument;
-import zas.admin.zec.backend.persistence.entity.AttachmentEntity;
 import zas.admin.zec.backend.persistence.entity.TempSourceDocumentEntity;
 import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
 import zas.admin.zec.backend.persistence.repository.TempSourceDocumentRepository;
@@ -182,20 +181,26 @@ class SourceViewServiceTest {
         assertThat(view.excerptTruncated()).isTrue();
     }
 
-    @Test
-    void attachmentOfUser_isResolvedFromItsDocumentId() {
-        String id = ConversationAttachmentTool.documentId(42L);
-        var attachment = new AttachmentEntity();
-        attachment.setId(42L);
-        attachment.setFilename("piece.pdf");
-        attachment.setContent("Texte extrait");
-        attachment.setFileBytes(new byte[]{9});
+    private record Preview(Long getId, String getFilename, String getContent, byte[] getHeader)
+            implements AttachmentRepository.AttachmentPreview {}
+
+    private static final byte[] PDF_BYTES = "%PDF-1.7\n%âãÏÓ\n1 0 obj\n".getBytes(java.nio.charset.StandardCharsets.ISO_8859_1);
+    private static final byte[] PNG_BYTES = {(byte) 0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n', 0, 0, 0, 0x0D, 'I', 'H', 'D', 'R'};
+
+    private String attachment(long attachmentId, String filename, byte[] bytes) {
+        String id = ConversationAttachmentTool.documentId(attachmentId);
         when(repository.findAccessibleChunk(UUID.fromString(id), USER)).thenReturn(Optional.empty());
-        when(attachmentRepository.findIdsByUserId(USER)).thenReturn(List.of(41L, 42L));
-        when(attachmentRepository.findById(42L)).thenReturn(Optional.of(attachment));
+        when(attachmentRepository.findIdsByUserId(USER)).thenReturn(List.of(attachmentId - 1, attachmentId));
+        when(attachmentRepository.findPreviewById(attachmentId))
+                .thenReturn(Optional.of(new Preview(attachmentId, filename, "Texte extrait", bytes)));
+        return id;
+    }
+
+    @Test
+    void attachmentOfUser_isResolvedFromItsDocumentId_withoutLoadingTheFile() {
+        String id = attachment(42L, "piece.pdf", PDF_BYTES);
 
         var view = service.view(id, USER);
-        var served = service.file(id, USER);
 
         assertThat(view.origin()).isEqualTo(SourceOrigin.ATTACHMENT);
         assertThat(view.display()).isEqualTo(SourceDisplay.PDF);
@@ -203,9 +208,32 @@ class SourceViewServiceTest {
         assertThat(view.excerpt()).isEqualTo("Texte extrait");
         assertThat(view.state()).isEqualTo(SourceViewService.STATE_PERSONAL_UPLOADS);
         assertThat(view.fileAvailable()).isTrue();
-        assertThat(served.content()).containsExactly(9);
+        verify(attachmentRepository, never()).findFileBytesById(any());
+        verify(attachmentRepository, never()).findById(any());
     }
 
+    @Test
+    void attachmentType_isDetectedFromContent_notFromName() {
+        String pdfId = attachment(42L, "scan", PDF_BYTES);
+        when(attachmentRepository.findFileBytesById(42L)).thenReturn(Optional.of(PDF_BYTES));
+
+        assertThat(service.view(pdfId, USER).display()).isEqualTo(SourceDisplay.PDF);
+        var served = service.file(pdfId, USER);
+        assertThat(served.isPdf()).isTrue();
+        assertThat(served.filename()).isEqualTo("scan");
+        assertThat(served.content()).isEqualTo(PDF_BYTES);
+    }
+
+    @Test
+    void imageNamedPdf_isOfferedAsDownloadWithItsRealType() {
+        String id = attachment(50L, "photo.pdf", PNG_BYTES);
+        when(attachmentRepository.findFileBytesById(50L)).thenReturn(Optional.of(PNG_BYTES));
+
+        assertThat(service.view(id, USER).display()).isEqualTo(SourceDisplay.DOWNLOAD);
+        var served = service.file(id, USER);
+        assertThat(served.isPdf()).isFalse();
+        assertThat(served.mediaType()).isEqualTo(MediaType.IMAGE_PNG);
+    }
     @Test
     void attachmentOfAnotherUser_isNotFound() {
         String id = ConversationAttachmentTool.documentId(42L);
@@ -214,7 +242,7 @@ class SourceViewServiceTest {
         when(repository.findProcess(UUID.fromString(id))).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.view(id, USER)).isInstanceOf(SourceViewNotFoundException.class);
-        verify(attachmentRepository, never()).findById(any());
+        verify(attachmentRepository, never()).findPreviewById(any());
     }
 
     @Test
