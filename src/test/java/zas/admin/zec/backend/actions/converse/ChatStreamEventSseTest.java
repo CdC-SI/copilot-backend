@@ -26,7 +26,17 @@ class ChatStreamEventSseTest {
         var source = new Source("doc-1", SourceType.FILE, "Mémento.pdf", "2", "", "in_force", null);
 
         assertSse(ChatStreamEvent.source(source), "source", "{\"documentId\":\"doc-1\",\"type\":\"FILE\",\"link\":\"Mémento.pdf\","
-                + "\"pageNumber\":\"2\",\"subsection\":\"\",\"version\":\"in_force\",\"title\":null}");
+                + "\"pageNumber\":\"2\",\"subsection\":\"\",\"version\":\"in_force\",\"title\":null,\"citation\":null}");
+    }
+
+    @Test
+    @DisplayName("citation : numéro et source numérotée (F2a)")
+    void citationCarriesTheNumberedSource() {
+        var source = new Source("doc-1", SourceType.URL, "https://x/y", "3", null, null, null, 1);
+
+        assertSse(ChatStreamEvent.citation(1, source), "citation", "{\"n\":1,\"source\":{\"documentId\":\"doc-1\","
+                + "\"type\":\"URL\",\"link\":\"https://x/y\",\"pageNumber\":\"3\",\"subsection\":null,\"version\":null,"
+                + "\"title\":null,\"citation\":1}}");
     }
 
     private static void assertSse(ChatStreamEvent event, String name, String json) {

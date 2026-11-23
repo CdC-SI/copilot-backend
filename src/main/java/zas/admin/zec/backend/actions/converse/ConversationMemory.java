@@ -20,6 +20,7 @@ import zas.admin.zec.backend.persistence.repository.ConversationSummaryRepositor
 import zas.admin.zec.backend.prompts.Prompt;
 import zas.admin.zec.backend.prompts.PromptId;
 import zas.admin.zec.backend.prompts.PromptRegistry;
+import zas.admin.zec.backend.rag.CitationStreamFilter;
 import zas.admin.zec.backend.rag.TurnUsage;
 
 import java.time.LocalDateTime;
@@ -281,7 +282,9 @@ public class ConversationMemory {
         List<String> parts = new ArrayList<>(messages.size());
         for (Message message : messages) {
             String tag = "USER".equals(message.role()) ? "user" : "assistant";
-            parts.add("<" + tag + ">\n" + message.message().strip() + "\n</" + tag + ">");
+            String text = "USER".equals(message.role())
+                    ? message.message() : CitationStreamFilter.stripMarkers(message.message());
+            parts.add("<" + tag + ">\n" + text.strip() + "\n</" + tag + ">");
         }
         return String.join("\n", parts);
     }

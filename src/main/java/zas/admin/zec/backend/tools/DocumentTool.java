@@ -123,7 +123,7 @@ public class DocumentTool {
                 target, filters, type, result.documents().size());
 
         depositDocuments(context, result.documents());
-        return format(result, type);
+        return format(result, type, context);
     }
 
     private int effectiveLimit(Integer requested) {
@@ -133,7 +133,7 @@ public class DocumentTool {
         return Math.min(requested, MAX_DOCUMENTS_PER_CALL);
     }
 
-    static String format(DocumentLookup.LookupResult result, ReturnType type) {
+    static String format(DocumentLookup.LookupResult result, ReturnType type, Map<String, Object> context) {
         String nl = System.lineSeparator();
         var sb = new StringBuilder();
         if (result.notice() != null) {
@@ -143,7 +143,8 @@ public class DocumentTool {
             return sb.append(NO_RESULT).toString();
         }
         sb.append(result.documents().stream()
-                .map(document -> MetadataFormatter.format(document, type.includesContent(), type.includesMetadata()))
+                .map(document -> MetadataFormatter.format(document, type.includesContent(), type.includesMetadata(),
+                        type.includesContent() ? ToolContextKeys.citationRef(context, document.getId()) : null))
                 .collect(Collectors.joining(nl)));
         if (result.truncated()) {
             sb.append(nl).append("<notice>More documents match these filters (at most %d per call): refine the filters, e.g. chunk_index, or make another call for the next ones.</notice>"

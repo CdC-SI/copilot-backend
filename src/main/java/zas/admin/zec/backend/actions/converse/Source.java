@@ -7,17 +7,23 @@ import static zas.admin.zec.backend.rag.token.SourceToken.*;
 /**
  * Source affichée sous une réponse et persistée dans {@code chat_history.sources}.
  *
- * @param title titre affiché (processus métier : nom du processus) ; {@code null} pour URL / FILE
+ * @param title    titre affiché (processus métier : nom du processus) ; {@code null} pour URL / FILE
+ * @param citation numéro de citation dans la réponse ({@code [^n]}, F2a) ; {@code null} si la source n'est pas citée
  */
 public record Source(String documentId, SourceType type, String link, String pageNumber, String subsection,
-                     String version, String title) {
+                     String version, String title, Integer citation) {
 
     public Source(SourceType type, String link) {
-        this(null, type, link, null, null, null, null);
+        this(null, type, link, null, null, null, null, null);
     }
 
     public Source(String documentId, SourceType type, String link, String pageNumber, String subsection, String version) {
-        this(documentId, type, link, pageNumber, subsection, version, null);
+        this(documentId, type, link, pageNumber, subsection, version, null, null);
+    }
+
+    public Source(String documentId, SourceType type, String link, String pageNumber, String subsection,
+                  String version, String title) {
+        this(documentId, type, link, pageNumber, subsection, version, title, null);
     }
 
     public static Source fromToken(SourceToken token) {
@@ -28,7 +34,9 @@ public record Source(String documentId, SourceType type, String link, String pag
                     token.metadata().get(KEY_URL),
                     token.metadata().get(KEY_PAGE_NUMBER),
                     token.metadata().get(KEY_SUBSECTION),
-                    token.metadata().get(KEY_VERSION)
+                    token.metadata().get(KEY_VERSION),
+                    null,
+                    token.citation()
             );
             case FILE -> new Source(
                     token.documentId(),
@@ -36,7 +44,9 @@ public record Source(String documentId, SourceType type, String link, String pag
                     token.metadata().get(KEY_FILENAME),
                     token.metadata().get(KEY_PAGE_NUMBER),
                     token.metadata().get(KEY_SUBSECTION),
-                    token.metadata().get(KEY_VERSION)
+                    token.metadata().get(KEY_VERSION),
+                    null,
+                    token.citation()
             );
             case BUSINESS_PROCESS -> new Source(
                     token.documentId(),
@@ -45,7 +55,8 @@ public record Source(String documentId, SourceType type, String link, String pag
                     null,
                     null,
                     token.metadata().get(KEY_VERSION),
-                    token.metadata().get(KEY_TITLE)
+                    token.metadata().get(KEY_TITLE),
+                    token.citation()
             );
         };
     }

@@ -126,10 +126,12 @@ class RAGToolTest {
         context.put(ToolContextKeys.CTX_WORKSPACE, "AFAC");
         context.put(ToolContextKeys.CTX_USER_TOKEN, "Bearer jwt");
         context.put(ToolContextKeys.CTX_RETRIEVED_DOCUMENTS, retrieved);
+        context.put(ToolContextKeys.CTX_CITATION_REFS, new zas.admin.zec.backend.rag.CitationRefs());
 
         String result = tool.searchSocialInsuranceDocumentation("Quelle est la cotisation maximale ?", new ToolContext(context));
 
         assertTrue(result.contains("Cotisation maximale : 530 francs."));
+        assertTrue(result.contains("<document id=\"d1\" collection=\"documentation\" ref=\"1\">"), result);
         assertEquals(List.of("d1"), retrieved.stream().map(Document::getId).toList());
         verify(ziaRag).retrieve("Quelle est la cotisation maximale ?", List.of("afac"), "u1", "Bearer jwt");
         verifyNoInteractions(chatModel);

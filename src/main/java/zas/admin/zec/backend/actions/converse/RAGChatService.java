@@ -18,11 +18,15 @@ import zas.admin.zec.backend.persistence.repository.AttachmentRepository.Attachm
 import zas.admin.zec.backend.prompts.Prompt;
 import zas.admin.zec.backend.prompts.PromptId;
 import zas.admin.zec.backend.prompts.PromptRegistry;
+import zas.admin.zec.backend.rag.CitationRefs;
+import zas.admin.zec.backend.rag.CitationStreamFilter;
 import zas.admin.zec.backend.rag.ConsultedSource;
+import zas.admin.zec.backend.rag.TurnCitations;
 import zas.admin.zec.backend.rag.TurnMetaStreamFilter;
 import zas.admin.zec.backend.rag.TurnTrace;
 import zas.admin.zec.backend.rag.TurnUsage;
 import zas.admin.zec.backend.rag.UsageTracker;
+import zas.admin.zec.backend.rag.token.CitationToken;
 import zas.admin.zec.backend.rag.token.SourceToken;
 import zas.admin.zec.backend.rag.token.TextToken;
 import zas.admin.zec.backend.rag.token.Token;
@@ -36,6 +40,7 @@ import zas.admin.zec.backend.tools.ToolCallRecorder;
 import zas.admin.zec.backend.tools.ToolContextKeys;
 import zas.admin.zec.backend.tools.WorkspaceInferenceMonitoringService;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -148,6 +153,13 @@ public class RAGChatService extends AbstractChatService {
         // Extrait (et masque) la balise <turn_meta> de fin de réponse.
         TurnMetaStreamFilter turnMetaFilter = new TurnMetaStreamFilter();
 
+        // Citations (F2a) : références des extraits lus (attribuées par les tools), résolues dans le texte en [^n].
+        CitationRefs citationRefs = new CitationRefs();
+        toolContext.put(ToolContextKeys.CTX_CITATION_REFS, citationRefs);
+        CitationStreamFilter citationFilter = new CitationStreamFilter(citationRefs, ref -> citationRefs.idFor(ref)
+                .flatMap(id -> retrievedDocuments.stream().filter(d -> id.equals(d.getId())).findFirst())
+                .map(ConsultedSource::from));
+
         // Journal des appels de tools du tour (persisté avec la réponse), événements tool_call / tool_result et
         // approbation des tools qui l'exigent (T1).
         ToolCallRecorder toolCallRecorder = new ToolCallRecorder(retrievedDocuments, toolApprovalService);
@@ -185,8 +197,11 @@ public class RAGChatService extends AbstractChatService {
                 .map(response -> turnMetaFilter.accept(extractText(response)))
                 // La balise <turn_meta> est retirée du flux ; le reliquat éventuel est émis en fin de flux.
                 .concatWith(Mono.fromSupplier(turnMetaFilter::flush))
-                .filter(text -> !text.isEmpty())
-                .<Token>map(TextToken::new)
+                // Une source citée pour la première fois est annoncée juste avant le texte qui porte son marqueur :
+                // filtrage et collecte des citations dans le même mapper séquentiel (le filtre n'est pas thread-safe).
+                .concatMapIterable(text -> textWithCitations(citationFilter.accept(text), citationFilter))
+                .concatWith(Flux.defer(() -> Flux.fromIterable(
+                        textWithCitations(citationFilter.flush(), citationFilter))))
                 .doOnComplete(() -> {
                     // La consigne de prompt n'offre pas de garantie stricte : on trace les cas où le
                     // LLM a malgré tout ignoré la recherche documentaire.
@@ -200,16 +215,19 @@ public class RAGChatService extends AbstractChatService {
         // Les sources ne sont connues qu'après la génération : elles dépendent des documents consultés
         // par les tools et du statut de fin de tour déclaré par l'agent (<turn_meta>).
         Flux<Token> sourceTokens = Flux.defer(() -> {
+            var citations = citationFilter.citations();
             var outcome = SourceDisplayPolicy.decide(
                     turnMetaFilter.meta(),
                     retrievedDocuments.stream().map(ConsultedSource::from).toList(),
                     conversationHistory,
-                    question.conversationId());
+                    question.conversationId(),
+                    citations);
             return Flux.<Token>fromIterable(outcome.displayed())
                     .concatWithValues(new TurnTraceToken(outcome.trace()
                             .withToolCalls(toolCallRecorder.calls())
                             .withUsage(new TurnUsage(usageTracker.agentCalls(), auxiliaryUsage))
-                            .withPrompts(promptVersions)));
+                            .withPrompts(promptVersions)
+                            .withCitations(TurnCitations.of(citationRefs, citations))));
         });
 
         // De même pour le workspace résolu par RAGTool, s'il a été appelé.
@@ -224,6 +242,22 @@ public class RAGChatService extends AbstractChatService {
         // avant et pendant que textTokens streame la réponse du LLM.
         return initialTrace.concatWith(statusSink.asFlux().mergeWith(textTokens))
                 .concatWith(sourceTokens).concatWith(workspaceToken);
+    }
+
+    /**
+     * Événements {@link CitationToken} des sources citées pour la première fois dans {@code text} (texte déjà filtré
+     * par {@code citationFilter}), puis le texte s'il n'est pas vide.
+     */
+    static List<Token> textWithCitations(String text, CitationStreamFilter citationFilter) {
+        List<Token> tokens = new ArrayList<>();
+        for (var citation : citationFilter.drainNewCitations()) {
+            tokens.add(new CitationToken(citation.number(),
+                    citation.source().toSourceToken().withCitation(citation.number())));
+        }
+        if (!text.isEmpty()) {
+            tokens.add(new TextToken(text));
+        }
+        return tokens;
     }
 
     /** Pièces jointes de la conversation (sans contenu), annoncées à l'agent via {@code <conversation_attachments>}. */

@@ -44,6 +44,16 @@ class MetadataFormatterTest {
     }
 
     @Test
+    void citationRefIsAddedToExtractsWithContentOnly() {
+        var doc = Document.builder().id("d1").text("Contenu").metadata(Map.of("title", "Mémento")).build();
+
+        assertTrue(MetadataFormatter.format(doc, true, false, 4)
+                .startsWith("<document id=\"d1\" collection=\"documentation\" ref=\"4\">"));
+        assertEquals("<document id=\"d1\" collection=\"documentation\"/>", MetadataFormatter.format(doc, false, false, 4));
+        assertEquals(MetadataFormatter.format(doc, true, true), MetadataFormatter.format(doc, true, true, null));
+    }
+
+    @Test
     void consultedSourceRoundTripsAndMapsToSourceTokens() {
         var process = Document.builder().id("p").text("").metadata(Map.of(
                 MetadataFormatter.META_COLLECTION, "business_process", "process_id", "BP-1",

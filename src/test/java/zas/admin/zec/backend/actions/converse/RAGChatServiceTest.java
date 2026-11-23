@@ -23,9 +23,12 @@ import org.springframework.context.ApplicationEventPublisher;
 import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
 import zas.admin.zec.backend.prompts.PromptId;
 import zas.admin.zec.backend.prompts.PromptRegistry;
+import zas.admin.zec.backend.rag.CitationRefs;
+import zas.admin.zec.backend.rag.CitationStreamFilter;
 import zas.admin.zec.backend.rag.ConsultedSource;
 import zas.admin.zec.backend.rag.TurnStatus;
 import zas.admin.zec.backend.rag.TurnTrace;
+import zas.admin.zec.backend.rag.token.CitationToken;
 import zas.admin.zec.backend.rag.token.SourceToken;
 import zas.admin.zec.backend.rag.token.TextToken;
 import zas.admin.zec.backend.rag.token.Token;
@@ -129,6 +132,28 @@ class RAGChatServiceTest {
         assertEquals(1, trace.usage().toMap().get("llm_calls"));
         // Version du prompt système tracée ; pas de consigne de workspace (non choisi par l'utilisateur).
         assertEquals(Map.of("agentic-system/fr", PROMPTS.get(PromptId.AGENTIC_SYSTEM, "fr").version()), trace.prompts());
+    }
+
+    @Test
+    void bracketsAreKeptWhenNoExtractWasReadAndNewCitationsPrecedeTheirText() {
+        var tokens = answer(question(""), "Voir [1].", "<turn_meta status=\"answer\" used=\"\"/>");
+        String visible = tokens.stream().filter(TextToken.class::isInstance).map(Token::content).collect(Collectors.joining());
+        assertEquals("Voir [1].", visible);
+
+        var refs = new CitationRefs();
+        refs.refFor("a");
+        var filter = new CitationStreamFilter(refs, ref -> refs.idFor(ref).map(id -> CHUNK));
+        var emitted = RAGChatService.textWithCitations(filter.accept("Délai [1]."), filter);
+
+        assertEquals(2, emitted.size());
+        var citation = assertInstanceOf(CitationToken.class, emitted.getFirst());
+        assertEquals(1, citation.number());
+        assertEquals(1, citation.source().citation());
+        assertEquals("a", citation.source().documentId());
+        assertEquals("Délai [^1].", emitted.get(1).content());
+        assertEquals(1, RAGChatService.textWithCitations("suite", filter).size());
+        // Texte retenu par le filtre (marqueur incomplet) : pas de jeton vide.
+        assertTrue(RAGChatService.textWithCitations(filter.accept("[1"), filter).isEmpty());
     }
 
     @Test

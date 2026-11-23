@@ -6,6 +6,7 @@ import org.springframework.ai.document.Document;
 import zas.admin.zec.backend.persistence.entity.AttachmentEntity;
 import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
 import zas.admin.zec.backend.persistence.repository.AttachmentRepository.AttachmentSummary;
+import zas.admin.zec.backend.rag.CitationRefs;
 import zas.admin.zec.backend.rag.ConsultedSource;
 import zas.admin.zec.backend.rag.TurnStatus;
 import zas.admin.zec.backend.rag.TurnTrace;
@@ -73,6 +74,24 @@ class AttachmentSourcesTest {
         assertEquals(ConversationAttachmentTool.documentId(12L), sink.getFirst().getId());
         assertNotEquals(ConversationAttachmentTool.documentId(13L), ConversationAttachmentTool.documentId(12L));
         assertEquals(MetadataFormatter.COLLECTION_ATTACHMENT, MetadataFormatter.collectionKey(sink.getFirst()));
+    }
+
+    @Test
+    void readAttachmentGetsACitationRefWhenTheTurnTracksCitations() {
+        var tool = tool(attachment(12, "decompte_2025.pdf", AttachmentStatus.PROCESSED));
+        var refs = new CitationRefs();
+        refs.refFor("autre-document");
+        var context = new ToolContext(Map.of(
+                ToolContextKeys.CTX_CONVERSATION_ID, "conv",
+                ToolContextKeys.CTX_USER_ID, "user",
+                ToolContextKeys.CTX_RETRIEVED_DOCUMENTS, new CopyOnWriteArrayList<Document>(),
+                ToolContextKeys.CTX_CITATION_REFS, refs));
+
+        String content = tool.getAttachmentContent(null, context);
+
+        assertTrue(content.startsWith("<attachment id=\"" + ConversationAttachmentTool.documentId(12L)
+                + "\" ref=\"2\" filename=\"decompte_2025.pdf\">"), content);
+        assertEquals(java.util.Optional.of(ConversationAttachmentTool.documentId(12L)), refs.idFor(2));
     }
 
     @Test
