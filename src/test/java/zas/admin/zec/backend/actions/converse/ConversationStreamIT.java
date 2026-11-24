@@ -19,6 +19,7 @@ import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 import zas.admin.zec.backend.LocalConfig;
+import zas.admin.zec.backend.rag.ChatStatus;
 import zas.admin.zec.backend.tools.RAGTool;
 
 import java.io.IOException;
@@ -153,6 +154,15 @@ class ConversationStreamIT {
         int citation = names.indexOf(ChatStreamEvent.CITATION);
         int source = names.indexOf(ChatStreamEvent.SOURCE);
         assertTrue(0 < toolCall && toolCall < toolResult && toolResult < firstText, names.toString());
+        // Étapes annoncées par RAGTool entre l'appel et son résultat : inférence du workspace puis recherche.
+        var statuses = events.subList(toolCall + 1, toolResult).stream()
+                .filter(e -> e.name().equals(ChatStreamEvent.STATUS))
+                .map(e -> e.data().path("code").asText() + "|" + e.data().path("label").asText())
+                .toList();
+        assertEquals(List.of(
+                ChatStatus.WORKSPACE_INFERENCE.tag() + "|" + ChatStatus.WORKSPACE_INFERENCE.text("fr"),
+                ChatStatus.RETRIEVAL.tag() + "|" + ChatStatus.RETRIEVAL.text("fr")), statuses);
+        assertEquals(2, Collections.frequency(names, ChatStreamEvent.STATUS), names.toString());
         int markerText = indexOf(events, e -> e.name().equals(ChatStreamEvent.TEXT_DELTA)
                 && e.data().path("text").asText().contains("[^1]"));
         assertTrue(firstText <= citation && citation < markerText, names.toString());
@@ -444,7 +454,8 @@ class ConversationStreamIT {
                         }
                     }
                 } catch (Exception e) {
-                    status.completeExceptionally(e);
+                    // Le statut HTTP peut déjà être connu : l'erreur de lecture le remplace pour que readAll() échoue.
+                    status.obtrudeException(e);
                 } finally {
                     events.add(END);
                 }
