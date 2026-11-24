@@ -23,6 +23,9 @@ basé sur Spring AI, avec une boucle agentique (le LLM appelle des tools `@Tool`
   `ChatModelsConfigTest` (`src/test/java/zas/admin/zec/backend/config/ChatModelsConfigTest.java`) contient un stub HTTP du LLM réutilisable.
 - Mockito est chargé comme agent Java (`argLine` de surefire et failsafe). Un `argLine` ajouté doit garder `@{argLine}`,
   qui porte l'agent JaCoCo.
+- Sécurité des contrôleurs : `ControllerSecurityTest` (`config/security`) liste chaque endpoint avec le rôle exigé
+  (`@RequireAdmin`, `@RequireUser`, `@RequireInternalUser`…) ; tout nouvel endpoint ou contrôleur s'ajoute à sa table
+  `endpoints()` (`everyEndpointIsListed` échoue sinon).
 - Tout nouveau code s'accompagne de ses tests ; une baisse de couverture fait échouer `verify`.
 - Après une modification, valider au minimum avec `mvn -o compile` avant de conclure.
 
