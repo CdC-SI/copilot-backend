@@ -188,6 +188,7 @@ class MigrationStartupIT {
     private HttpRequest.Builder request(String path) {
         return HttpRequest.newBuilder(URI.create("http://127.0.0.1:"
                         + environment.getRequiredProperty("local.server.port") + "/zia" + path))
-                .timeout(Duration.ofSeconds(15));
+                // Première génération de springdoc lente sous charge (build complet).
+                .timeout(Duration.ofSeconds(60));
     }
 }
