@@ -42,8 +42,9 @@ public class DocumentController {
 
     @RequireInternalUser
     @GetMapping
-    public ResponseEntity<Resource> getDocument(@RequestParam String filename) {
-        var download = uploadService.download(filename);
+    public ResponseEntity<Resource> getDocument(@RequestParam String filename, Authentication authentication) {
+        var userUuid = userService.getUuid(authentication.getName());
+        var download = uploadService.download(filename, userUuid);
         var contentDisposition = ContentDisposition.attachment()
                 .filename(download.filename(), StandardCharsets.UTF_8)
                 .build();
@@ -107,5 +108,11 @@ public class DocumentController {
 
         uploadService.uploadAdminDocuments(toUploadList);
         return ResponseEntity.ok().build();
+    }
+
+    @ExceptionHandler(DocumentNotFoundException.class)
+    public ResponseEntity<Void> handleNotFound(DocumentNotFoundException e) {
+        log.debug(e.getMessage());
+        return ResponseEntity.notFound().build();
     }
 }
