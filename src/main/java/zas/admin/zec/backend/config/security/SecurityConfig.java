@@ -1,5 +1,6 @@
 package zas.admin.zec.backend.config.security;
 
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -31,6 +32,7 @@ import tools.jackson.databind.json.JsonMapper;
 import zas.admin.zec.backend.config.api.ApiKeyAuthenticationConverter;
 import zas.admin.zec.backend.config.api.ApiKeyAuthenticationProvider;
 
+import java.io.IOException;
 import java.security.KeyFactory;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.X509EncodedKeySpec;
@@ -88,14 +90,19 @@ public class SecurityConfig {
 
         AuthenticationFilter apiKeyFilter = new AuthenticationFilter(apiKeyAuthManager, new ApiKeyAuthenticationConverter());
         apiKeyFilter.setSuccessHandler((request, response, authentication) -> { });
-        apiKeyFilter.setFailureHandler((request, response, exception) -> {
-            response.setStatus(401);
-            response.setContentType("application/json");
-            response.getWriter().write("{\"error\": {\"code\": \"unauthorized\", \"message\": \"Invalid or missing API key\"}}");
-        });
+        // Clé invalide, révoquée ou expirée (AuthenticationException du provider) comme clé absente : 401 JSON.
+        apiKeyFilter.setFailureHandler((request, response, exception) -> writeApiKeyUnauthorized(response));
         http.addFilterBefore(apiKeyFilter, UsernamePasswordAuthenticationFilter.class);
+        http.exceptionHandling(ex -> ex.authenticationEntryPoint(
+                (request, response, exception) -> writeApiKeyUnauthorized(response)));
 
         return http.build();
+    }
+
+    private static void writeApiKeyUnauthorized(HttpServletResponse response) throws IOException {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType("application/json");
+        response.getWriter().write("{\"error\": {\"code\": \"unauthorized\", \"message\": \"Invalid or missing API key\"}}");
     }
 
     @Bean

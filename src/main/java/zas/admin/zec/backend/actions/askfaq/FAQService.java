@@ -50,16 +50,19 @@ public class FAQService {
         if (faqSearchProperties.minResultBeforeSemanticSearch() <= byWordSimilarity.size()) {
             return byWordSimilarity;
         } else {
-            var itemsFromCache = faqCache.get(question);
-            if (itemsFromCache != null) {
-                return itemsFromCache;
+            // Seuls les résultats sémantiques (coûteux : embedding) sont mis en cache ; la recherche par mots est
+            // toujours rejouée et fusionnée.
+            var bySemanticSimilarity = faqCache.get(question);
+            if (bySemanticSimilarity == null) {
+                bySemanticSimilarity = getExistingFAQItemsBySemanticSimilarity(question);
+                faqCache.put(question, bySemanticSimilarity);
             }
-
-            var bySemanticSimilarity = getExistingFAQItemsBySemanticSimilarity(question);
-            faqCache.put(question, bySemanticSimilarity);
-            return Stream.concat(byWordSimilarity.stream(), bySemanticSimilarity.stream())
-                    .distinct()
-                    .toList();
+            // Dédoublonnage par id : le résultat par mots (frais) l'emporte sur une version en cache, peut-être
+            // antérieure à une mise à jour de la FAQ.
+            var byId = new LinkedHashMap<String, FAQItem>();
+            Stream.concat(byWordSimilarity.stream(), bySemanticSimilarity.stream())
+                    .forEach(item -> byId.putIfAbsent(item.id(), item));
+            return List.copyOf(byId.values());
         }
     }
 

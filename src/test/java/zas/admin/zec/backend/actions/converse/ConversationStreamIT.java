@@ -273,8 +273,8 @@ class ConversationStreamIT {
         var release = new CountDownLatch(1);
         LLM.script(out -> {
             out.text("Début de la réponse");
-            // Le LLM reste actif sans produire de texte (commentaires SSE) : l'annulation de l'appel par le Stop ferme
-            // le flux du SDK OpenAI, qui attend la lecture en cours (aucun octet reçu = Stop bloqué).
+            // Le LLM reste actif sans produire de texte (commentaires SSE de maintien) ; voir aussi
+            // stopIsPromptWhenTheLlmIsSilent pour un LLM sans aucun octet.
             while (!LLM.await(release, Duration.ofMillis(50))) {
                 out.comment();
             }
@@ -305,6 +305,41 @@ class ConversationStreamIT {
                 Integer.class, conversationId));
         // La génération est terminée : un second Stop ne la trouve plus.
         assertEquals(404, stop(conversationId, messageId));
+    }
+
+    @Test
+    void stopIsPromptWhenTheLlmIsSilent() throws Exception {
+        var release = new CountDownLatch(1);
+        LLM.script(out -> {
+            out.text("Début de la réponse");
+            // LLM muet (aucun octet, pas même de commentaire SSE) : le thread du SDK reste bloqué en lecture. Le Stop
+            // ne doit pas attendre la fermeture du flux (prochain octet ou timeout de lecture).
+            LLM.await(release, Duration.ofSeconds(60));
+            out.text(" jamais transmise.").finish("stop");
+        }, release);
+
+        var stream = ask("Explique-moi les rentes AI.", null);
+        var start = stream.next(ChatStreamEvent.START).data();
+        String conversationId = start.path("conversationId").asText();
+        String messageId = start.path("messageId").asText();
+        assertEquals("Début de la réponse", stream.next(ChatStreamEvent.TEXT_DELTA).data().path("text").asText());
+
+        long stopStarted = System.nanoTime();
+        assertEquals(202, stop(conversationId, messageId));
+        var stopDuration = Duration.ofNanos(System.nanoTime() - stopStarted);
+        assertTrue(stopDuration.compareTo(Duration.ofSeconds(5)) < 0, "Stop trop long : " + stopDuration);
+
+        var done = stream.next(ChatStreamEvent.DONE).data();
+        var doneAfter = Duration.ofNanos(System.nanoTime() - stopStarted);
+        assertTrue(doneAfter.compareTo(Duration.ofSeconds(5)) < 0, "done trop tardif : " + doneAfter);
+        assertEquals(messageId, done.path("messageId").asText());
+        assertTrue(done.path("interrupted").asBoolean());
+        assertTrue(stream.readAll().isEmpty());
+        release.countDown();
+
+        var saved = savedMessage(messageId);
+        assertTrue(saved.interrupted());
+        assertEquals("Début de la réponse", saved.message());
     }
 
     private static void assertCitedSource(JsonNode source) {

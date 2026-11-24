@@ -6,8 +6,9 @@ import org.springframework.data.repository.query.Param;
 import zas.admin.zec.backend.persistence.entity.QuestionEntity;
 
 import java.util.List;
+import java.util.UUID;
 
-public interface QuestionRepository extends JpaRepository<QuestionEntity, Integer> {
+public interface QuestionRepository extends JpaRepository<QuestionEntity, UUID> {
 
     @Query(
             value = """

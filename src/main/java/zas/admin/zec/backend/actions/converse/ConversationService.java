@@ -223,6 +223,10 @@ public class ConversationService {
 
         return getTokenStream(question, userId, conversationType, replacedTurn, toolCallRecorder)
                 .doOnSubscribe(ignored -> generation.markSubscribed())
+                // L'annulation de l'appel LLM ferme le flux du SDK OpenAI, ce qui bloque tant que le thread de lecture
+                // n'a rien reçu (LLM muet) : elle est faite hors du thread qui l'émet (requête Stop, déconnexion), pour
+                // que le Stop réponde et que done {interrupted: true} parte immédiatement.
+                .cancelOn(Schedulers.boundedElastic())
                 // Stop (endpoint) : la production s'arrête (annulation de l'appel LLM) et le flux continue
                 // normalement vers l'enregistrement de la réponse partielle, puis done {interrupted: true}.
                 .takeUntilOther(generation.stopSignal())

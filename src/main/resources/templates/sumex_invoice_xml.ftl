@@ -78,13 +78,13 @@
 					</invoice:company>
 				</invoice:insurance>
 				<invoice:patient gender="${patient.gender()?blank_to_null!'male'}" sex="${patient.gender()?blank_to_null!'male'}" birthdate="${patient.birthday()?blank_to_null!'1990-12-20'}" ssn="${patient.avsNumber()?blank_to_null!'7560665324444'}">
-					<invoice:person salutation="<#if patient.gender() == 'female'>Frau<#elseif patient.gender() == 'male'>Herr<#else>Unbekannt</#if>">
-						<invoice:familyname>${patient.lastName()}</invoice:familyname>
-						<invoice:givenname>${patient.firstName()}</invoice:givenname>
+					<invoice:person salutation="<#if (patient.gender()!'') == 'female'>Frau<#elseif (patient.gender()!'') == 'male'>Herr<#else>Unbekannt</#if>">
+						<invoice:familyname>${patient.lastName()!}</invoice:familyname>
+						<invoice:givenname>${patient.firstName()!}</invoice:givenname>
 						<invoice:postal>
-							<invoice:street>${patient.street()}</invoice:street>
-							<invoice:zip>${patient.postalCode()}</invoice:zip>
-							<invoice:city>${patient.locality()}</invoice:city>
+							<invoice:street>${patient.street()!}</invoice:street>
+							<invoice:zip>${patient.postalCode()!}</invoice:zip>
+							<invoice:city>${patient.locality()!}</invoice:city>
 						</invoice:postal>
 						<invoice:online>
 							<invoice:email>test.name@hotmail.com</invoice:email>
