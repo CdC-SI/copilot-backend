@@ -17,10 +17,14 @@ basé sur Spring AI, avec une boucle agentique (le LLM appelle des tools `@Tool`
 - Tests : `mvn -o test` ; un seul test : `mvn -o test -Dtest=NomDeLaClasseTest`
 - Build complet (référence, utilisé par le `Jenkinsfile`) : `mvn clean verify`. Il exécute les tests unitaires (surefire),
   puis les tests d'intégration `*IT` (failsafe, **Docker requis**, un échec casse le build), puis le rapport de couverture
-  JaCoCo (`target/site/jacoco/index.html`) et ses seuils (`jacoco.minimum.*` dans le `pom.xml`). Ces seuils sont à cliquet :
+  JaCoCo (`target/site/jacoco/index.html`) et ses seuils (`jacoco.minimum.*` dans le `pom.xml`, plus des règles `PACKAGE`
+  pour le cœur conversationnel : `actions.converse`, `rag*`, `tools*`). Ces seuils sont à cliquet :
   on les relève au niveau atteint, on ne les baisse jamais.
 - Tests d'intégration `*IT` (Testcontainers) seuls : ex. `mvn -o test -Dtest=MigrationStartupIT`.
   `ChatModelsConfigTest` (`src/test/java/zas/admin/zec/backend/config/ChatModelsConfigTest.java`) contient un stub HTTP du LLM réutilisable.
+- Contrat SSE de bout en bout : `ConversationStreamIT` (`actions/converse`), application complète avec jeton Blue,
+  LLM compatible OpenAI et zia-rag simulés (serveurs HTTP embarqués scriptés) ; séquence d'événements, citations,
+  persistance et Stop. Tout changement du flux de réponse s'y vérifie.
 - Mockito est chargé comme agent Java (`argLine` de surefire et failsafe). Un `argLine` ajouté doit garder `@{argLine}`,
   qui porte l'agent JaCoCo.
 - Sécurité des contrôleurs : `ControllerSecurityTest` (`config/security`) liste chaque endpoint avec le rôle exigé
