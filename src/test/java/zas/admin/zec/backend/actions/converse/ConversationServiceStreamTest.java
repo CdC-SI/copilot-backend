@@ -33,7 +33,12 @@ import zas.admin.zec.backend.persistence.repository.AttachmentRepository;
 import zas.admin.zec.backend.persistence.repository.ConversationRepository;
 import zas.admin.zec.backend.persistence.repository.ConversationTitleRepository;
 import zas.admin.zec.backend.rag.ChatStatus;
+import zas.admin.zec.backend.rag.TurnStatus;
+import zas.admin.zec.backend.rag.TurnTrace;
+import zas.admin.zec.backend.rag.TurnUsage;
+import zas.admin.zec.backend.rag.UsedDocuments;
 import zas.admin.zec.backend.rag.token.ApprovalRequiredToken;
+import zas.admin.zec.backend.rag.token.CitationToken;
 import zas.admin.zec.backend.rag.token.SourceToken;
 import zas.admin.zec.backend.rag.token.StatusToken;
 import zas.admin.zec.backend.rag.token.SuggestionToken;
@@ -41,7 +46,13 @@ import zas.admin.zec.backend.rag.token.TextToken;
 import zas.admin.zec.backend.rag.token.Token;
 import zas.admin.zec.backend.rag.token.ToolCallToken;
 import zas.admin.zec.backend.rag.token.ToolResultToken;
+import zas.admin.zec.backend.rag.token.TurnTraceToken;
 import zas.admin.zec.backend.rag.token.WorkspaceToken;
+import zas.admin.zec.backend.observability.TurnUsageEvent;
+import zas.admin.zec.backend.tools.ToolCallRecorder;
+import org.springframework.ai.tool.ToolCallback;
+import org.springframework.ai.tool.definition.ToolDefinition;
+import org.springframework.dao.DataAccessResourceFailureException;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -85,6 +96,7 @@ class ConversationServiceStreamTest {
 
     private final GenerationRegistry registry = new GenerationRegistry();
     private final ConversationMemory memory = mock(ConversationMemory.class);
+    private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
     private final ToolApprovalService approvals =
             new ToolApprovalService(new ToolApprovalProperties(List.of(), Duration.ofSeconds(5)));
     private ConversationService service;
@@ -96,7 +108,7 @@ class ConversationServiceStreamTest {
         lenient().when(chatServiceFactory.resolve(any())).thenReturn(chatService);
         service = new ConversationService(conversationRepository, titleRepository,
                 mock(AttachmentRepository.class), chatServiceFactory, ChatClientConfig.builder(chatModel, ObservationRegistry.NOOP), mock(LlmOcrService.class),
-                mock(WorkspaceService.class), mock(ApplicationEventPublisher.class),
+                mock(WorkspaceService.class), eventPublisher,
                 new TransactionTemplate(mock(PlatformTransactionManager.class)),
                 new AttachmentOcrProperties(AttachmentOcrProperties.Engine.PIPELINE, 1000,
                         Duration.ofSeconds(5), Duration.ofHours(1)), registry, approvals, new PromptRegistry(), memory);
@@ -439,6 +451,132 @@ class ConversationServiceStreamTest {
 
         assertFalse(messages.get(0).interrupted());
         assertTrue(messages.get(1).interrupted());
+    }
+
+    @Test
+    @DisplayName("F2a : citation émise ; trace, usage et versions de prompts enregistrés ; usage publié ; compaction déclenchée")
+    void citationTraceAndUsage_arePersisted() {
+        var usage = new TurnUsage(List.of(new TurnUsage.LlmCall("agent", 100, 20, null)), List.of());
+        var trace = new TurnTrace(TurnStatus.ANSWER, List.of(), UsedDocuments.none(), List.of(), usage,
+                Map.of("agentic-system/fr", "v1"));
+        var cited = SourceToken.fromFileWithDetails("doc-1", "Mémento.pdf", "2", "", "in_force").withCitation(1);
+        when(chatService.answer(any(), eq(USER), any())).thenReturn(Flux.just(
+                new TurnTraceToken(TurnTrace.empty().withPrompts(Map.of("agentic-system/fr", "v1"))),
+                new CitationToken(1, cited), new CitationToken(1, cited), text("Délai [^1]."),
+                new TurnTraceToken(trace)));
+
+        var output = service.streamAnswer(question(null), USER).collectList().block(ASYNC);
+
+        assertEquals(List.of("start", "citation", "citation", "text_delta", "done"), types(output));
+        var saved = savedMessages(2).get(1);
+        assertEquals("Délai [^1].", saved.getMessage());
+        assertEquals(1, saved.getSources().length, "source citée enregistrée une seule fois");
+        var source = ConversationService.fromSourceString(saved.getSources()[0]);
+        assertEquals("doc-1", source.documentId());
+        assertEquals(1, source.citation());
+        assertEquals("answer", saved.getConsultedSources().get("turn_status"));
+        assertEquals(Map.of("agentic-system/fr", "v1"), saved.getConsultedSources().get("prompts"));
+        assertEquals(1, saved.getUsage().get("llm_calls"));
+        assertEquals(List.of(), saved.getToolCalls());
+        verify(eventPublisher, timeout(ASYNC.toMillis())).publishEvent(new TurnUsageEvent(usage, null));
+        verify(memory, timeout(ASYNC.toMillis())).compactAsync(eq(USER), eq(CONVERSATION), eq("fr"), any());
+    }
+
+    @Test
+    @DisplayName("sans trace de fin de tour : appels de tools du recorder enregistrés quand même")
+    void withoutTurnTrace_recordedToolCallsAreSaved() {
+        when(chatService.answer(any(), eq(USER), any(), any())).thenAnswer(invocation -> {
+            AtomicReference<ToolCallRecorder> recorderReference = invocation.getArgument(3);
+            var recorder = new ToolCallRecorder(new CopyOnWriteArrayList<>());
+            recorder.wrap(tool("search_social_insurance_documentation"))[0].call("{\"query\":\"rente\"}");
+            recorderReference.set(recorder);
+            return Flux.just(text("Réponse"));
+        });
+
+        service.streamAnswer(question(null), USER).collectList().block(ASYNC);
+
+        var saved = savedMessages(2).get(1);
+        assertEquals("unknown", saved.getConsultedSources().get("turn_status"));
+        assertEquals(1, saved.getToolCalls().size());
+        assertEquals("search_social_insurance_documentation", saved.getToolCalls().getFirst().get("tool"));
+        assertEquals(Map.of("query", "rente"), saved.getToolCalls().getFirst().get("arguments"));
+        assertNull(saved.getUsage());
+        verify(eventPublisher, never()).publishEvent(any(TurnUsageEvent.class));
+    }
+
+    @Test
+    @DisplayName("déconnexion d'une nouvelle conversation : titre généré après l'enregistrement de la réponse partielle")
+    void cancel_newConversation_generatesTitle() {
+        when(chatService.answer(any(), eq(USER), any()))
+                .thenReturn(Flux.concat(Flux.just(text("Début")), Flux.<Token>never()));
+        when(titleRepository.insertIfAbsent(eq(USER), eq(CONVERSATION), eq("Question ?"), any(), any())).thenReturn(1);
+        when(chatModel.call(any(Prompt.class)))
+                .thenReturn(new ChatResponse(List.of(new Generation(new AssistantMessage("Titre")))));
+        var title = new ConversationTitleEntity();
+        when(titleRepository.findByUserIdAndConversationId(USER, CONVERSATION)).thenReturn(Optional.of(title));
+
+        service.streamAnswer(question(null), USER).take(2).collectList().block(ASYNC);
+
+        verify(titleRepository, timeout(ASYNC.toMillis())).save(title);
+        assertEquals("Titre", title.getTitle());
+    }
+
+    @Test
+    @DisplayName("échec de la mise à jour du titre après done : journalisé, la réponse se termine normalement")
+    void titleFailureAfterDone_doesNotAffectTheAnswer() {
+        when(chatService.answer(any(), eq(USER), any())).thenReturn(Flux.just(text("Réponse")));
+        when(titleRepository.insertIfAbsent(eq(USER), eq(CONVERSATION), eq("Question ?"), any(), any())).thenReturn(1);
+        when(chatModel.call(any(Prompt.class)))
+                .thenReturn(new ChatResponse(List.of(new Generation(new AssistantMessage("Titre")))));
+        when(titleRepository.findByUserIdAndConversationId(USER, CONVERSATION))
+                .thenThrow(new IllegalStateException("db down"));
+
+        var output = service.streamAnswer(question(null), USER).collectList().block(ASYNC);
+
+        assertEquals(List.of("start", "text_delta", "done"), types(output));
+    }
+
+    @Test
+    @DisplayName("échec de l'enregistrement de l'échange : événement error et génération libérée")
+    void saveFailure_emitsErrorAndReleasesTheGeneration() {
+        when(chatService.answer(any(), eq(USER), any())).thenReturn(Flux.just(text("Réponse")));
+        when(conversationRepository.save(any(MessageEntity.class)))
+                .thenThrow(new DataAccessResourceFailureException("db down"));
+
+        var output = service.streamAnswer(question(null), USER).collectList().block(ASYNC);
+
+        assertEquals(List.of("start", "text_delta", "error"), types(output));
+        assertEquals(ChatStreamEvent.GENERATION_FAILED, ((ChatStreamEvent.Error) output.getLast().data()).code());
+        assertDoesNotThrow(() -> registry.finish(registry.begin("next", USER, CONVERSATION)));
+    }
+
+    @Test
+    @DisplayName("déconnexion puis échec de l'enregistrement de la réponse partielle : journalisé, génération libérée")
+    void cancel_saveFailure_releasesTheGeneration() {
+        when(chatService.answer(any(), eq(USER), any()))
+                .thenReturn(Flux.concat(Flux.just(text("Début")), Flux.<Token>never()));
+        when(conversationRepository.save(any(MessageEntity.class)))
+                .thenThrow(new DataAccessResourceFailureException("db down"));
+
+        service.streamAnswer(question(null), USER).take(2).collectList().block(ASYNC);
+
+        verify(conversationRepository, timeout(ASYNC.toMillis())).save(any(MessageEntity.class));
+        assertDoesNotThrow(() -> registry.finish(registry.begin("next", USER, CONVERSATION)));
+        verify(titleRepository, never()).insertIfAbsent(any(), any(), any(), any(), any());
+    }
+
+    private static ToolCallback tool(String name) {
+        return new ToolCallback() {
+            @Override
+            public ToolDefinition getToolDefinition() {
+                return ToolDefinition.builder().name(name).description(name).inputSchema("{}").build();
+            }
+
+            @Override
+            public String call(String toolInput) {
+                return "<document id=\"d1\">…</document>";
+            }
+        };
     }
 
     private static Question question(String replaceMessageId) {

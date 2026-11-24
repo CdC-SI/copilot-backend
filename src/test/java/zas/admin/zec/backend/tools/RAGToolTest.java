@@ -2,7 +2,10 @@ package zas.admin.zec.backend.tools;
 
 import io.micrometer.observation.ObservationRegistry;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.metadata.ChatResponseMetadata;
+import org.springframework.ai.chat.metadata.DefaultUsage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
@@ -14,7 +17,9 @@ import reactor.core.publisher.Sinks;
 import zas.admin.zec.backend.config.ChatClientConfig;
 import zas.admin.zec.backend.actions.workspace.WorkspaceDto;
 import zas.admin.zec.backend.actions.workspace.WorkspaceService;
+import zas.admin.zec.backend.prompts.PromptId;
 import zas.admin.zec.backend.prompts.PromptRegistry;
+import zas.admin.zec.backend.rag.TurnUsage;
 import zas.admin.zec.backend.rag.remote.ZiaRagDocumentRetriever;
 import zas.admin.zec.backend.rag.token.Token;
 
@@ -23,8 +28,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
@@ -134,6 +141,101 @@ class RAGToolTest {
         assertTrue(result.contains("<document id=\"d1\" collection=\"documentation\" ref=\"1\">"), result);
         assertEquals(List.of("d1"), retrieved.stream().map(Document::getId).toList());
         verify(ziaRag).retrieve("Quelle est la cotisation maximale ?", List.of("afac"), "u1", "Bearer jwt");
+        verifyNoInteractions(chatModel);
+    }
+
+    @Test
+    void exhaustedBudgetSkipsTheSearch() {
+        var ziaRag = mock(ZiaRagDocumentRetriever.class);
+        var tool = new RAGTool(ChatClientConfig.builder(mock(ChatModel.class), ObservationRegistry.NOOP), mock(SourceResolver.class),
+                mock(WorkspaceService.class), mock(WorkspaceInferenceMonitoringService.class), new PromptRegistry(), ziaRag);
+
+        String result = tool.searchSocialInsuranceDocumentation("rente",
+                new ToolContext(Map.of(ToolContextKeys.CTX_TOOL_CALL_BUDGET, new AtomicInteger(0))));
+
+        assertEquals(ToolCallBudget.EXHAUSTED_MESSAGE, result);
+        verifyNoInteractions(ziaRag);
+    }
+
+    /** Inférence du workspace : version du prompt et usage tracés, réponse du LLM nettoyée. */
+    @Test
+    void inferenceTracesThePromptVersionAndTheLlmUsage() {
+        var chatModel = mock(ChatModel.class);
+        when(chatModel.getOptions()).thenReturn(ToolCallingChatOptions.builder().build());
+        when(chatModel.call(any(Prompt.class))).thenReturn(new ChatResponse(
+                List.of(new Generation(new AssistantMessage("  RH \n"))),
+                ChatResponseMetadata.builder().model("qwen").usage(new DefaultUsage(500, 3)).build()));
+        var workspaceService = mock(WorkspaceService.class);
+        when(workspaceService.getDefaultWorkspace()).thenReturn("GENERAL");
+        when(workspaceService.getAll()).thenReturn(List.of(workspace("AFAC"), workspace("RH"),
+                new WorkspaceDto(3L, "CdC", " ", List.of(), List.of("cdc"), null, null)));
+        var sourceResolver = mock(SourceResolver.class);
+        var prompts = new PromptRegistry();
+        var tool = new RAGTool(ChatClientConfig.builder(chatModel, ObservationRegistry.NOOP), sourceResolver, workspaceService,
+                mock(WorkspaceInferenceMonitoringService.class), prompts, mock(ZiaRagDocumentRetriever.class));
+        List<TurnUsage.LlmCall> usage = new ArrayList<>();
+        Map<String, String> versions = new HashMap<>();
+        Map<String, Object> context = new HashMap<>();
+        context.put(ToolContextKeys.CTX_LLM_USAGE, usage);
+        context.put(ToolContextKeys.CTX_PROMPT_VERSIONS, versions);
+        context.put(ToolContextKeys.CTX_LANGUAGE, "de");
+
+        tool.searchSocialInsuranceDocumentation("Ferienanspruch", new ToolContext(context));
+
+        verify(sourceResolver).resolve("RH");
+        assertEquals(Map.of("workspace-inference/de", prompts.get(PromptId.WORKSPACE_INFERENCE, "de").version()), versions);
+        assertEquals(1, usage.size());
+        assertEquals("workspace_inference", usage.getFirst().purpose());
+        assertEquals(500, usage.getFirst().promptTokens());
+        var sent = ArgumentCaptor.forClass(Prompt.class);
+        verify(chatModel).call(sent.capture());
+        String system = sent.getValue().getSystemMessage().getText();
+        assertTrue(system.contains("- CdC : (pas de description)"), system);
+        assertTrue(system.contains("- RH : Description de RH Exemples de questions : Question exemple"), system);
+    }
+
+    @Test
+    void unknownEmptyOrFailedInferenceFallsBackToTheDefaultWorkspace() {
+        var chatModel = mock(ChatModel.class);
+        when(chatModel.getOptions()).thenReturn(ToolCallingChatOptions.builder().build());
+        when(chatModel.call(any(Prompt.class)))
+                .thenReturn(new ChatResponse(List.of(new Generation(new AssistantMessage("Inconnu")))))
+                .thenReturn(new ChatResponse(List.of(new Generation(new AssistantMessage("")))))
+                .thenThrow(new IllegalStateException("LLM down"));
+        var workspaceService = mock(WorkspaceService.class);
+        when(workspaceService.getDefaultWorkspace()).thenReturn("GENERAL");
+        when(workspaceService.getAll()).thenReturn(List.of(workspace("AFAC")));
+        var sourceResolver = mock(SourceResolver.class);
+        var monitoring = mock(WorkspaceInferenceMonitoringService.class);
+        var tool = new RAGTool(ChatClientConfig.builder(chatModel, ObservationRegistry.NOOP), sourceResolver, workspaceService,
+                monitoring, new PromptRegistry(), mock(ZiaRagDocumentRetriever.class));
+
+        for (int i = 0; i < 3; i++) {
+            // Pas de référence partagée : chaque appel relance l'inférence.
+            tool.searchSocialInsuranceDocumentation("question " + i, null);
+        }
+
+        verify(sourceResolver, times(3)).resolve("GENERAL");
+        verify(chatModel, times(3)).call(any(Prompt.class));
+        // Sans contexte : ni utilisateur ni question originale, rien n'est journalisé de façon exploitable.
+        verify(monitoring, times(3)).recordInference("", "", "", "GENERAL");
+    }
+
+    @Test
+    void withoutAnyWorkspaceTheDefaultIsUsedWithoutCallingTheLlm() {
+        var chatModel = mock(ChatModel.class);
+        var workspaceService = mock(WorkspaceService.class);
+        when(workspaceService.getDefaultWorkspace()).thenReturn("GENERAL");
+        when(workspaceService.getAll()).thenReturn(List.of());
+        var sourceResolver = mock(SourceResolver.class);
+        var resolved = new AtomicReference<String>();
+        var tool = new RAGTool(ChatClientConfig.builder(chatModel, ObservationRegistry.NOOP), sourceResolver, workspaceService,
+                mock(WorkspaceInferenceMonitoringService.class), new PromptRegistry(), mock(ZiaRagDocumentRetriever.class));
+
+        tool.searchSocialInsuranceDocumentation("question", new ToolContext(referenceContext(resolved)));
+
+        assertEquals("GENERAL", resolved.get());
+        verify(sourceResolver).resolve("GENERAL");
         verifyNoInteractions(chatModel);
     }
 
