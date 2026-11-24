@@ -15,6 +15,7 @@ import org.springframework.ai.model.tool.ToolCallingChatOptions;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import reactor.core.scheduler.Schedulers;
 import zas.admin.zec.backend.config.ChatClientConfig;
 import zas.admin.zec.backend.config.properties.MemoryProperties;
 import zas.admin.zec.backend.observability.TurnUsageEvent;
@@ -32,6 +33,7 @@ import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -40,6 +42,7 @@ import static org.mockito.Mockito.*;
 class ConversationMemoryTest {
 
     private static final PromptRegistry PROMPTS = new PromptRegistry();
+    private static final String SCHEDULE_HOOK = "conversation-memory-test";
 
     private final ChatModel chatModel = mock(ChatModel.class);
     private final ConversationSummaryRepository summaries = mock(ConversationSummaryRepository.class);
@@ -262,7 +265,8 @@ class ConversationMemoryTest {
         var rendered = AbstractChatService.toPromptMessages(history);
 
         assertEquals(texts(rendered), texts(memory.window("user-1", "conv", history, rendered, null)));
-        memory.compactAsync("user-1", "conv", "fr", () -> fail("historique lu alors que le résumé est désactivé"));
+        assertEquals(0, compactionsScheduledBy(() ->
+                memory.compactAsync("user-1", "conv", "fr", ConversationMemoryTest::history)));
 
         verifyNoInteractions(summaries, chatModel);
     }
@@ -274,8 +278,10 @@ class ConversationMemoryTest {
         var rendered = AbstractChatService.toPromptMessages(history);
 
         assertEquals(texts(rendered), texts(memory.window("user-1", " ", history, rendered, null)));
-        memory.compactAsync("user-1", null, "fr", () -> fail("historique lu sans conversation"));
-        memory.compactAsync("user-1", "", "fr", () -> fail("historique lu sans conversation"));
+        assertEquals(0, compactionsScheduledBy(() -> {
+            memory.compactAsync("user-1", null, "fr", ConversationMemoryTest::history);
+            memory.compactAsync("user-1", "", "fr", ConversationMemoryTest::history);
+        }));
 
         verifyNoInteractions(summaries, chatModel);
     }
@@ -369,7 +375,8 @@ class ConversationMemoryTest {
         try {
             memory.forget("user-1", "conv");
 
-            memory.compactAsync("user-1", "conv", "fr", () -> fail("compaction pendant la suppression"));
+            assertEquals(0, compactionsScheduledBy(() ->
+                    memory.compactAsync("user-1", "conv", "fr", ConversationMemoryTest::history)));
             verify(summaries).delete("user-1", "conv");
 
             var synchronizations = TransactionSynchronizationManager.getSynchronizations();
@@ -379,8 +386,27 @@ class ConversationMemoryTest {
             TransactionSynchronizationManager.clearSynchronization();
         }
 
-        memory.compactAsync("user-1", "conv", "fr", ConversationMemoryTest::history);
+        assertEquals(1, compactionsScheduledBy(() ->
+                memory.compactAsync("user-1", "conv", "fr", ConversationMemoryTest::history)));
         verify(summaries, timeout(5_000)).save(any(ConversationSummary.class));
+    }
+
+    /**
+     * Nombre de tâches planifiées par {@code action}, compté sur le thread du test au moment de la planification :
+     * une compaction refusée l'est avant toute tâche asynchrone (une assertion dans la tâche serait perdue).
+     */
+    private static int compactionsScheduledBy(Runnable action) {
+        var scheduled = new AtomicInteger();
+        Schedulers.onScheduleHook(SCHEDULE_HOOK, task -> {
+            scheduled.incrementAndGet();
+            return task;
+        });
+        try {
+            action.run();
+        } finally {
+            Schedulers.resetOnScheduleHook(SCHEDULE_HOOK);
+        }
+        return scheduled.get();
     }
 
     /** Réessaie une vérification asynchrone (l'état est libéré juste après la fin de la tâche précédente). */
