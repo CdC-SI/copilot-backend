@@ -73,10 +73,13 @@ class FAQServiceTest {
     @Test
     void search_fewWordMatches_addsSemanticMatchesWithoutDuplicatesAndCachesThem() {
         var shared = question("a1", "Q1");
-        when(questionRepository.findByWordSimilarity(anyString(), anyDouble(), anyInt())).thenReturn(List.of(shared));
+        when(questionRepository.findByWordSimilarity(anyString(), anyDouble(), anyInt()))
+                .thenReturn(List.of(shared))
+                .thenReturn(List.of(question("a2", "Q2")));
         when(questionRepository.findNearestByTextEmbedding(Arrays.toString(EMBEDDING), 3))
                 .thenReturn(List.of(shared, question("a3", "Q3"), question("orphan", "sans réponse")));
         when(documentRepository.findByAnswerId("a1")).thenReturn(answer("R1"));
+        when(documentRepository.findByAnswerId("a2")).thenReturn(answer("R2"));
         when(documentRepository.findByAnswerId("a3")).thenReturn(answer("R3"));
 
         var result = service.getExistingFAQItemsByMatchingQuestion("rente de vieillesse");
@@ -86,9 +89,8 @@ class FAQServiceTest {
 
         var cached = service.getExistingFAQItemsByMatchingQuestion("rente de vieillesse");
         verify(questionRepository, times(1)).findNearestByTextEmbedding(anyString(), anyInt());
-        // Comportement actuel : en cas de cache, seuls les résultats sémantiques sont retournés
-        // (non fusionnés avec la recherche par mots).
-        assertThat(cached).extracting(FAQItem::text).containsExactly("Q1", "Q3");
+        // Cache : les résultats sémantiques sont réutilisés et toujours fusionnés avec la recherche par mots, rejouée.
+        assertThat(cached).extracting(FAQItem::text).containsExactly("Q2", "Q1", "Q3");
     }
 
     @Test
@@ -109,15 +111,13 @@ class FAQServiceTest {
 
     @Test
     void save_withId_updatesExistingQuestionAndAnswer() {
-        // Bug : QuestionRepository est typé JpaRepository<QuestionEntity, Integer> alors que l'id de QuestionEntity
-        // est un UUID (et FAQItem expose cet UUID). Avec la vraie base, findById(Integer) échoue : la mise à jour
-        // n'est possible qu'avec ce dépôt simulé.
+        var id = UUID.randomUUID();
         var existing = question("a1", "Ancienne");
-        when(questionRepository.findById(7)).thenReturn(Optional.of(existing));
+        when(questionRepository.findById(id)).thenReturn(Optional.of(existing));
         var existingAnswer = answer("Ancienne réponse");
         when(documentRepository.findByAnswerId("a1")).thenReturn(existingAnswer);
 
-        var item = service.save(new FAQItemLight(7, "Nouvelle", "Nouvelle réponse", "https://u", "de", null));
+        var item = service.save(new FAQItemLight(id, "Nouvelle", "Nouvelle réponse", "https://u", "de", null));
 
         assertThat(existing.getContent()).isEqualTo("Nouvelle");
         assertThat(existing.getMetadata()).containsEntry("answer_id", "a1").containsEntry("language", "de").containsEntry("tags", List.of());
@@ -127,11 +127,12 @@ class FAQServiceTest {
 
     @Test
     void save_withUnknownId_throws() {
-        when(questionRepository.findById(9)).thenReturn(Optional.empty());
+        var id = UUID.randomUUID();
+        when(questionRepository.findById(id)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.save(new FAQItemLight(9, "Q", "R", "u", "fr", null)))
+        assertThatThrownBy(() -> service.save(new FAQItemLight(id, "Q", "R", "u", "fr", null)))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("9");
+                .hasMessageContaining(id.toString());
     }
 
     @Test

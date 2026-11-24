@@ -30,6 +30,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
@@ -185,6 +186,28 @@ class DocumentMetadataIT {
         assertEquals("fr", item.language());
         assertEquals("http://faq", item.answer().url());
         assertEquals(Set.of("AVS", "AI"), Set.copyOf(documentRepository.findTagsBySources(List.of("knowledge_base"))));
+    }
+
+    @Test
+    void faqUpdateByQuestionUuidRewritesQuestionAndAnswer() {
+        var created = faqService.save(new FAQItemLight(null, "Ancienne question ?", "Ancienne réponse.", "http://faq", "fr", List.of("AVS")));
+        entityManager.flush();
+        entityManager.clear();
+
+        var id = UUID.fromString(created.id());
+        var updated = faqService.save(new FAQItemLight(id, "Nouvelle question ?", "Nouvelle réponse.", "http://faq/v2", "de", List.of("AI")));
+        entityManager.flush();
+        entityManager.clear();
+
+        assertEquals(created.id(), updated.id());
+        assertTrue(questionRepository.findAll().stream().noneMatch(q -> "Ancienne question ?".equals(q.getContent())));
+        var question = questionRepository.findById(id).orElseThrow();
+        assertEquals("Nouvelle question ?", question.getContent());
+        assertEquals("de", question.getMetadata().get("language"));
+        var answer = documentRepository.findByAnswerId(MetadataValues.getString(question.getMetadata(), "answer_id"));
+        assertEquals("Nouvelle réponse.", answer.getContent());
+        assertEquals(List.of("AI"), answer.getMetadata().get("tags"));
+        assertEquals("http://faq/v2", updated.answer().url());
     }
 
     private DocumentEntity save(String content, Map<String, Object> metadata) {

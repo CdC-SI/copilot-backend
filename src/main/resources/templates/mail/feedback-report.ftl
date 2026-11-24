@@ -1,5 +1,6 @@
 <#ftl output_format="HTML">
-<#-- Rapport hebdomadaire des feedbacks envoyé aux destinataires configurés. -->
+<#-- Rapport hebdomadaire des feedbacks envoyé aux destinataires configurés.
+     Les lignes sont des records Java : lire leurs accesseurs (row.category()), pas des propriétés (row.category). -->
 <html>
 <body style="font-family: Arial, sans-serif; font-size: 14px; color: #222;">
     <h2>Rapport hebdomadaire des feedbacks</h2>
@@ -16,7 +17,7 @@
     <h3>Répartition par catégorie</h3>
     <table cellpadding="6" cellspacing="0" style="border-collapse: collapse;">
         <#list byCategory as row>
-        <tr><td>${row.category}</td><td>${row.count}</td></tr>
+        <tr><td>${row.category()}</td><td>${row.count()}</td></tr>
         </#list>
     </table>
 
@@ -28,10 +29,10 @@
         <tr><th>Date</th><th>Type</th><th>Catégorie</th><th>Question</th></tr>
         <#list pendingItems as item>
         <tr>
-            <td>${item.timestamp}</td>
-            <td>${item.kind}</td>
-            <td>${item.category!"—"}</td>
-            <td>${item.question!"—"}</td>
+            <td>${item.timestamp()}</td>
+            <td>${item.kind()}</td>
+            <td>${item.category()!"—"}</td>
+            <td>${item.question()!"—"}</td>
         </tr>
         </#list>
     </table>

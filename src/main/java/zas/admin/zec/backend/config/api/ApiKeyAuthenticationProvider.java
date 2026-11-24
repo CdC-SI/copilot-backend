@@ -1,6 +1,7 @@
 package zas.admin.zec.backend.config.api;
 
 import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
@@ -33,14 +34,14 @@ public class ApiKeyAuthenticationProvider implements AuthenticationProvider {
 
         ApiClientKeyEntity key = keyRepository
                 .findActiveByKeyId(keyId)
-                .orElseThrow(() -> new RuntimeException("API key not found"));
+                .orElseThrow(() -> new BadCredentialsException("API key not found"));
 
         if (key.isRevoked() || (key.getExpiresAt() != null && key.getExpiresAt().isBefore(Instant.now()))) {
-            throw new RuntimeException("API key is revoked or expired");
+            throw new BadCredentialsException("API key is revoked or expired");
         }
 
         if (!encoder.matches(rawSecret, key.getSecretHash())) {
-            throw new RuntimeException("Invalid API key");
+            throw new BadCredentialsException("Invalid API key");
         }
 
         key.touchLastUsed();

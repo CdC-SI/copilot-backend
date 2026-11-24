@@ -6,6 +6,7 @@ import freemarker.template.TemplateException;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
+import zas.admin.zec.backend.actions.visualize.model.sumex.Patient;
 import zas.admin.zec.backend.actions.visualize.model.sumex.SumexInvoice;
 
 import java.io.IOException;
@@ -19,6 +20,8 @@ import java.util.Map;
 public class SumexInvoiceToXmlTemplateService {
 
     private static final String SUMEX_XML_TEMPLATE = "sumex_invoice_xml.ftl";
+    private static final Patient EMPTY_PATIENT =
+            new Patient(null, null, null, null, null, null, null, null, null, null, null, null, null);
     private final Configuration fm;
 
     public SumexInvoiceToXmlTemplateService(Configuration fm) {
@@ -33,7 +36,8 @@ public class SumexInvoiceToXmlTemplateService {
         dataModel.put("invoice", model);
         // Expose all fields, optional but convenient for template
         dataModel.put("author", model.author());
-        dataModel.put("patient", model.patient());
+        // Patient non extrait : champs vides, le gabarit applique ses valeurs par défaut.
+        dataModel.put("patient", model.patient() != null ? model.patient() : EMPTY_PATIENT);
         dataModel.put("metadata", model.metaData());
         dataModel.put("medicalServices", model.medicalServices());
         dataModel.put("paymentInformation", model.paymentInformation());

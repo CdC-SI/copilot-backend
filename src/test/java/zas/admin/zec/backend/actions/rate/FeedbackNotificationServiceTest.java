@@ -5,7 +5,6 @@ import jakarta.mail.Message;
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.mail.MailSendException;
@@ -113,9 +112,6 @@ class FeedbackNotificationServiceTest {
     }
 
     @Test
-    @Disabled("bug: feedback-report.ftl lit les records (ByCategory, PendingItem) comme des beans (row.category, "
-            + "item.timestamp) ; avec la configuration FreeMarker de Spring (incompatible_improvements 2.3.0) ce sont des "
-            + "méthodes, le rendu échoue et le rapport n'est jamais envoyé (erreur seulement loguée)")
     void sendWeeklyReport_rendersCountsCategoriesAndPendingItemsToGivenRecipients() throws Exception {
         var report = new FeedbackReport(LocalDateTime.of(2026, 3, 1, 0, 0), LocalDateTime.of(2026, 3, 8, 0, 0),
                 8, 3, 1, 4,
@@ -129,19 +125,12 @@ class FeedbackNotificationServiceTest {
         assertThat(message.getRecipients(Message.RecipientType.TO)).extracting(Object::toString)
                 .containsExactly("chef@zas.ch", "adj@zas.ch");
         assertThat(message.getContent().toString())
-                .contains("WRONG_ANSWER", "Combien de rente ?", "<td>8</td>", "<td>4</td>")
+                .contains("2026-03-01T00:00", "2026-03-08T00:00")
+                .contains("<td>8</td>", "<td>3</td>", "<td>1</td>", "<td>4</td>")
+                .contains("<tr><td>WRONG_ANSWER</td><td>4</td></tr>")
+                .contains("2026-03-02T10:00:00Z", "<td>Message</td>", "<td>—</td>", "<td>Combien de rente ?</td>")
+                .contains("https://zia.example")
                 .doesNotContain("Aucun feedback en attente");
-    }
-
-    @Test
-    void sendWeeklyReport_withCategories_currentlyFailsToRenderAndSendsNothing() {
-        // Comportement actuel (voir le test désactivé ci-dessus) : l'échec de rendu est avalé, aucun mail ne part.
-        var report = new FeedbackReport(LocalDateTime.now(), LocalDateTime.now(), 1, 0, 0, 1,
-                List.of(new FeedbackDTO.ByCategory(FeedbackCategory.WRONG_ANSWER, 1)), List.of());
-
-        assertThatCode(() -> service(properties(true, List.of())).sendWeeklyReport(report, List.of("chef@zas.ch")))
-                .doesNotThrowAnyException();
-        verify(mailSender, org.mockito.Mockito.never()).send(any(MimeMessage.class));
     }
 
     @Test

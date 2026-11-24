@@ -114,12 +114,21 @@ class MigrationStartupIT {
             assertEquals(200, health.statusCode(), health.body());
             assertEquals("UP", mapper.readTree(health.body()).path("status").asText());
 
-            // L'espace /api/public/v1/** reste protégé par clé d'API, même sans endpoint (API publique à reconstruire en V5).
+            // L'espace /api/public/v1/** reste protégé par clé d'API, même sans endpoint (API publique à reconstruire en V5) :
+            // clé absente ou inconnue → 401 JSON.
             var api = client.send(request("/api/public/v1/anything")
                             .header("Content-Type", "application/json")
                             .POST(HttpRequest.BodyPublishers.ofString("{}")).build(),
                     HttpResponse.BodyHandlers.ofString());
-            assertEquals(403, api.statusCode());
+            assertEquals(401, api.statusCode());
+            assertEquals("unauthorized", mapper.readTree(api.body()).path("error").path("code").asText(), api.body());
+
+            var unknownKey = client.send(request("/api/public/v1/anything")
+                            .header("X-API-Key", "ak_inconnue.secret")
+                            .GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(401, unknownKey.statusCode(), unknownKey.body());
+            assertEquals("unauthorized", mapper.readTree(unknownKey.body()).path("error").path("code").asText());
 
             var docs = client.send(request("/api/public/v3/api-docs").GET().build(),
                     HttpResponse.BodyHandlers.ofString());

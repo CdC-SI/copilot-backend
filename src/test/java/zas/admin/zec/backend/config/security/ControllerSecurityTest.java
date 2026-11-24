@@ -73,6 +73,8 @@ import zas.admin.zec.backend.actions.workspace.WorkspaceController;
 import zas.admin.zec.backend.actions.workspace.WorkspaceService;
 import zas.admin.zec.backend.config.ExceptionsHandler;
 import zas.admin.zec.backend.config.api.ApiKeyAuthenticationProvider;
+import zas.admin.zec.backend.config.api.ApiKeyAuthenticationToken;
+import org.springframework.security.authentication.BadCredentialsException;
 import zas.admin.zec.backend.tools.SecurityLogging;
 import zas.admin.zec.backend.tools.api.ApiKeyService;
 
@@ -95,7 +97,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
@@ -247,10 +248,6 @@ class ControllerSecurityTest {
     void endpoint_isRestrictedToItsAccessLevel(Endpoint endpoint) {
         var softly = new SoftAssertions();
         for (var persona : Persona.values()) {
-            if (persona == Persona.UNREGISTERED && endpoint.access() == Access.INTERNAL_USER) {
-                // Voir requireInternalUser_unregisteredUser_failsWithAnErrorInsteadOf403.
-                continue;
-            }
             var outcome = call(endpoint, persona);
             var description = "%s pour %s".formatted(endpoint.key(), persona);
             if (persona == Persona.ANONYMOUS) {
@@ -329,14 +326,28 @@ class ControllerSecurityTest {
     }
 
     @Test
-    void requireInternalUser_unregisteredUser_failsWithAnErrorInsteadOf403() {
-        // Comportement actuel : AuthorizationLogic.isInternalUser appelle UserService.getUuid, qui lève une
-        // IllegalArgumentException pour un utilisateur sans compte ; elle n'est pas convertie en refus (403) et
-        // remonte en erreur (500 en production). L'accès reste refusé : le service n'est jamais appelé.
+    void publicApi_missingOrRejectedApiKey_returns401Json() throws Exception {
+        when(apiKeyAuthenticationProvider.supports(ApiKeyAuthenticationToken.class)).thenReturn(true);
+        when(apiKeyAuthenticationProvider.authenticate(any())).thenThrow(new BadCredentialsException("Invalid API key"));
+
+        for (var builder : List.of(request(HttpMethod.GET, "/api/public/v1/anything"),
+                request(HttpMethod.GET, "/api/public/v1/anything").header("X-API-Key", "ak_key.wrong"))) {
+            var response = mvc.perform(builder).andReturn().getResponse();
+
+            assertThat(response.getStatus()).isEqualTo(401);
+            assertThat(response.getContentAsString()).contains("\"code\": \"unauthorized\"");
+        }
+    }
+
+    @Test
+    void requireInternalUser_unregisteredUser_isForbidden() throws Exception {
+        // Utilisateur authentifié par Blue sans compte ZIA : refus (403), pas d'erreur serveur.
         var endpoint = endpoints().filter(e -> e.access() == Access.INTERNAL_USER).findFirst().orElseThrow();
 
-        assertThatThrownBy(() -> mvc.perform(withPersona(endpoint.request().get(), Persona.UNREGISTERED)))
-                .hasRootCauseInstanceOf(IllegalArgumentException.class);
+        var status = mvc.perform(withPersona(endpoint.request().get(), Persona.UNREGISTERED))
+                .andReturn().getResponse().getStatus();
+
+        assertThat(status).isEqualTo(403);
         verify(uploadService, never()).download(any(), any());
     }
 
@@ -463,7 +474,7 @@ class ControllerSecurityTest {
         list.add(new Endpoint(key(HttpMethod.POST, "/api/visualize/translate"), Access.TRANSLATOR,
                 () -> multipart("/api/visualize/translate").file(pdf("file")).param("language", "de")));
         // Pas d'annotation @Require* : seule l'authentification est exigée (contrairement aux autres endpoints de vision).
-        list.add(upload("/api/visualize/sumex", Access.AUTHENTICATED, pdf("file")));
+        list.add(upload("/api/visualize/sumex", Access.ADMIN, pdf("file")));
         // Utilisateurs
         list.add(get("/api/users", Access.ADMIN));
         list.add(call(HttpMethod.PUT, "/api/users/{username}/validate", Access.ADMIN, "bob"));

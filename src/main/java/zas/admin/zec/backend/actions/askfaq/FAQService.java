@@ -50,13 +50,13 @@ public class FAQService {
         if (faqSearchProperties.minResultBeforeSemanticSearch() <= byWordSimilarity.size()) {
             return byWordSimilarity;
         } else {
-            var itemsFromCache = faqCache.get(question);
-            if (itemsFromCache != null) {
-                return itemsFromCache;
+            // Seuls les résultats sémantiques (coûteux : embedding) sont mis en cache ; la recherche par mots est
+            // toujours rejouée et fusionnée.
+            var bySemanticSimilarity = faqCache.get(question);
+            if (bySemanticSimilarity == null) {
+                bySemanticSimilarity = getExistingFAQItemsBySemanticSimilarity(question);
+                faqCache.put(question, bySemanticSimilarity);
             }
-
-            var bySemanticSimilarity = getExistingFAQItemsBySemanticSimilarity(question);
-            faqCache.put(question, bySemanticSimilarity);
             return Stream.concat(byWordSimilarity.stream(), bySemanticSimilarity.stream())
                     .distinct()
                     .toList();

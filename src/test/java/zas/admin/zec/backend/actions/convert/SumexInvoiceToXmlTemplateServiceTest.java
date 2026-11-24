@@ -76,8 +76,33 @@ class SumexInvoiceToXmlTemplateServiceTest {
     }
 
     @Test
-    void render_missingPatient_failsWithIOException() {
-        var incomplete = new SumexInvoice(author(), null, metaData("F1"), List.of(), payment(), 0.0);
+    void render_missingPatient_usesTemplateDefaults() throws Exception {
+        var xml = service.render(new SumexInvoice(author(), null, metaData("F1"), List.of(), payment(), 0.0))
+                .getContentAsString(StandardCharsets.UTF_8);
+
+        assertThat(xml)
+                .contains("gender=\"male\"", "birthdate=\"1990-12-20\"", "ssn=\"7560665324444\"")
+                .contains("salutation=\"Unbekannt\"")
+                .contains("<invoice:familyname></invoice:familyname>")
+                .contains("case_id=\"312280\"");
+    }
+
+    @Test
+    void render_patientWithNullFields_usesTemplateDefaults() throws Exception {
+        var patient = new Patient("Dupont", null, null, null, null, null, null, null, null, null, null, null, null);
+
+        var xml = service.render(new SumexInvoice(author(), patient, metaData("F2"), List.of(), payment(), 0.0))
+                .getContentAsString(StandardCharsets.UTF_8);
+
+        assertThat(xml)
+                .contains("<invoice:familyname>Dupont</invoice:familyname>", "<invoice:givenname></invoice:givenname>")
+                .contains("gender=\"male\"", "salutation=\"Unbekannt\"", "case_date=\"2025-01-01\"");
+    }
+
+    @Test
+    void render_templateError_isWrappedInIOException() {
+        // Auteur absent : pas de valeur par défaut dans le gabarit.
+        var incomplete = new SumexInvoice(null, null, metaData("F1"), List.of(), payment(), 0.0);
 
         assertThatThrownBy(() -> service.render(incomplete))
                 .isInstanceOf(java.io.IOException.class)

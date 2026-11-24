@@ -2,8 +2,8 @@ package zas.admin.zec.backend.config.api;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.TestingAuthenticationToken;
-import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 import zas.admin.zec.backend.persistence.entity.ApiClientEntity;
@@ -86,12 +86,11 @@ class ApiKeyAuthenticationTest {
     }
 
     /**
-     * Bug : les refus lèvent des RuntimeException et non des AuthenticationException. L'AuthenticationFilter
-     * de SecurityConfig ne les intercepte donc pas : son failure handler (401 JSON) est contourné et la requête
-     * finit en erreur 500. Ce test fige le comportement actuel.
+     * Les refus sont des AuthenticationException (BadCredentialsException) : le failure handler de l'AuthenticationFilter
+     * de SecurityConfig répond 401 JSON.
      */
     @Test
-    void provider_refusals_areNotAuthenticationExceptions() {
+    void provider_refusals_areBadCredentials() {
         when(repository.findActiveByKeyId("unknown")).thenReturn(Optional.empty());
         when(repository.findActiveByKeyId("revoked")).thenReturn(Optional.of(key(true, null)));
         when(repository.findActiveByKeyId("expired")).thenReturn(Optional.of(key(false, Instant.now().minusSeconds(60))));
@@ -99,13 +98,13 @@ class ApiKeyAuthenticationTest {
         when(encoder.matches("bad", "hash")).thenReturn(false);
 
         assertThatThrownBy(() -> provider.authenticate(new ApiKeyAuthenticationToken("unknown", "x")))
-                .hasMessage("API key not found").isNotInstanceOf(AuthenticationException.class);
+                .isInstanceOf(BadCredentialsException.class).hasMessage("API key not found");
         assertThatThrownBy(() -> provider.authenticate(new ApiKeyAuthenticationToken("revoked", "x")))
-                .hasMessage("API key is revoked or expired");
+                .isInstanceOf(BadCredentialsException.class).hasMessage("API key is revoked or expired");
         assertThatThrownBy(() -> provider.authenticate(new ApiKeyAuthenticationToken("expired", "x")))
-                .hasMessage("API key is revoked or expired");
+                .isInstanceOf(BadCredentialsException.class).hasMessage("API key is revoked or expired");
         assertThatThrownBy(() -> provider.authenticate(new ApiKeyAuthenticationToken("wrong", "bad")))
-                .hasMessage("Invalid API key");
+                .isInstanceOf(BadCredentialsException.class).hasMessage("Invalid API key");
         verify(repository, never()).save(any());
     }
 

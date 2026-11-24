@@ -27,8 +27,12 @@ public class AuthorizationLogic {
     }
 
     public boolean isInternalUser(Authentication authentication) {
-        var userId = userService.getUuid(authentication.getName());
-        return userService.hasAccessToInternalDocuments(userId);
+        try {
+            var userId = userService.getUuid(authentication.getName());
+            return userService.hasAccessToInternalDocuments(userId);
+        } catch (IllegalArgumentException userNotFound) {
+            return false;
+        }
     }
 
     public boolean isAdmin(Authentication authentication) {
