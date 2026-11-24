@@ -7,7 +7,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.type.filter.AnnotationTypeFilter;
+import org.springframework.stereotype.Controller;
+import org.springframework.util.ClassUtils;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
@@ -82,6 +87,7 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -108,7 +114,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
  *
  * <p>Pour un nouvel endpoint : l'ajouter à {@link #endpoints()} avec son niveau d'accès attendu ({@link Access}) ;
  * {@link #everyEndpointIsListed()} échoue tant qu'un endpoint des controllers importés n'y figure pas. Un nouveau
- * controller s'ajoute à {@link Config} (et ses dépendances en {@code @MockitoBean}).
+ * controller s'ajoute à {@link Config} (et ses dépendances en {@code @MockitoBean}) ;
+ * {@link #everyApplicationController_isInTheTestedContext()} échoue tant qu'il n'y est pas.
  */
 @SpringJUnitWebConfig(ControllerSecurityTest.Config.class)
 class ControllerSecurityTest {
@@ -250,7 +257,7 @@ class ControllerSecurityTest {
                 softly.assertThat(outcome).as(description).isEqualTo("401");
             } else if (endpoint.access().allows.test(persona)) {
                 // 400/405/415 : la requête n'a pas atteint le controller (corps ou paramètres invalides), le test serait muet.
-                softly.assertThat(outcome).as(description).isNotIn("400", "401", "403", "405", "415");
+                softly.assertThat(outcome).as(description).isNotIn("400", "401", "403", "405", "415").doesNotStartWith("error");
             } else {
                 softly.assertThat(outcome).as(description).isEqualTo("403");
             }
@@ -268,6 +275,18 @@ class ControllerSecurityTest {
         var listed = endpoints().map(Endpoint::key).collect(Collectors.toCollection(TreeSet::new));
 
         assertThat(listed).as("endpoints listés").containsExactlyElementsOf(mapped);
+    }
+
+    @Test
+    void everyApplicationController_isInTheTestedContext() {
+        var scanner = new ClassPathScanningCandidateComponentProvider(false);
+        scanner.addIncludeFilter(new AnnotationTypeFilter(Controller.class));
+        var declared = scanner.findCandidateComponents("zas.admin.zec.backend").stream()
+                .map(BeanDefinition::getBeanClassName)
+                .collect(Collectors.toCollection(TreeSet::new));
+
+        assertThat(declared).as("controllers trouvés par le scan").contains(ConversationController.class.getName());
+        assertThat(controllerClassNames()).as("controllers importés dans Config").containsAll(declared);
     }
 
     @Test
@@ -321,13 +340,38 @@ class ControllerSecurityTest {
         verify(uploadService, never()).download(any(), any());
     }
 
+    /**
+     * Statut HTTP de l'appel. Avec des services simulés, le controller peut échouer : une exception (ou un 5xx) n'est
+     * acceptée comme « sécurité franchie » que si elle provient de la méthode du controller elle-même ; une erreur
+     * levée avant (filtre, {@link AuthorizationLogic}) est rapportée telle quelle et fait échouer le test.
+     */
     private String call(Endpoint endpoint, Persona persona) {
         try {
-            return String.valueOf(mvc.perform(withPersona(endpoint.request().get(), persona)).andReturn().getResponse().getStatus());
+            var result = mvc.perform(withPersona(endpoint.request().get(), persona)).andReturn();
+            var status = result.getResponse().getStatus();
+            if (status >= 500 && result.getResolvedException() != null) {
+                return failure(result.getResolvedException());
+            }
+            return String.valueOf(status);
         } catch (Exception e) {
-            // Services simulés : une exception levée par le controller prouve que l'appel a passé la sécurité.
-            return "exception";
+            return failure(e);
         }
+    }
+
+    private String failure(Throwable error) {
+        var controllers = controllerClassNames();
+        for (var cause = error; cause != null; cause = cause.getCause()) {
+            if (Arrays.stream(cause.getStackTrace()).anyMatch(frame -> controllers.contains(frame.getClassName()))) {
+                return "controller-error";
+            }
+        }
+        return "error " + error;
+    }
+
+    private Set<String> controllerClassNames() {
+        return handlerMapping.getHandlerMethods().values().stream()
+                .map(method -> ClassUtils.getUserClass(method.getBeanType()).getName())
+                .collect(Collectors.toSet());
     }
 
     private static AbstractMockHttpServletRequestBuilder<?> withPersona(AbstractMockHttpServletRequestBuilder<?> builder, Persona persona) {
