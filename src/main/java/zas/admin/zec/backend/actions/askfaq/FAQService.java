@@ -57,9 +57,12 @@ public class FAQService {
                 bySemanticSimilarity = getExistingFAQItemsBySemanticSimilarity(question);
                 faqCache.put(question, bySemanticSimilarity);
             }
-            return Stream.concat(byWordSimilarity.stream(), bySemanticSimilarity.stream())
-                    .distinct()
-                    .toList();
+            // Dédoublonnage par id : le résultat par mots (frais) l'emporte sur une version en cache, peut-être
+            // antérieure à une mise à jour de la FAQ.
+            var byId = new LinkedHashMap<String, FAQItem>();
+            Stream.concat(byWordSimilarity.stream(), bySemanticSimilarity.stream())
+                    .forEach(item -> byId.putIfAbsent(item.id(), item));
+            return List.copyOf(byId.values());
         }
     }
 

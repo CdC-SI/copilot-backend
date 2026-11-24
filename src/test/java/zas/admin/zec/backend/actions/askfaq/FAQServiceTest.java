@@ -94,6 +94,22 @@ class FAQServiceTest {
     }
 
     @Test
+    void search_cacheHitAfterUpdate_keepsOnlyTheFreshWordMatchForTheSameId() {
+        var before = question("a1", "Avant");
+        var after = question("a1", "Après");
+        after.setId(before.getId());
+        when(questionRepository.findByWordSimilarity(anyString(), anyDouble(), anyInt()))
+                .thenReturn(List.of())
+                .thenReturn(List.of(after));
+        when(questionRepository.findNearestByTextEmbedding(Arrays.toString(EMBEDDING), 3)).thenReturn(List.of(before));
+        when(documentRepository.findByAnswerId("a1")).thenReturn(answer("R1"));
+
+        assertThat(service.getExistingFAQItemsByMatchingQuestion("rente")).extracting(FAQItem::text).containsExactly("Avant");
+        // Même question mise à jour entre-temps : la version en cache (périmée) est écartée au profit de la recherche par mots.
+        assertThat(service.getExistingFAQItemsByMatchingQuestion("rente")).extracting(FAQItem::text).containsExactly("Après");
+    }
+
+    @Test
     void save_withoutId_createsQuestionAndAnswerSharingAnAnswerId() {
         var item = service.save(new FAQItemLight(null, "Quand ?", "Demain", "https://faq", "fr", Arrays.asList("rente", null)));
 
