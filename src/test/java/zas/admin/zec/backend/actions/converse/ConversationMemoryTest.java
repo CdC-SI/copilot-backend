@@ -13,6 +13,8 @@ import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.model.tool.ToolCallingChatOptions;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import zas.admin.zec.backend.config.ChatClientConfig;
 import zas.admin.zec.backend.config.properties.MemoryProperties;
 import zas.admin.zec.backend.observability.TurnUsageEvent;
@@ -240,6 +242,159 @@ class ConversationMemoryTest {
         }
 
         verify(summaries, after(5_000).never()).save(any(ConversationSummary.class));
+    }
+
+    @Test
+    void emptyOrMisalignedHistoryReturnsTheRenderedMessagesAsIs() {
+        var rendered = AbstractChatService.toPromptMessages(history());
+        var memory = memory(1, 0.5);
+
+        assertSame(rendered, memory.window("user-1", "conv", List.of(), rendered, null));
+        assertSame(rendered, memory.window("user-1", "conv", history().subList(0, 2), rendered, null));
+        verifyNoInteractions(summaries);
+    }
+
+    @Test
+    void disabledSummaryIsNeitherReadNorComputed() {
+        var memory = new ConversationMemory(new MemoryProperties(10_000, 0.6, false), summaries,
+                ChatClientConfig.builder(chatModel, ObservationRegistry.NOOP), PROMPTS, eventPublisher);
+        var history = history();
+        var rendered = AbstractChatService.toPromptMessages(history);
+
+        assertEquals(texts(rendered), texts(memory.window("user-1", "conv", history, rendered, null)));
+        memory.compactAsync("user-1", "conv", "fr", () -> fail("historique lu alors que le résumé est désactivé"));
+
+        verifyNoInteractions(summaries, chatModel);
+    }
+
+    @Test
+    void conversationWithoutIdentifierIsNeitherSummarizedNorCompacted() {
+        var memory = memory(10_000, 0.6);
+        var history = history();
+        var rendered = AbstractChatService.toPromptMessages(history);
+
+        assertEquals(texts(rendered), texts(memory.window("user-1", " ", history, rendered, null)));
+        memory.compactAsync("user-1", null, "fr", () -> fail("historique lu sans conversation"));
+        memory.compactAsync("user-1", "", "fr", () -> fail("historique lu sans conversation"));
+
+        verifyNoInteractions(summaries, chatModel);
+    }
+
+    @Test
+    void unreadableSummaryFallsBackToTheSimpleWindow() {
+        when(summaries.find("user-1", "conv")).thenThrow(new IllegalStateException("base indisponible"));
+        var history = history();
+        var rendered = AbstractChatService.toPromptMessages(history);
+
+        assertEquals(texts(rendered), texts(memory(10_000, 0.6).window("user-1", "conv", history, rendered, null)));
+    }
+
+    /** Un résumé couvrant le dernier tour (plus récent que l'historique) est ignoré. */
+    @Test
+    void summaryCoveringTheLastTurnIsIgnored() {
+        when(summaries.find("user-1", "conv")).thenReturn(Optional.of(summary("a3")));
+        var history = history();
+        var rendered = AbstractChatService.toPromptMessages(history);
+
+        assertEquals(texts(rendered), texts(memory(10_000, 0.6).window("user-1", "conv", history, rendered, null)));
+    }
+
+    /** Si le premier message conservé n'est pas une question, le résumé est ajouté en tête dans son propre message. */
+    @Test
+    void summaryIsPrependedWhenTheFirstKeptMessageIsNotAQuestion() {
+        var legacy = new ConversationSummary("user-1", "conv", "a1", "- Résumé.", "sans-version", null, null,
+                LocalDateTime.now());
+        when(summaries.find("user-1", "conv")).thenReturn(Optional.of(legacy));
+        var history = history();
+        List<org.springframework.ai.chat.messages.Message> rendered = history.stream()
+                .<org.springframework.ai.chat.messages.Message>map(m -> new AssistantMessage(m.message()))
+                .toList();
+        Map<String, String> versions = new HashMap<>();
+
+        var window = memory(10_000, 0.6).window("user-1", "conv", history, rendered, versions);
+
+        assertEquals(5, window.size());
+        assertInstanceOf(UserMessage.class, window.getFirst());
+        assertEquals(ConversationMemory.summaryBlock("- Résumé."), window.getFirst().getText());
+        assertEquals("Deuxième question sur les allocations familiales.", window.get(1).getText());
+        // Version sans « @ » : non tracée.
+        assertTrue(versions.isEmpty());
+    }
+
+    @Test
+    void emptyHistoryIsNotCompacted() {
+        assertFalse(memory(1, 0.5).compact("user-1", "conv", "fr", List.of()));
+
+        verifyNoInteractions(chatModel, summaries);
+    }
+
+    @Test
+    void summaryIsNotSavedWhenTheLastCoveredMessageHasNoIdentifier() {
+        llmAnswers("- Résumé.");
+        var history = new ArrayList<>(history());
+        history.set(1, assistant(null, "Réponse un."));
+
+        assertFalse(memory(1, 0.5).compact("user-1", "conv", "fr", history));
+
+        verify(summaries, never()).save(any());
+        // L'usage de l'appel reste publié.
+        verify(eventPublisher).publishEvent(any(TurnUsageEvent.class));
+    }
+
+    @Test
+    void failedCompactionIsLoggedAndALaterOneCanRun() {
+        when(chatModel.getOptions()).thenReturn(ToolCallingChatOptions.builder().build());
+        when(chatModel.call(any(Prompt.class)))
+                .thenThrow(new IllegalStateException("LLM indisponible"))
+                .thenReturn(new ChatResponse(List.of(new Generation(new AssistantMessage("- Résumé.")))));
+        var memory = memory(1, 0.5);
+
+        memory.compactAsync("user-1", "conv", "fr", ConversationMemoryTest::history);
+        verify(chatModel, timeout(5_000)).call(any(Prompt.class));
+        verify(summaries, after(200).never()).save(any());
+
+        // L'état de compaction est libéré malgré l'échec.
+        await(() -> {
+            memory.compactAsync("user-1", "conv", "fr", ConversationMemoryTest::history);
+            verify(summaries, timeout(1_000)).save(any(ConversationSummary.class));
+        });
+    }
+
+    /** Dans une transaction, la suppression bloque les compactions jusqu'à sa fin (commit ou rollback). */
+    @Test
+    void forgetInsideATransactionBlocksCompactionUntilItCompletes() {
+        llmAnswers("- Résumé.");
+        var memory = memory(1, 0.5);
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            memory.forget("user-1", "conv");
+
+            memory.compactAsync("user-1", "conv", "fr", () -> fail("compaction pendant la suppression"));
+            verify(summaries).delete("user-1", "conv");
+
+            var synchronizations = TransactionSynchronizationManager.getSynchronizations();
+            assertEquals(1, synchronizations.size());
+            synchronizations.getFirst().afterCompletion(TransactionSynchronization.STATUS_COMMITTED);
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+
+        memory.compactAsync("user-1", "conv", "fr", ConversationMemoryTest::history);
+        verify(summaries, timeout(5_000)).save(any(ConversationSummary.class));
+    }
+
+    /** Réessaie une vérification asynchrone (l'état est libéré juste après la fin de la tâche précédente). */
+    private static void await(Runnable assertion) {
+        AssertionError last = null;
+        for (int attempt = 0; attempt < 5; attempt++) {
+            try {
+                assertion.run();
+                return;
+            } catch (AssertionError e) {
+                last = e;
+            }
+        }
+        throw last;
     }
 
     @Test

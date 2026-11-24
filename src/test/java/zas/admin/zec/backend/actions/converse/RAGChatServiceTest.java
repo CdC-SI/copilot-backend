@@ -12,10 +12,17 @@ import org.springframework.ai.chat.metadata.DefaultUsage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
+import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.document.Document;
 import org.springframework.ai.model.tool.ToolCallingChatOptions;
 import reactor.core.publisher.Flux;
+import reactor.util.context.Context;
 import zas.admin.zec.backend.config.ChatClientConfig;
+import zas.admin.zec.backend.config.security.UserToken;
+import zas.admin.zec.backend.rag.TurnCitations;
+import zas.admin.zec.backend.rag.token.WorkspaceToken;
+import zas.admin.zec.backend.tools.ToolContextKeys;
 import zas.admin.zec.backend.config.properties.DocumentToolProperties;
 import zas.admin.zec.backend.config.properties.MemoryProperties;
 import zas.admin.zec.backend.persistence.repository.ConversationSummaryRepository;
@@ -40,13 +47,17 @@ import zas.admin.zec.backend.tools.WorkspaceInferenceMonitoringService;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 /**
@@ -154,6 +165,102 @@ class RAGChatServiceTest {
         assertEquals(1, RAGChatService.textWithCitations("suite", filter).size());
         // Texte retenu par le filtre (marqueur incomplet) : pas de jeton vide.
         assertTrue(RAGChatService.textWithCitations(filter.accept("[1"), filter).isEmpty());
+    }
+
+    @Test
+    void onlyCompleteConversationsAreSupported() {
+        assertTrue(service.supports(ConversationType.COMPLETE));
+        Arrays.stream(ConversationType.values()).filter(type -> type != ConversationType.COMPLETE)
+                .forEach(type -> assertFalse(service.supports(type), type.name()));
+    }
+
+    /**
+     * Tour avec appel de tool simulé (le modèle simulé invoque lui-même le callback reçu) : jeton utilisateur transmis
+     * au tool, citation résolue vers l'extrait lu, source affichée, workspace résolu, appel tracé.
+     */
+    @Test
+    void toolCallFeedsCitationsSourcesWorkspaceAndTrace() {
+        var ragTool = mock(RAGTool.class);
+        var monitoring = mock(WorkspaceInferenceMonitoringService.class);
+        var withTool = new RAGChatService(ChatClientConfig.builder(chatModel, ObservationRegistry.NOOP), ragTool,
+                mock(DocumentTool.class), mock(ConversationAttachmentTool.class), monitoring,
+                new DocumentToolProperties(10), mock(AttachmentRepository.class),
+                new ToolApprovalService(new ToolApprovalProperties(List.of(), Duration.ofSeconds(1))), PROMPTS,
+                new ConversationMemory(new MemoryProperties(12000, 0.6, true), mock(ConversationSummaryRepository.class),
+                        ChatClientConfig.builder(chatModel, ObservationRegistry.NOOP), PROMPTS,
+                        mock(ApplicationEventPublisher.class)));
+        var document = new Document("doc-1", "La rente est versée chaque mois.",
+                Map.of("title", "Mémento rentes", "url", "https://x/rentes", "source", "memento"));
+        Map<String, Object> seenContext = new HashMap<>();
+        when(ragTool.searchSocialInsuranceDocumentation(anyString(), any())).thenAnswer(invocation -> {
+            ToolContext context = invocation.getArgument(1);
+            seenContext.putAll(context.getContext());
+            @SuppressWarnings("unchecked")
+            var documents = (List<Document>) context.getContext().get(ToolContextKeys.CTX_RETRIEVED_DOCUMENTS);
+            documents.add(document);
+            @SuppressWarnings("unchecked")
+            var workspace = (AtomicReference<String>) context.getContext().get(ToolContextKeys.CTX_RESOLVED_WORKSPACE);
+            workspace.set("RENTES");
+            int ref = ((CitationRefs) context.getContext().get(ToolContextKeys.CTX_CITATION_REFS)).refFor("doc-1");
+            return "<document id=\"doc-1\" ref=\"" + ref + "\">...</document>";
+        });
+        when(chatModel.getOptions()).thenReturn(ToolCallingChatOptions.builder().build());
+        when(chatModel.stream(any(Prompt.class))).thenAnswer(invocation -> {
+            Prompt prompt = invocation.getArgument(0);
+            var options = (ToolCallingChatOptions) prompt.getOptions();
+            var callback = options.getToolCallbacks().stream()
+                    .filter(c -> c.getToolDefinition().name().equals(RAGTool.TOOL_NAME))
+                    .findFirst().orElseThrow();
+            String result = callback.call("{\"query\":\"Quand la rente est-elle versée ?\"}",
+                    new ToolContext(options.getToolContext()));
+            // Résultat converti en JSON par le callback.
+            assertTrue(result.contains("ref=\\\"1\\\""), result);
+            return Flux.just("Chaque mois [1].", "<turn_meta status=\"answer\" used=\"doc-1\"/>")
+                    .map(RAGChatServiceTest::chunk);
+        });
+
+        var tokens = withTool.answer(question("RENTES"), "user-1", HISTORY)
+                .contextWrite(Context.of(UserToken.CONTEXT_KEY, "Bearer jeton"))
+                .collectList().block(Duration.ofSeconds(10));
+
+        assertEquals("Bearer jeton", seenContext.get(ToolContextKeys.CTX_USER_TOKEN));
+        assertEquals("RENTES", seenContext.get(ToolContextKeys.CTX_WORKSPACE));
+        assertEquals("Résume ta réponse.", seenContext.get(ToolContextKeys.CTX_ORIGINAL_QUESTION));
+        verify(monitoring).recordCorrection("user-1", "conv", "Résume ta réponse.", "RENTES");
+
+        String visible = tokens.stream().filter(TextToken.class::isInstance).map(Token::content)
+                .collect(Collectors.joining());
+        assertEquals("Chaque mois [^1].", visible);
+        var citation = tokens.stream().filter(CitationToken.class::isInstance).map(CitationToken.class::cast)
+                .findFirst().orElseThrow();
+        assertEquals(1, citation.number());
+        assertEquals("doc-1", citation.source().documentId());
+        // La citation précède le texte qui porte son marqueur.
+        assertTrue(tokens.indexOf(citation) < tokens.indexOf(tokens.stream()
+                .filter(t -> t instanceof TextToken && t.content().contains("[^1]")).findFirst().orElseThrow()));
+        assertTrue(tokens.stream().filter(SourceToken.class::isInstance).map(SourceToken.class::cast)
+                .anyMatch(s -> "doc-1".equals(s.documentId())));
+        var workspace = assertInstanceOf(WorkspaceToken.class, tokens.getLast());
+        assertEquals("RENTES", workspace.name());
+
+        var trace = tokens.stream().filter(TurnTraceToken.class::isInstance).map(t -> ((TurnTraceToken) t).trace())
+                .filter(t -> t.status() == TurnStatus.ANSWER).findFirst().orElseThrow();
+        assertEquals(1, trace.toolCalls().size());
+        assertEquals(RAGTool.TOOL_NAME, trace.toolCalls().getFirst().tool());
+        assertEquals(Map.of(1, "doc-1"), trace.citations().refs());
+        assertEquals(List.of(new TurnCitations.Cited(1, 1, "doc-1")), trace.citations().cited());
+    }
+
+    /** Sans jeton utilisateur dans le contexte Reactor, aucun jeton n'est transmis aux tools. */
+    @Test
+    void withoutUserTokenNothingIsPassedToTheTools() {
+        answer(question(""), "Réponse.<turn_meta status=\"answer\" used=\"\"/>");
+
+        var options = (ToolCallingChatOptions) sentPrompt().getOptions();
+        assertFalse(options.getToolContext().containsKey(ToolContextKeys.CTX_USER_TOKEN));
+        assertEquals("", options.getToolContext().get(ToolContextKeys.CTX_WORKSPACE));
+        assertTrue(options.getToolCallbacks().stream()
+                .anyMatch(c -> RAGTool.TOOL_NAME.equals(c.getToolDefinition().name())));
     }
 
     @Test

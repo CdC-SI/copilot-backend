@@ -29,8 +29,8 @@
         <resilience4j.version>2.2.0</resilience4j.version>
         <jacoco.version>0.8.15</jacoco.version>
         <!-- Seuils de couverture (cliquet, voir jacoco-maven-plugin). -->
-        <jacoco.minimum.line>0.68</jacoco.minimum.line>
-        <jacoco.minimum.branch>0.63</jacoco.minimum.branch>
+        <jacoco.minimum.line>0.75</jacoco.minimum.line>
+        <jacoco.minimum.branch>0.73</jacoco.minimum.branch>
     </properties>
 
     <dependencies>
