@@ -223,8 +223,11 @@ public class AttachmentJobProcessor {
         Integer updated = transactionTemplate.execute(status ->
                 attachmentRepository.markProcessed(job.id(), job.jobId(), content));
         if (updated != null && updated > 0) {
-            log.info("Extraction terminée avec succès pour la pièce jointe ID: {} ({} page(s), {} caractères)",
-                    job.id(), pages.size(), content.length());
+            var elapsed = job.submittedAt() != null
+                    ? Duration.between(job.submittedAt(), LocalDateTime.now())
+                    : Duration.ZERO;
+            log.info("Extraction terminée avec succès pour la pièce jointe ID: {} ({} page(s), {} caractères) en {} ms ({} s)",
+                    job.id(), pages.size(), content.length(), elapsed.toMillis(), String.format("%.2f", elapsed.toMillis() / 1000.0));
         } else {
             log.info("Pièce jointe ID: {} supprimée ou déjà traitée, résultat du job {} ignoré", job.id(), job.jobId());
         }
@@ -285,8 +288,11 @@ public class AttachmentJobProcessor {
     }
 
     private void fail(JobSnapshot job, UploadErrorCode errorCode, String reason) {
-        log.error("Échec de l'extraction de la pièce jointe ID: {} ({}) [{}] : {}",
-                job.id(), job.filename(), errorCode, reason);
+        var elapsed = job.submittedAt() != null
+                ? Duration.between(job.submittedAt(), LocalDateTime.now())
+                : Duration.ZERO;
+        log.error("Échec de l'extraction de la pièce jointe ID: {} ({}) [{}] après {} ms : {}",
+                job.id(), job.filename(), errorCode, elapsed.toMillis(), reason);
         try {
             transactionTemplate.executeWithoutResult(status ->
                     attachmentRepository.markFailed(job.id(), job.jobId(), errorCode));
