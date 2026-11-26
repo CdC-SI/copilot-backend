@@ -25,7 +25,7 @@ public class AttachmentJobPoller {
         this.executor = executor;
     }
 
-    @Scheduled(fixedDelayString = "${attachment-ocr.poll-interval:5s}")
+    @Scheduled(fixedDelayString = "${attachment-ocr.poll-interval:2s}")
     public void pollPendingAttachments() {
         try {
             for (Long id : processor.claimDue()) {

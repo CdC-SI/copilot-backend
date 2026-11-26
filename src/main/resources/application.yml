@@ -131,7 +131,7 @@ embedding-service:
 attachment-ocr:
   engine: ${ATTACHMENT_OCR_ENGINE:pipeline}
   max-pages: ${ATTACHMENT_MAX_PAGES:1000}
-  poll-interval: ${ATTACHMENT_OCR_POLL_INTERVAL:5s}
+  poll-interval: ${ATTACHMENT_OCR_POLL_INTERVAL:2s}
   job-timeout: ${ATTACHMENT_OCR_JOB_TIMEOUT:1h}
 identity-check:
   baseUrl: ${IDENTITY_CHECK_BASE_URL:https://api.int.adnovum-vips.ch}
