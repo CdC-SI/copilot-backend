@@ -203,8 +203,13 @@ zia:
       # Tools dont chaque appel doit être approuvé par l'utilisateur (T1), séparés par des virgules ; aucun par défaut
       # (démo : get_attachment_content).
       required-tools: ${ZIA_TOOLS_APPROVAL_REQUIRED_TOOLS:}
-      # Inférieur à spring.mvc.async.request-timeout, qui borne toute la réponse en streaming.
+      # Inférieur à spring.mvc.async.request-timeout, qui borne toute la réponse en streaming. Peut dépasser le délai
+      # d'inactivité de la gateway (30 s) grâce au heartbeat du flux (zia.conversation.stream.heartbeat-interval).
       timeout: ${ZIA_TOOLS_APPROVAL_TIMEOUT:60s}
+  conversation:
+    stream:
+      # Commentaire SSE envoyé pendant les silences du flux : la gateway coupe une connexion inactive au bout de 30 s.
+      heartbeat-interval: ${ZIA_SSE_HEARTBEAT_INTERVAL:15s}
 logging:
   level:
     zas.admin.zec: ${LOG_LEVEL_ZEC:INFO}

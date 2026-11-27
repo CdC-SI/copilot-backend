@@ -12,8 +12,11 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import reactor.core.publisher.Flux;
 import zas.admin.zec.backend.actions.authorize.UserService;
 import zas.admin.zec.backend.config.ExceptionsHandler;
+import zas.admin.zec.backend.config.properties.ConversationStreamProperties;
 import zas.admin.zec.backend.config.security.UserToken;
 import zas.admin.zec.backend.tools.SecurityLogging;
+
+import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -30,6 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ConversationControllerGenerationTest {
 
     private static final String USER = "user";
+    private static final ConversationStreamProperties STREAM = new ConversationStreamProperties(Duration.ofSeconds(15));
 
     private final UserService userService = mock(UserService.class);
     private final ConversationService conversationService = mock(ConversationService.class);
@@ -40,7 +44,7 @@ class ConversationControllerGenerationTest {
     void setUp() {
         when(userService.getUuid("jdoe")).thenReturn(USER);
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new ConversationController(userService, conversationService, mock(SecurityLogging.class)))
+                .standaloneSetup(new ConversationController(userService, conversationService, mock(SecurityLogging.class), STREAM))
                 .setControllerAdvice(new ExceptionsHandler())
                 .build();
     }
@@ -103,7 +107,7 @@ class ConversationControllerGenerationTest {
         when(conversationService.streamAnswer(any(), eq(USER))).thenReturn(Flux.deferContextual(context ->
                 Flux.just(ChatStreamEvent.textDelta(context.getOrDefault(UserToken.CONTEXT_KEY, "absent")))));
         var jwt = Jwt.withTokenValue("jwt-value").header("alg", "none").claim("sub", "jdoe").build();
-        var controller = new ConversationController(userService, conversationService, mock(SecurityLogging.class));
+        var controller = new ConversationController(userService, conversationService, mock(SecurityLogging.class), STREAM);
 
         var event = controller.askQuestion(new Question("Question ?", null, null, null, null, "conv", true, null),
                 new JwtAuthenticationToken(jwt)).blockFirst();

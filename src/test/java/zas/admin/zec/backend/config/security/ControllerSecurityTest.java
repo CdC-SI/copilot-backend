@@ -20,6 +20,7 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.junit.jupiter.web.SpringJUnitWebConfig;
 import org.springframework.test.web.servlet.MockMvc;
@@ -72,6 +73,7 @@ import zas.admin.zec.backend.actions.visualize.VisualizeController;
 import zas.admin.zec.backend.actions.workspace.WorkspaceController;
 import zas.admin.zec.backend.actions.workspace.WorkspaceService;
 import zas.admin.zec.backend.config.ExceptionsHandler;
+import zas.admin.zec.backend.config.properties.ConversationStreamProperties;
 import zas.admin.zec.backend.config.api.ApiKeyAuthenticationProvider;
 import zas.admin.zec.backend.config.api.ApiKeyAuthenticationToken;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -133,6 +135,7 @@ class ControllerSecurityTest {
             SumexInvoicesController.class, FeedbackController.class, SourceViewController.class,
             SettingController.class, SourceController.class, SourceRequestController.class,
             SummarizeController.class, DocumentController.class})
+    @EnableConfigurationProperties(ConversationStreamProperties.class)
     static class Config {
     }
 
