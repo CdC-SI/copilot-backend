@@ -18,33 +18,47 @@ import java.nio.file.Path;
 public class LocalConfig {
 
     /**
-     * Image construite une seule fois par JVM ({@code LazyFuture} mémorise le résultat) : chaque contexte Spring de test
-     * appelle {@link #postgresContainer()}, et reconstruire l'image à chaque contexte fait échouer le build Jenkins
-     * (le démon Docker coupe la connexion pendant l'envoi du contexte de build : « Pipe closed »).
+     * Conteneur PostgreSQL unique pour toute la JVM, partagé par tous les contextes Spring de test (un par combinaison
+     * de configuration des {@code *IT}). Sur l'agent Jenkins (Podman), le service API ferme les connexions inactives :
+     * un second conteneur, créé après plusieurs secondes sans appel Docker, échoue (« Relais brisé (pipe) » /
+     * « Pipe closed ») sur la connexion réutilisée. Démarré une fois, il n'est plus arrêté avant la fin de la JVM.
      */
-    private static final ImageFromDockerfile POSTGRES_IMAGE = new ImageFromDockerfile("copilot-backend-postgres-test", false)
-            .withFileFromPath(".", Path.of("src/test/resources/docker"))
-            .withFileFromPath("init-extensions.sql", Path.of("src/test/resources/init-extensions.sql"))
-            .withFileFromPath("docker/pg-textsearch-postgresql-18_1.2.0-1_amd64.deb", Path.of("src/test/resources/docker/pg-textsearch-postgresql-18_1.2.0-1_amd64.deb"));
+    private static PostgreSQLContainer sharedPostgres;
 
-    @Bean(initMethod = "start", destroyMethod = "stop")
-    @ServiceConnection
     @SuppressWarnings("resource")
-    PostgreSQLContainer postgresContainer() {
-        String imageName = POSTGRES_IMAGE.get();
+    private static synchronized PostgreSQLContainer sharedPostgres() {
+        if (sharedPostgres == null) {
+            String imageName = new ImageFromDockerfile("copilot-backend-postgres-test", false)
+                    .withFileFromPath(".", Path.of("src/test/resources/docker"))
+                    .withFileFromPath("init-extensions.sql", Path.of("src/test/resources/init-extensions.sql"))
+                    .withFileFromPath("docker/pg-textsearch-postgresql-18_1.2.0-1_amd64.deb", Path.of("src/test/resources/docker/pg-textsearch-postgresql-18_1.2.0-1_amd64.deb"))
+                    .get();
+            sharedPostgres = new PostgreSQLContainer(DockerImageName.parse(imageName).asCompatibleSubstituteFor("postgres"))
+                    .withDatabaseName("pg_db")
+                    .withUsername("admin")
+                    .withPassword("pg_password");
+        }
+        return sharedPostgres;
+    }
 
-        return new PostgreSQLContainer(DockerImageName.parse(imageName).asCompatibleSubstituteFor("postgres"))
-                .withDatabaseName("pg_db")
-                .withUsername("admin")
-                .withPassword("pg_password");
+    /**
+     * Démarré par Spring Boot ({@code start()} est sans effet s'il tourne déjà). Pas de méthode de destruction : la
+     * fermeture d'un contexte ne doit pas l'arrêter pour les autres ; Spring Boot le ferme à l'arrêt des contextes
+     * (fin de la JVM) et Ryuk le supprime en dernier recours.
+     */
+    @Bean(destroyMethod = "")
+    @ServiceConnection
+    PostgreSQLContainer postgresContainer() {
+        return sharedPostgres();
     }
 
     @Bean
     Callback flywayInitUsersCallback() {
         return new Callback() {
+            /** Seulement si des migrations ont été appliquées : la base partagée n'est peuplée qu'une fois. */
             @Override
             public boolean supports(Event event, Context context) {
-                return event == Event.AFTER_MIGRATE;
+                return event == Event.AFTER_MIGRATE_APPLIED;
             }
 
             @Override
