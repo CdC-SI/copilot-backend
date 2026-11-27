@@ -17,15 +17,21 @@ import java.nio.file.Path;
 @TestConfiguration(proxyBeanMethods = false)
 public class LocalConfig {
 
+    /**
+     * Image construite une seule fois par JVM ({@code LazyFuture} mémorise le résultat) : chaque contexte Spring de test
+     * appelle {@link #postgresContainer()}, et reconstruire l'image à chaque contexte fait échouer le build Jenkins
+     * (le démon Docker coupe la connexion pendant l'envoi du contexte de build : « Pipe closed »).
+     */
+    private static final ImageFromDockerfile POSTGRES_IMAGE = new ImageFromDockerfile("copilot-backend-postgres-test", false)
+            .withFileFromPath(".", Path.of("src/test/resources/docker"))
+            .withFileFromPath("init-extensions.sql", Path.of("src/test/resources/init-extensions.sql"))
+            .withFileFromPath("docker/pg-textsearch-postgresql-18_1.2.0-1_amd64.deb", Path.of("src/test/resources/docker/pg-textsearch-postgresql-18_1.2.0-1_amd64.deb"));
+
     @Bean(initMethod = "start", destroyMethod = "stop")
     @ServiceConnection
     @SuppressWarnings("resource")
     PostgreSQLContainer postgresContainer() {
-        String imageName = new ImageFromDockerfile("copilot-backend-postgres-test", false)
-                .withFileFromPath(".", Path.of("src/test/resources/docker"))
-                .withFileFromPath("init-extensions.sql", Path.of("src/test/resources/init-extensions.sql"))
-                .withFileFromPath("docker/pg-textsearch-postgresql-18_1.2.0-1_amd64.deb", Path.of("src/test/resources/docker/pg-textsearch-postgresql-18_1.2.0-1_amd64.deb"))
-                .get();
+        String imageName = POSTGRES_IMAGE.get();
 
         return new PostgreSQLContainer(DockerImageName.parse(imageName).asCompatibleSubstituteFor("postgres"))
                 .withDatabaseName("pg_db")

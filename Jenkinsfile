@@ -2,6 +2,7 @@
 @Library('phenix-pipeline-library') _
 
 mavenDockerBuild{
+    agent='docker'
     displayParameters=true
     jdk='jdk25(x64)'
     mvnArgs='-B clean verify'
