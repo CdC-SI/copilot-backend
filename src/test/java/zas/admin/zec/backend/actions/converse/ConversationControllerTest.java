@@ -19,9 +19,11 @@ import zas.admin.zec.backend.actions.upload.UploadService;
 import zas.admin.zec.backend.actions.upload.validation.UploadErrorCode;
 import zas.admin.zec.backend.actions.upload.validation.UploadException;
 import zas.admin.zec.backend.config.ExceptionsHandler;
+import zas.admin.zec.backend.config.properties.ConversationStreamProperties;
 import zas.admin.zec.backend.tools.OpdoPersonalData;
 import zas.admin.zec.backend.tools.SecurityLogging;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -51,6 +53,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ConversationControllerTest {
 
     private static final String USER = "user";
+    private static final ConversationStreamProperties STREAM = new ConversationStreamProperties(Duration.ofSeconds(15));
 
     private final UserService userService = mock(UserService.class);
     private final ConversationService conversationService = mock(ConversationService.class);
@@ -64,7 +67,7 @@ class ConversationControllerTest {
         when(userService.getByUsername("jdoe"))
                 .thenReturn(new User("jdoe", "John", "Doe", null, List.of(), List.of(), true));
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new ConversationController(userService, conversationService, securityLogging))
+                .standaloneSetup(new ConversationController(userService, conversationService, securityLogging, STREAM))
                 .setControllerAdvice(new ExceptionsHandler())
                 .build();
     }
@@ -179,6 +182,31 @@ class ConversationControllerTest {
         // Valeurs par défaut appliquées avant l'appel du service.
         verify(conversationService).streamAnswer(argThat(question -> "fr".equals(question.language())
                 && "conv".equals(question.conversationId()) && question.replaceMessageId() == null), eq(USER));
+    }
+
+    @Test
+    @DisplayName("question : commentaire SSE pendant les silences du flux (gateway, F22)")
+    void askQuestion_sendsHeartbeatWhileSilent() throws Exception {
+        when(conversationService.streamAnswer(any(), eq(USER))).thenReturn(Flux.just(ChatStreamEvent.done("m1", false))
+                .delaySubscription(Duration.ofMillis(200)));
+        var heartbeatMvc = MockMvcBuilders
+                .standaloneSetup(new ConversationController(userService, conversationService, securityLogging,
+                        new ConversationStreamProperties(Duration.ofMillis(20))))
+                .build();
+
+        var result = heartbeatMvc.perform(multipart("/api/conversations")
+                        .param("query", "Question ?")
+                        .accept(MediaType.TEXT_EVENT_STREAM)
+                        .principal(authentication))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+
+        String body = heartbeatMvc.perform(asyncDispatch(result))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertTrue(body.startsWith(":heartbeat\n\n"), body);
+        assertTrue(body.indexOf(":heartbeat") < body.indexOf("event:done"), body);
     }
 
     @Test

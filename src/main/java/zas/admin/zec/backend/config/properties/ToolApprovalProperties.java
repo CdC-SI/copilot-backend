@@ -12,7 +12,9 @@ import java.util.List;
  *
  * @param requiredTools noms des tools dont chaque appel doit être approuvé par l'utilisateur (aucun par défaut)
  * @param timeout       délai d'attente de la décision ; au-delà, l'appel est refusé d'office. Doit rester nettement
- *                      inférieur à {@code spring.mvc.async.request-timeout}, qui borne toute la réponse en streaming.
+ *                      inférieur à {@code spring.mvc.async.request-timeout}, qui borne toute la réponse en streaming ;
+ *                      la connexion reste ouverte pendant l'attente grâce au heartbeat
+ *                      ({@link ConversationStreamProperties#heartbeatInterval()}).
  */
 @Validated
 @ConfigurationProperties(prefix = "zia.tools.approval")

@@ -11,6 +11,7 @@ import org.springframework.web.multipart.MultipartFile;
 import reactor.core.publisher.Flux;
 import tools.jackson.databind.json.JsonMapper;
 import zas.admin.zec.backend.actions.authorize.UserService;
+import zas.admin.zec.backend.config.properties.ConversationStreamProperties;
 import zas.admin.zec.backend.config.security.RequireUser;
 import zas.admin.zec.backend.config.security.UserToken;
 import zas.admin.zec.backend.tools.OpdoPersonalData;
@@ -31,11 +32,14 @@ public class ConversationController {
     private final UserService userService;
     private final ConversationService conversationService;
     private final SecurityLogging securityLogging;
+    private final ConversationStreamProperties streamProperties;
 
-    public ConversationController(UserService userService, ConversationService conversationService, SecurityLogging securityLogging) {
+    public ConversationController(UserService userService, ConversationService conversationService, SecurityLogging securityLogging,
+                                  ConversationStreamProperties streamProperties) {
         this.userService = userService;
         this.conversationService = conversationService;
         this.securityLogging = securityLogging;
+        this.streamProperties = streamProperties;
     }
 
     @GetMapping("/workspaces")
@@ -101,8 +105,10 @@ public class ConversationController {
     public Flux<ServerSentEvent<String>> askQuestion(@ModelAttribute Question question, Authentication authentication) {
         var userUuid = userService.getUuid(authentication.getName());
         String userToken = UserToken.bearer(authentication);
-        return conversationService.streamAnswer(question.withDefaults(), userUuid)
-                .map(ConversationController::toServerSentEvent)
+        var events = conversationService.streamAnswer(question.withDefaults(), userUuid)
+                .map(ConversationController::toServerSentEvent);
+        // La gateway coupe une connexion inactive (30 s) : le flux peut se taire plus longtemps (approbation, LLM).
+        return SseHeartbeat.withHeartbeat(events, streamProperties.heartbeatInterval())
                 .contextWrite(context -> UserToken.with(context, userToken));
     }
 
