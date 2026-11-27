@@ -8,11 +8,13 @@ import org.springframework.boot.testcontainers.service.connection.ServiceConnect
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.images.builder.ImageFromDockerfile;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import java.nio.file.Path;
+import java.time.Duration;
 
 @TestConfiguration(proxyBeanMethods = false)
 public class LocalConfig {
@@ -36,7 +38,12 @@ public class LocalConfig {
             sharedPostgres = new PostgreSQLContainer(DockerImageName.parse(imageName).asCompatibleSubstituteFor("postgres"))
                     .withDatabaseName("pg_db")
                     .withUsername("admin")
-                    .withPassword("pg_password");
+                    .withPassword("pg_password")
+                    // Pas d'attente sur les logs : sous Podman (Jenkins), la sortie standard du conteneur peut manquer,
+                    // dont le premier « ready to accept connections » (serveur temporaire de l'init) attendu par défaut.
+                    // Le serveur temporaire n'écoute pas en TCP : pg_isready sur 127.0.0.1 attend le serveur final.
+                    .waitingFor(Wait.forSuccessfulCommand("pg_isready -h 127.0.0.1 -p 5432 -U admin -d pg_db")
+                            .withStartupTimeout(Duration.ofMinutes(2)));
         }
         return sharedPostgres;
     }
@@ -44,7 +51,7 @@ public class LocalConfig {
     /**
      * Démarré par Spring Boot ({@code start()} est sans effet s'il tourne déjà). Pas de méthode de destruction : la
      * fermeture d'un contexte ne doit pas l'arrêter pour les autres ; Spring Boot le ferme à l'arrêt des contextes
-     * (fin de la JVM) et Ryuk le supprime en dernier recours.
+     * (fin de la JVM) ; Ryuk, s'il est actif (désactivé sur Jenkins), le supprime en dernier recours.
      */
     @Bean(destroyMethod = "")
     @ServiceConnection
